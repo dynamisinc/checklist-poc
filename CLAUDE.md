@@ -131,20 +131,25 @@ checklist-poc/
 - [x] C5 Design System theme (full Material-UI customization)
 - [x] CORS configuration for local development
 - [x] Swagger API documentation setup
-- [x] Comprehensive documentation (README, UI_PATTERNS, USER-STORIES)
+- [x] Comprehensive documentation (README, UI_PATTERNS, USER-STORIES, CODING_STANDARDS)
+- [x] **Application Insights integration** with Azure CLI setup guide
+- [x] **Mock authentication middleware** (MockUserMiddleware) for POC
+- [x] **Complete DTO layer** (5 DTOs with validation)
+- [x] **Template service layer** (ITemplateService interface + implementation)
+- [x] **TemplatesController** with full CRUD (7 endpoints)
+- [x] **Comprehensive logging** throughout all layers
+- [x] **Seed data** for 3 sample templates (Safety, ICS, Logistics)
 
 ### 🚧 In Progress / Planned
-- [ ] API Controllers (Templates, Checklists, Items)
-- [ ] Service layer implementation
-- [ ] DTOs and AutoMapper configuration
+- [ ] ChecklistsController and ChecklistService (instance management)
+- [ ] ItemsController (item completion, status updates)
 - [ ] SignalR hub for real-time collaboration
-- [ ] Mock authentication middleware
 - [ ] Frontend components (cards, dialogs, forms)
 - [ ] Frontend pages (Template Library, Checklist Detail, etc.)
 - [ ] API service layer (axios clients)
 - [ ] Custom React hooks (useChecklists, useTemplates, useChecklistHub)
 - [ ] Unit and integration tests
-- [ ] Seed data scripts
+- [ ] Additional seed data for checklist instances
 
 ---
 
