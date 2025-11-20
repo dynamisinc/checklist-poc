@@ -23,7 +23,7 @@ import {
   Chip,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faClipboardList, faEdit } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faClipboardList, faEdit, faEye, faCopy } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
 import { templateService } from '../services/templateService';
 import { checklistService, type CreateFromTemplateRequest } from '../services/checklistService';
@@ -217,14 +217,36 @@ export const TemplateLibraryPage: React.FC = () => {
                   </Typography>
                 </CardContent>
 
-                <CardActions sx={{ p: 2, pt: 0, display: 'flex', gap: 1 }}>
+                <CardActions sx={{ p: 2, pt: 0, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<FontAwesomeIcon icon={faEye} />}
+                    onClick={() => navigate(`/templates/${template.id}/preview`)}
+                    sx={{
+                      minHeight: 48, // C5 minimum touch target
+                      flex: '1 1 auto',
+                    }}
+                  >
+                    Preview
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<FontAwesomeIcon icon={faCopy} />}
+                    onClick={() => navigate(`/templates/${template.id}/duplicate`)}
+                    sx={{
+                      minHeight: 48, // C5 minimum touch target
+                      flex: '1 1 auto',
+                    }}
+                  >
+                    Duplicate
+                  </Button>
                   <Button
                     variant="outlined"
                     startIcon={<FontAwesomeIcon icon={faEdit} />}
                     onClick={() => navigate(`/templates/${template.id}/edit`)}
                     sx={{
                       minHeight: 48, // C5 minimum touch target
-                      flex: '0 0 auto',
+                      flex: '1 1 auto',
                     }}
                   >
                     Edit
@@ -236,6 +258,7 @@ export const TemplateLibraryPage: React.FC = () => {
                     onClick={() => handleCreateFromTemplate(template)}
                     sx={{
                       minHeight: 48, // C5 minimum touch target
+                      flex: '1 1 100%', // Take full width on its own row
                     }}
                   >
                     Create Checklist

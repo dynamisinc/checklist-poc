@@ -14,6 +14,7 @@ import { MyChecklistsPage } from './pages/MyChecklistsPage';
 import { ChecklistDetailPage } from './pages/ChecklistDetailPage';
 import { TemplateLibraryPage } from './pages/TemplateLibraryPage';
 import { TemplateEditorPage } from './pages/TemplateEditorPage';
+import { TemplatePreviewPage } from './pages/TemplatePreviewPage';
 import { PositionSelector } from './components/PositionSelector';
 import { c5Colors } from './theme/c5Theme';
 
@@ -125,6 +126,12 @@ function App() {
 
           {/* Create New Template */}
           <Route path="/templates/new" element={<TemplateEditorPage />} />
+
+          {/* Preview Template */}
+          <Route path="/templates/:templateId/preview" element={<TemplatePreviewPage />} />
+
+          {/* Duplicate Template */}
+          <Route path="/templates/:templateId/duplicate" element={<TemplateEditorPage />} />
 
           {/* Edit Existing Template */}
           <Route path="/templates/:templateId/edit" element={<TemplateEditorPage />} />

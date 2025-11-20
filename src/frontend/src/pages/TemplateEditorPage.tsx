@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -66,10 +66,14 @@ const generateTempId = (): string => {
 export const TemplateEditorPage: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
-  const isEditMode = !!templateId;
+  const location = useLocation();
+
+  const isDuplicateMode = location.pathname.includes('/duplicate');
+  const isEditMode = !!templateId && !isDuplicateMode;
+  const shouldLoadTemplate = !!templateId; // Load for both edit and duplicate
 
   // Loading states
-  const [loading, setLoading] = useState(isEditMode);
+  const [loading, setLoading] = useState(shouldLoadTemplate);
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -92,25 +96,27 @@ export const TemplateEditorPage: React.FC = () => {
     })
   );
 
-  // Load template for editing
+  // Load template for editing or duplicating
   useEffect(() => {
-    if (isEditMode && templateId) {
-      loadTemplate(templateId);
+    if (shouldLoadTemplate && templateId) {
+      loadTemplate(templateId, isDuplicateMode);
     }
-  }, [isEditMode, templateId]);
+  }, [shouldLoadTemplate, templateId, isDuplicateMode]);
 
-  const loadTemplate = async (id: string) => {
+  const loadTemplate = async (id: string, isDuplicate: boolean) => {
     try {
       setLoading(true);
       const template = await templateService.getTemplateById(id);
 
-      setName(template.name);
+      // In duplicate mode, append " (Copy)" to name
+      setName(isDuplicate ? `${template.name} (Copy)` : template.name);
       setDescription(template.description || '');
       setCategory(template.category);
 
       // Convert template items to form data
       const formItems: TemplateItemFormData[] = template.items?.map((item) => ({
-        id: item.id,
+        // In duplicate mode, replace IDs with temp IDs so they're treated as new
+        id: isDuplicate ? generateTempId() : item.id,
         itemText: item.itemText,
         itemType: item.itemType,
         displayOrder: item.displayOrder,
@@ -125,6 +131,11 @@ export const TemplateEditorPage: React.FC = () => {
       })) || [];
 
       setItems(formItems);
+
+      // In duplicate mode, auto-expand all items for review
+      if (isDuplicate) {
+        setExpandedItems(new Set(formItems.map(item => item.id)));
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load template');
       navigate('/templates');
@@ -344,7 +355,7 @@ export const TemplateEditorPage: React.FC = () => {
           Back
         </Button>
         <Typography variant="h4">
-          {isEditMode ? 'Edit Template' : 'Create New Template'}
+          {isEditMode ? 'Edit Template' : isDuplicateMode ? 'Duplicate Template' : 'Create New Template'}
         </Typography>
       </Box>
 
