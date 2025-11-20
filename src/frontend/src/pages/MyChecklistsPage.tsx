@@ -10,7 +10,7 @@
  * User Story 2.3: View My Checklists
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -26,6 +26,11 @@ import { useChecklists } from '../hooks/useChecklists';
 import { useOperationalPeriodGrouping } from '../hooks/useOperationalPeriodGrouping';
 import { ChecklistCard } from '../components/ChecklistCard';
 import { SectionHeader } from '../components/SectionHeader';
+import {
+  ChecklistFilters,
+  getCompletionCategory,
+  type CompletionStatusFilter,
+} from '../components/ChecklistFilters';
 
 /**
  * My Checklists Page Component
@@ -34,22 +39,56 @@ export const MyChecklistsPage: React.FC = () => {
   const { checklists, loading, error, fetchMyChecklists } = useChecklists();
   const [showPreviousPeriods, setShowPreviousPeriods] = useState(false);
 
-  // Group checklists by operational period
+  // Filter state
+  const [selectedOperationalPeriod, setSelectedOperationalPeriod] = useState<string | null>(null);
+  const [selectedCompletionStatus, setSelectedCompletionStatus] = useState<CompletionStatusFilter>('all');
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Apply filters to checklists
+  const filteredChecklists = useMemo(() => {
+    let filtered = checklists;
+
+    // Filter by operational period
+    if (selectedOperationalPeriod) {
+      if (selectedOperationalPeriod === 'incident-level') {
+        // Show only incident-level checklists (no operational period)
+        filtered = filtered.filter((c) => !c.operationalPeriodId);
+      } else {
+        // Show only checklists in selected operational period
+        filtered = filtered.filter((c) => c.operationalPeriodId === selectedOperationalPeriod);
+      }
+    }
+
+    // Filter by completion status
+    if (selectedCompletionStatus !== 'all') {
+      filtered = filtered.filter(
+        (c) => getCompletionCategory(Number(c.progressPercentage)) === selectedCompletionStatus
+      );
+    }
+
+    // Filter archived (if not showing archived, exclude them)
+    // Note: Assuming isArchived field exists on ChecklistInstanceDto
+    // If not, we'll need to fetch archived separately
+
+    return filtered;
+  }, [checklists, selectedOperationalPeriod, selectedCompletionStatus]);
+
+  // Group filtered checklists by operational period
   // TODO: Get currentOperationalPeriodId from C5 context when available
   const {
     currentSection,
     incidentSection,
     previousSections,
     totalChecklists,
-  } = useOperationalPeriodGrouping(checklists, {
+  } = useOperationalPeriodGrouping(filteredChecklists, {
     currentOperationalPeriodId: undefined, // Will come from C5 context
     sortPreviousByDate: true,
   });
 
-  // Fetch checklists on mount
+  // Fetch checklists on mount and when showArchived changes
   useEffect(() => {
-    fetchMyChecklists(false);
-  }, [fetchMyChecklists]);
+    fetchMyChecklists(showArchived);
+  }, [fetchMyChecklists, showArchived]);
 
   // Loading state
   if (loading && checklists.length === 0) {
@@ -99,8 +138,24 @@ export const MyChecklistsPage: React.FC = () => {
         <Typography variant="body2" color="text.secondary">
           {totalChecklists} checklist{totalChecklists !== 1 ? 's' : ''} assigned
           to your position
+          {checklists.length !== totalChecklists && (
+            <> ({checklists.length} total, {totalChecklists} matching filters)</>
+          )}
         </Typography>
       </Box>
+
+      {/* Filters */}
+      {checklists.length > 0 && (
+        <ChecklistFilters
+          checklists={checklists}
+          selectedOperationalPeriod={selectedOperationalPeriod}
+          selectedCompletionStatus={selectedCompletionStatus}
+          showArchived={showArchived}
+          onOperationalPeriodChange={setSelectedOperationalPeriod}
+          onCompletionStatusChange={setSelectedCompletionStatus}
+          onShowArchivedChange={setShowArchived}
+        />
+      )}
 
       {/* Current Operational Period Section */}
       {currentSection && (
