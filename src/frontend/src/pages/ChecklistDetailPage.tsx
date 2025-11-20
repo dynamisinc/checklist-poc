@@ -263,11 +263,11 @@ export const ChecklistDetailPage: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <IconButton onClick={() => navigate('/checklists')} sx={{ mr: 2 }}>
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <IconButton onClick={() => navigate('/checklists')} sx={{ mr: 1 }}>
             <FontAwesomeIcon icon={faArrowLeft} />
           </IconButton>
           <Typography variant="h4" sx={{ flexGrow: 1 }}>{checklist.name}</Typography>
@@ -299,60 +299,62 @@ export const ChecklistDetailPage: React.FC = () => {
           </Box>
         </Box>
 
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" color="text.secondary">
           {checklist.eventName}
           {checklist.operationalPeriodName &&
             ` - ${checklist.operationalPeriodName}`}
         </Typography>
+      </Box>
 
-        {/* Progress */}
-        <Box sx={{ mt: 3 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              mb: 1,
-            }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              Overall Progress
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {checklist.completedItems} / {checklist.totalItems} items
-            </Typography>
-          </Box>
-          <LinearProgress
-            variant="determinate"
-            value={Number(checklist.progressPercentage)}
-            sx={{
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: '#E0E0E0',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: getProgressColor(
-                  Number(checklist.progressPercentage)
-                ),
-              },
-            }}
-          />
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mt: 0.5 }}
-          >
-            {Number(checklist.progressPercentage).toFixed(0)}% complete
+      {/* Sticky Progress Bar */}
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 64, // Height of AppBar
+          zIndex: 100,
+          backgroundColor: '#F5F5F5',
+          py: 1.5,
+          mb: 2,
+          borderRadius: 1,
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            mb: 0.5,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+            Progress
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {checklist.completedItems} / {checklist.totalItems} items ({Number(checklist.progressPercentage).toFixed(0)}%)
           </Typography>
         </Box>
+        <LinearProgress
+          variant="determinate"
+          value={Number(checklist.progressPercentage)}
+          sx={{
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: '#E0E0E0',
+            '& .MuiLinearProgress-bar': {
+              backgroundColor: getProgressColor(
+                Number(checklist.progressPercentage)
+              ),
+            },
+          }}
+        />
 
         {checklist.requiredItems > 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Required items: {checklist.requiredItemsCompleted} /{' '}
-            {checklist.requiredItems}
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            Required: {checklist.requiredItemsCompleted} / {checklist.requiredItems}
           </Typography>
         )}
       </Box>
 
-      <Divider sx={{ mb: 3 }} />
+      <Divider sx={{ mb: 2 }} />
 
       {/* Items List */}
       <Typography variant="h5" sx={{ mb: 2 }}>
