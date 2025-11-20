@@ -82,7 +82,13 @@ export const MyChecklistsPage: React.FC = () => {
     return filtered;
   }, [checklists, searchQuery, selectedOperationalPeriod, selectedCompletionStatus]);
 
-  // Group filtered checklists by operational period
+  // Detect if any operational periods exist
+  // If NO periods exist (all checklists have NULL operationalPeriodId), hide grouping
+  const hasOperationalPeriods = useMemo(() => {
+    return checklists.some((c) => c.operationalPeriodId !== null && c.operationalPeriodId !== '');
+  }, [checklists]);
+
+  // Group filtered checklists by operational period (only used if periods exist)
   // TODO: Get currentOperationalPeriodId from C5 context when available
   const {
     currentSection,
@@ -168,8 +174,27 @@ export const MyChecklistsPage: React.FC = () => {
         />
       )}
 
-      {/* Current Operational Period Section */}
-      {currentSection && (
+      {/* NO OPERATIONAL PERIODS - Show flat list without grouping */}
+      {!hasOperationalPeriods && filteredChecklists.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Showing all checklists (no operational periods configured)
+          </Typography>
+          <Grid container spacing={3}>
+            {filteredChecklists.map((checklist) => (
+              <Grid item xs={12} sm={6} md={4} key={checklist.id}>
+                <ChecklistCard checklist={checklist} />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
+      {/* OPERATIONAL PERIODS EXIST - Show grouped sections */}
+      {hasOperationalPeriods && (
+        <>
+          {/* Current Operational Period Section */}
+          {currentSection && (
         <Box sx={{ mb: 4 }}>
           <SectionHeader
             type="current"
@@ -274,20 +299,18 @@ export const MyChecklistsPage: React.FC = () => {
         </Box>
       )}
 
-      {/* Show all checklists in ungrouped view if no sections */}
-      {!currentSection && !incidentSection && previousSections.length === 0 && (
-        <Box>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            All Checklists
-          </Typography>
-          <Grid container spacing={3}>
-            {checklists.map((checklist) => (
-              <Grid item xs={12} sm={6} md={4} key={checklist.id}>
-                <ChecklistCard checklist={checklist} />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+          {/* Empty state when filters applied */}
+          {filteredChecklists.length === 0 && (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <Typography variant="h6" color="text.secondary">
+                No checklists match your filters
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Try adjusting your search or filter criteria
+              </Typography>
+            </Box>
+          )}
+        </>
       )}
     </Container>
   );
