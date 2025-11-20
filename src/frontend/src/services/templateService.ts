@@ -15,12 +15,13 @@ import type { Template } from '../types';
 
 /**
  * Create Template Request
+ * Note: tags must be sent as comma-separated string, not array
  */
 export interface CreateTemplateRequest {
   name: string;
   description: string;
   category: string;
-  tags: string[];
+  tags: string; // Comma-separated string like "tag1, tag2, tag3"
   items: CreateTemplateItemRequest[];
 }
 
@@ -36,12 +37,13 @@ export interface CreateTemplateItemRequest {
 
 /**
  * Update Template Request
+ * Note: tags must be sent as comma-separated string, not array
  */
 export interface UpdateTemplateRequest {
   name: string;
   description: string;
   category: string;
-  tags: string[];
+  tags: string; // Comma-separated string like "tag1, tag2, tag3"
   items: CreateTemplateItemRequest[];
 }
 

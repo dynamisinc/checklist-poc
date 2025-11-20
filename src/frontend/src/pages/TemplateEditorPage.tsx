@@ -284,7 +284,7 @@ export const TemplateEditorPage: React.FC = () => {
         name: name.trim(),
         description: description.trim(),
         category: category as TemplateCategory,
-        tags: [], // TODO: Add tags field if needed
+        tags: '', // Empty string - tags field not yet implemented in UI
         items: items.map((item) => ({
           itemText: item.itemText.trim(),
           itemType: item.itemType,
