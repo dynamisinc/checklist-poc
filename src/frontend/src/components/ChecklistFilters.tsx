@@ -1,15 +1,16 @@
 /**
- * ChecklistFilters Component
+ * ChecklistFilters Component (Option B: Collapsible)
  *
- * Filter controls for My Checklists page:
- * - Operational Period dropdown
- * - Completion Status dropdown (All, Not Started, In Progress, Completed)
- * - Show Archived toggle (optional)
+ * Collapsible filter panel with search-first UX:
+ * - Full-width search bar (always visible)
+ * - Filters hidden behind button with badge showing active count
+ * - Click to expand/collapse filter panel
+ * - "Clear All" button for quick reset
  *
  * Filters are applied client-side for responsive UX.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   FormControl,
@@ -22,9 +23,12 @@ import {
   SelectChangeEvent,
   TextField,
   InputAdornment,
+  Button,
+  Collapse,
+  Paper,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFilter, faSearch, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faFilter, faSearch, faXmark, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import type { ChecklistInstanceDto } from '../services/checklistService';
 
 /**
@@ -87,6 +91,7 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
   onShowArchivedChange,
   onSearchQueryChange,
 }) => {
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const operationalPeriods = getOperationalPeriods(checklists);
 
   // Handle operational period change
@@ -105,18 +110,27 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
     onSearchQueryChange('');
   };
 
-  // Calculate filter counts
+  // Handle clear all filters
+  const handleClearAllFilters = () => {
+    onOperationalPeriodChange(null);
+    onCompletionStatusChange('all');
+    onShowArchivedChange(false);
+    onSearchQueryChange('');
+  };
+
+  // Calculate active filter count (excluding search since it's always visible)
+  const activeFilterCount =
+    (selectedOperationalPeriod !== null ? 1 : 0) +
+    (selectedCompletionStatus !== 'all' ? 1 : 0) +
+    (showArchived ? 1 : 0);
+
+  const hasActiveFilters = activeFilterCount > 0 || searchQuery.length > 0;
   const periodCount = operationalPeriods.length;
-  const hasFilters =
-    selectedOperationalPeriod !== null ||
-    selectedCompletionStatus !== 'all' ||
-    showArchived ||
-    searchQuery.length > 0;
 
   return (
     <Box sx={{ mb: 3 }}>
-      {/* Search bar - full width */}
-      <Box sx={{ mb: 2 }}>
+      {/* Search bar + Filters button (always visible) */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
         <TextField
           fullWidth
           size="small"
@@ -126,7 +140,7 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <FontAwesomeIcon icon={faSearch} style={{ fontSize: '1rem' }} />
+                <FontAwesomeIcon icon={faSearch} style={{ fontSize: '1rem', color: '#666' }} />
               </InputAdornment>
             ),
             endAdornment: searchQuery.length > 0 && (
@@ -137,7 +151,8 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    '&:hover': { opacity: 0.7 },
+                    color: '#666',
+                    '&:hover': { color: '#000' },
                   }}
                 >
                   <FontAwesomeIcon icon={faXmark} style={{ fontSize: '1rem' }} />
@@ -151,87 +166,128 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
             },
           }}
         />
-      </Box>
 
-      {/* Filter controls row */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
-        {/* Filter icon + label */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FontAwesomeIcon icon={faFilter} style={{ fontSize: '1rem' }} />
-          <strong>Filters:</strong>
-          {hasFilters && (
+        {/* Filters button with badge */}
+        <Button
+          variant="outlined"
+          onClick={() => setFiltersExpanded(!filtersExpanded)}
+          startIcon={<FontAwesomeIcon icon={faFilter} />}
+          endIcon={<FontAwesomeIcon icon={filtersExpanded ? faChevronUp : faChevronDown} />}
+          sx={{
+            minWidth: 140,
+            minHeight: 40,
+            whiteSpace: 'nowrap',
+            borderColor: activeFilterCount > 0 ? 'primary.main' : 'grey.400',
+            color: activeFilterCount > 0 ? 'primary.main' : 'text.primary',
+            fontWeight: activeFilterCount > 0 ? 'bold' : 'normal',
+          }}
+        >
+          Filters
+          {activeFilterCount > 0 && (
             <Chip
-              label="Active"
+              label={activeFilterCount}
               size="small"
               color="primary"
-              sx={{ height: 20, fontSize: '0.7rem' }}
+              sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
             />
           )}
-        </Box>
-
-      {/* Operational Period filter */}
-      {periodCount > 0 && (
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel id="period-filter-label">Operational Period</InputLabel>
-          <Select
-            labelId="period-filter-label"
-            value={selectedOperationalPeriod || 'all'}
-            onChange={handlePeriodChange}
-            label="Operational Period"
-          >
-            <MenuItem value="all">
-              <em>All Periods ({checklists.length})</em>
-            </MenuItem>
-            {operationalPeriods.map((period) => (
-              <MenuItem key={period.id} value={period.id}>
-                {period.name}
-              </MenuItem>
-            ))}
-            <MenuItem value="incident-level">
-              <em>Incident-Level (No Period)</em>
-            </MenuItem>
-          </Select>
-        </FormControl>
-      )}
-
-      {/* Completion Status filter */}
-      <FormControl size="small" sx={{ minWidth: 180 }}>
-        <InputLabel id="status-filter-label">Completion Status</InputLabel>
-        <Select
-          labelId="status-filter-label"
-          value={selectedCompletionStatus}
-          onChange={handleStatusChange}
-          label="Completion Status"
-        >
-          <MenuItem value="all">
-            <em>All ({checklists.length})</em>
-          </MenuItem>
-          <MenuItem value="not-started">Not Started (0%)</MenuItem>
-          <MenuItem value="in-progress">In Progress (1-99%)</MenuItem>
-          <MenuItem value="completed">Completed (100%)</MenuItem>
-        </Select>
-      </FormControl>
-
-        {/* Show Archived toggle */}
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showArchived}
-              onChange={(e) => onShowArchivedChange(e.target.checked)}
-              size="small"
-            />
-          }
-          label="Show Archived"
-          sx={{ ml: 1 }}
-        />
+        </Button>
       </Box>
+
+      {/* Collapsible filter panel */}
+      <Collapse in={filtersExpanded}>
+        <Paper
+          elevation={2}
+          sx={{
+            p: 3,
+            backgroundColor: '#FAFAFA',
+            border: '1px solid #E0E0E0',
+            borderRadius: 2,
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            {/* Operational Period filter */}
+            {periodCount > 0 && (
+              <FormControl fullWidth size="small">
+                <InputLabel id="period-filter-label">Operational Period</InputLabel>
+                <Select
+                  labelId="period-filter-label"
+                  value={selectedOperationalPeriod || 'all'}
+                  onChange={handlePeriodChange}
+                  label="Operational Period"
+                  sx={{
+                    backgroundColor: 'white',
+                  }}
+                >
+                  <MenuItem value="all">
+                    <em>All Periods ({checklists.length})</em>
+                  </MenuItem>
+                  {operationalPeriods.map((period) => (
+                    <MenuItem key={period.id} value={period.id}>
+                      {period.name}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value="incident-level">
+                    <em>Incident-Level (No Period)</em>
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            )}
+
+            {/* Completion Status filter */}
+            <FormControl fullWidth size="small">
+              <InputLabel id="status-filter-label">Completion Status</InputLabel>
+              <Select
+                labelId="status-filter-label"
+                value={selectedCompletionStatus}
+                onChange={handleStatusChange}
+                label="Completion Status"
+                sx={{
+                  backgroundColor: 'white',
+                }}
+              >
+                <MenuItem value="all">
+                  <em>All ({checklists.length})</em>
+                </MenuItem>
+                <MenuItem value="not-started">Not Started (0%)</MenuItem>
+                <MenuItem value="in-progress">In Progress (1-99%)</MenuItem>
+                <MenuItem value="completed">Completed (100%)</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Show Archived toggle */}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showArchived}
+                  onChange={(e) => onShowArchivedChange(e.target.checked)}
+                  size="small"
+                />
+              }
+              label="Show Archived Checklists"
+            />
+
+            {/* Action buttons */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+              <Button
+                variant="text"
+                onClick={handleClearAllFilters}
+                disabled={!hasActiveFilters}
+                sx={{ minHeight: 40 }}
+              >
+                Clear All Filters
+              </Button>
+              <Button
+                variant="text"
+                onClick={() => setFiltersExpanded(false)}
+                sx={{ minHeight: 40 }}
+              >
+                Close
+              </Button>
+            </Box>
+          </Box>
+        </Paper>
+      </Collapse>
     </Box>
   );
 };
