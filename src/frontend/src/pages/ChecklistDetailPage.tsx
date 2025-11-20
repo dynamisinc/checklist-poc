@@ -38,6 +38,7 @@ import { ItemNotesDialog } from '../components/ItemNotesDialog';
 import { CreateChecklistDialog, type ChecklistCreationData } from '../components/CreateChecklistDialog';
 import { checklistService } from '../services/checklistService';
 import type { ChecklistItemDto } from '../services/checklistService';
+import type { StatusOption } from '../types';
 
 /**
  * Get progress bar color based on completion percentage
@@ -50,14 +51,18 @@ const getProgressColor = (percentage: number): string => {
 };
 
 /**
- * Parse status options from comma-separated string
+ * Parse status configuration from JSON string
  */
-const parseStatusOptions = (statusOptions?: string | null): string[] => {
-  if (!statusOptions) return [];
-  return statusOptions
-    .split(',')
-    .map((option) => option.trim())
-    .filter((option) => option.length > 0);
+const parseStatusConfiguration = (statusConfiguration?: string | null): StatusOption[] => {
+  if (!statusConfiguration) return [];
+  try {
+    const parsed = JSON.parse(statusConfiguration);
+    // Sort by order
+    return (parsed as StatusOption[]).sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error('Failed to parse status configuration:', error);
+    return [];
+  }
 };
 
 /**
@@ -501,9 +506,22 @@ export const ChecklistDetailPage: React.FC = () => {
                           </MenuItem>
 
                           {/* Available status options */}
-                          {parseStatusOptions(item.statusOptions).map((option) => (
-                            <MenuItem key={option} value={option}>
-                              {option}
+                          {parseStatusConfiguration(item.statusConfiguration).map((option) => (
+                            <MenuItem key={option.label} value={option.label}>
+                              {option.label}
+                              {option.isCompletion && (
+                                <Typography
+                                  component="span"
+                                  sx={{
+                                    ml: 1,
+                                    fontSize: '0.75rem',
+                                    color: c5Colors.successGreen,
+                                    fontWeight: 'bold',
+                                  }}
+                                >
+                                  ✓
+                                </Typography>
+                              )}
                             </MenuItem>
                           ))}
                         </Select>

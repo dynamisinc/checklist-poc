@@ -43,19 +43,19 @@ export interface TemplateItem {
   itemType: ItemType;
   displayOrder: number;
   isRequired: boolean;
-  statusOptions?: StatusOption[]; // Only for dropdown type
-  allowedPositions?: string[]; // Position restrictions (null = all positions)
+  statusConfiguration?: string; // JSON string of StatusOption[] (only for status type)
+  allowedPositions?: string; // JSON string of positions
   defaultNotes?: string;
 }
 
 /**
  * Status option for dropdown items
+ * Matches backend StatusOption model
  */
 export interface StatusOption {
-  value: string;
   label: string;
-  countsAsComplete: boolean; // Does this status count toward progress?
-  displayOrder: number;
+  isCompletion: boolean; // Does this status count toward progress?
+  order: number;
 }
 
 /**
@@ -77,7 +77,7 @@ export enum TemplateCategory {
  */
 export enum ItemType {
   CHECKBOX = 'checkbox',
-  STATUS_DROPDOWN = 'status_dropdown',
+  STATUS = 'status',
 }
 
 // ============================================================================
@@ -128,22 +128,21 @@ export interface ChecklistItem {
   itemType: ItemType;
   displayOrder: number;
   isRequired: boolean;
-  
+
   // Checkbox specific
   isCompleted?: boolean;
   completedBy?: string;
   completedByPosition?: string;
   completedAt?: string;
-  
+
   // Status dropdown specific
   currentStatus?: string;
-  statusOptions?: StatusOption[];
-  statusHistory?: ItemStatusHistory[];
-  
+  statusConfiguration?: string; // JSON string of StatusOption[] (copied from template)
+
   // Common
-  notes: ItemNote[];
-  allowedPositions?: string[];
-  canUserEdit: boolean; // Calculated server-side based on user's position
+  notes?: string; // Notes field from backend
+  allowedPositions?: string; // JSON string of positions
+  createdAt: string;
   lastModifiedBy?: string;
   lastModifiedByPosition?: string;
   lastModifiedAt?: string;
@@ -498,11 +497,11 @@ export interface TemplateItemFormState {
  * Default status options for new dropdown items
  */
 export const DEFAULT_STATUS_OPTIONS: StatusOption[] = [
-  { value: 'not_started', label: 'Not Started', countsAsComplete: false, displayOrder: 0 },
-  { value: 'in_progress', label: 'In Progress', countsAsComplete: false, displayOrder: 1 },
-  { value: 'completed', label: 'Completed', countsAsComplete: true, displayOrder: 2 },
-  { value: 'na', label: 'N/A', countsAsComplete: true, displayOrder: 3 },
-  { value: 'blocked', label: 'Blocked', countsAsComplete: false, displayOrder: 4 },
+  { label: 'Not Started', isCompletion: false, order: 1 },
+  { label: 'In Progress', isCompletion: false, order: 2 },
+  { label: 'Complete', isCompletion: true, order: 3 },
+  { label: 'N/A', isCompletion: true, order: 4 },
+  { label: 'Blocked', isCompletion: false, order: 5 },
 ];
 
 /**

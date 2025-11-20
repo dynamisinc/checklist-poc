@@ -62,10 +62,10 @@ export interface ChecklistItemDto {
 
   // Status fields
   currentStatus?: string;
-  statusOptions?: string; // Comma-separated list
+  statusConfiguration?: string; // JSON string of StatusOption[]
 
   // Common fields
-  allowedPositions?: string; // Comma-separated list
+  allowedPositions?: string; // JSON string or comma-separated list
   notes?: string;
   createdAt: string;
   lastModifiedBy?: string;
