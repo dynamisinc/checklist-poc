@@ -37,7 +37,6 @@ export const MyChecklistsPage: React.FC = () => {
   // Group checklists by operational period
   // TODO: Get currentOperationalPeriodId from C5 context when available
   const {
-    sections,
     currentSection,
     incidentSection,
     previousSections,

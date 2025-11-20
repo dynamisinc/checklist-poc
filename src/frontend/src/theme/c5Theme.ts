@@ -304,25 +304,7 @@ const themeOptions: ThemeOptions = {
         },
       },
     },
-    
-    // Data Grid styling
-    MuiDataGrid: {
-      styleOverrides: {
-        root: {
-          border: `1px solid ${c5Colors.battleshipGray}`,
-          '& .MuiDataGrid-cell:focus': {
-            outline: `2px solid ${c5Colors.cobaltBlue}`,
-          },
-          '& .MuiDataGrid-row.Mui-selected': {
-            backgroundColor: c5Colors.whiteBlue,
-            '&:hover': {
-              backgroundColor: c5Colors.lightBlue,
-            },
-          },
-        },
-      },
-    },
-    
+
     // Dialog styling
     MuiDialog: {
       styleOverrides: {

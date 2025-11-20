@@ -11,12 +11,7 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import {
-  itemService,
-  type UpdateItemCompletionRequest,
-  type UpdateItemStatusRequest,
-  type UpdateItemNotesRequest,
-} from '../services/itemService';
+import { itemService } from '../services/itemService';
 import type { ChecklistItemDto } from '../services/checklistService';
 
 /**
