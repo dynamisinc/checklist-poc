@@ -24,6 +24,10 @@ public class ChecklistServiceTests : IDisposable
     private readonly UserContext _adminUser;
     private Guid _templateId;
 
+    // Test operational period IDs
+    private static readonly Guid TestOpPeriod1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid TestOpPeriodNewId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
     public ChecklistServiceTests()
     {
         _context = TestDbContextFactory.CreateInMemoryContext();
@@ -187,12 +191,12 @@ public class ChecklistServiceTests : IDisposable
         // Act
         var result = await _service.GetChecklistsByOperationalPeriodAsync(
             "EVENT-001",
-            "OP-001",
+            TestOpPeriod1Id,
             includeArchived: false);
 
         // Assert
         Assert.Single(result);
-        Assert.Equal("OP-001", result[0].OperationalPeriodId);
+        Assert.Equal(TestOpPeriod1Id, result[0].OperationalPeriodId);
     }
 
     #endregion
@@ -319,7 +323,7 @@ public class ChecklistServiceTests : IDisposable
             Name = "Updated Name",
             EventId = "EVENT-UPDATED",
             EventName = "Updated Event",
-            OperationalPeriodId = "OP-NEW",
+            OperationalPeriodId = TestOpPeriodNewId,
             OperationalPeriodName = "New Period"
         };
 
@@ -330,7 +334,7 @@ public class ChecklistServiceTests : IDisposable
         Assert.NotNull(result);
         Assert.Equal("Updated Name", result.Name);
         Assert.Equal("EVENT-UPDATED", result.EventId);
-        Assert.Equal("OP-NEW", result.OperationalPeriodId);
+        Assert.Equal(TestOpPeriodNewId, result.OperationalPeriodId);
         Assert.Equal(_testUser.Email, result.LastModifiedBy);
         Assert.Equal(_testUser.Position, result.LastModifiedByPosition);
         Assert.NotNull(result.LastModifiedAt);
@@ -784,7 +788,7 @@ public class ChecklistServiceTests : IDisposable
             TemplateId = _templateId,
             EventId = "EVENT-001",
             EventName = "Test Event",
-            OperationalPeriodId = "OP-001",
+            OperationalPeriodId = TestOpPeriod1Id,
             AssignedPositions = "Safety Officer",
             CreatedBy = "test@test.com",
             CreatedByPosition = "Safety Officer",
