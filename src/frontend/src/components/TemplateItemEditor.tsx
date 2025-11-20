@@ -36,6 +36,7 @@ import {
   faChevronUp,
   faArrowUp,
   faArrowDown,
+  faSave,
 } from '@fortawesome/free-solid-svg-icons';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -64,6 +65,7 @@ interface TemplateItemEditorProps {
   onMoveDown: (id: string) => void;
   isExpanded: boolean;
   onToggleExpand: (id: string) => void;
+  onSaveToLibrary?: (item: TemplateItemFormData) => void;
 }
 
 /**
@@ -79,6 +81,7 @@ export const TemplateItemEditor: React.FC<TemplateItemEditorProps> = ({
   onMoveDown,
   isExpanded,
   onToggleExpand,
+  onSaveToLibrary,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -220,6 +223,20 @@ export const TemplateItemEditor: React.FC<TemplateItemEditorProps> = ({
             <FontAwesomeIcon icon={faArrowDown} size="sm" />
           </IconButton>
         </Box>
+
+        {/* Save to Library Button */}
+        {onSaveToLibrary && (
+          <Box onClick={(e) => e.stopPropagation()}>
+            <IconButton
+              size="small"
+              onClick={() => onSaveToLibrary(item)}
+              sx={{ color: c5Colors.cobaltBlue }}
+              title="Save to library"
+            >
+              <FontAwesomeIcon icon={faSave} />
+            </IconButton>
+          </Box>
+        )}
 
         {/* Delete Button */}
         <Box onClick={(e) => e.stopPropagation()}>

@@ -32,7 +32,7 @@ import {
   Divider,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faPlus, faSave } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faPlus, faSave, faBoxArchive } from '@fortawesome/free-solid-svg-icons';
 import {
   DndContext,
   closestCenter,
@@ -50,8 +50,11 @@ import {
 } from '@dnd-kit/sortable';
 import { toast } from 'react-toastify';
 import { TemplateItemEditor, type TemplateItemFormData } from '../components/TemplateItemEditor';
-import { ItemType, TemplateCategory } from '../types';
+import { AddFromLibraryDialog } from '../components/AddFromLibraryDialog';
+import { SaveToLibraryDialog } from '../components/SaveToLibraryDialog';
+import { ItemType, TemplateCategory, type ItemLibraryEntry } from '../types';
 import { templateService } from '../services/templateService';
+import { itemLibraryService } from '../services/itemLibraryService';
 
 /**
  * Generate a temporary ID for new items
@@ -84,6 +87,11 @@ export const TemplateEditorPage: React.FC = () => {
 
   // UI state
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  // Library dialog state
+  const [addFromLibraryOpen, setAddFromLibraryOpen] = useState(false);
+  const [saveToLibraryOpen, setSaveToLibraryOpen] = useState(false);
+  const [itemToSaveToLibrary, setItemToSaveToLibrary] = useState<TemplateItemFormData | null>(null);
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -228,6 +236,52 @@ export const TemplateEditorPage: React.FC = () => {
 
   const handleCollapseAll = () => {
     setExpandedItems(new Set());
+  };
+
+  const handleAddFromLibrary = (libraryItems: ItemLibraryEntry[]) => {
+    // Convert library items to template items
+    const newItems: TemplateItemFormData[] = libraryItems.map((libItem) => ({
+      id: generateTempId(),
+      itemText: libItem.itemText,
+      itemType: libItem.itemType as ItemType,
+      displayOrder: (items.length + libraryItems.indexOf(libItem) + 1) * 10,
+      isRequired: libItem.isRequiredByDefault,
+      statusConfiguration: libItem.statusConfiguration
+        ? JSON.parse(libItem.statusConfiguration)
+        : [],
+      allowedPositions: libItem.allowedPositions ? JSON.parse(libItem.allowedPositions) : [],
+      defaultNotes: libItem.defaultNotes || '',
+    }));
+
+    // Add to items list
+    setItems([...items, ...newItems]);
+
+    // Auto-expand new items
+    const newItemIds = newItems.map((item) => item.id);
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      newItemIds.forEach((id) => next.add(id));
+      return next;
+    });
+
+    // Increment usage count for each library item
+    libraryItems.forEach((libItem) => {
+      itemLibraryService.incrementUsageCount(libItem.id).catch((err) => {
+        console.error('Failed to increment usage count:', err);
+      });
+    });
+
+    toast.success(`Added ${libraryItems.length} item${libraryItems.length > 1 ? 's' : ''} from library`);
+  };
+
+  const handleSaveToLibrary = (item: TemplateItemFormData) => {
+    setItemToSaveToLibrary(item);
+    setSaveToLibraryOpen(true);
+  };
+
+  const handleSavedToLibrary = () => {
+    // Refresh could happen here if needed
+    toast.success('Item saved to library!');
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -469,31 +523,52 @@ export const TemplateEditorPage: React.FC = () => {
                   onMoveDown={handleMoveDown}
                   isExpanded={expandedItems.has(item.id)}
                   onToggleExpand={handleToggleExpand}
+                  onSaveToLibrary={handleSaveToLibrary}
                 />
               ))}
             </SortableContext>
           </DndContext>
         )}
 
-        {/* Add Item Button */}
-        <Button
-          variant="outlined"
-          size="large"
-          fullWidth
-          startIcon={<FontAwesomeIcon icon={faPlus} />}
-          onClick={handleAddItem}
-          sx={{
-            py: 2,
-            borderStyle: 'dashed',
-            borderWidth: 2,
-            '&:hover': {
+        {/* Add Item Buttons */}
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            size="large"
+            fullWidth
+            startIcon={<FontAwesomeIcon icon={faPlus} />}
+            onClick={handleAddItem}
+            sx={{
+              py: 2,
               borderStyle: 'dashed',
               borderWidth: 2,
-            },
-          }}
-        >
-          Add Item
-        </Button>
+              '&:hover': {
+                borderStyle: 'dashed',
+                borderWidth: 2,
+              },
+            }}
+          >
+            Add Item
+          </Button>
+          <Button
+            variant="outlined"
+            size="large"
+            fullWidth
+            startIcon={<FontAwesomeIcon icon={faBoxArchive} />}
+            onClick={() => setAddFromLibraryOpen(true)}
+            sx={{
+              py: 2,
+              borderStyle: 'dashed',
+              borderWidth: 2,
+              '&:hover': {
+                borderStyle: 'dashed',
+                borderWidth: 2,
+              },
+            }}
+          >
+            Add from Library
+          </Button>
+        </Box>
       </Box>
 
       <Divider sx={{ my: 3 }} />
@@ -512,6 +587,26 @@ export const TemplateEditorPage: React.FC = () => {
           {saving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Template'}
         </Button>
       </Box>
+
+      {/* Add from Library Dialog */}
+      <AddFromLibraryDialog
+        open={addFromLibraryOpen}
+        onClose={() => setAddFromLibraryOpen(false)}
+        onAdd={handleAddFromLibrary}
+      />
+
+      {/* Save to Library Dialog */}
+      {itemToSaveToLibrary && (
+        <SaveToLibraryDialog
+          open={saveToLibraryOpen}
+          onClose={() => {
+            setSaveToLibraryOpen(false);
+            setItemToSaveToLibrary(null);
+          }}
+          onSaved={handleSavedToLibrary}
+          itemData={itemToSaveToLibrary}
+        />
+      )}
     </Container>
   );
 };
