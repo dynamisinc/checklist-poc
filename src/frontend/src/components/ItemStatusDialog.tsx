@@ -28,6 +28,8 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faListCheck } from '@fortawesome/free-solid-svg-icons';
+import type { StatusOption } from '../types';
+import { c5Colors } from '../theme/c5Theme';
 
 /**
  * Props for ItemStatusDialog
@@ -36,21 +38,25 @@ interface ItemStatusDialogProps {
   open: boolean;
   itemText: string;
   currentStatus?: string | null;
-  statusOptions?: string | null; // Comma-separated list
+  statusConfiguration?: string | null; // JSON string of StatusOption[]
   onSave: (status: string) => Promise<void>;
   onCancel: () => void;
   saving?: boolean;
 }
 
 /**
- * Parse status options from comma-separated string
+ * Parse status configuration from JSON string
  */
-const parseStatusOptions = (statusOptions?: string | null): string[] => {
-  if (!statusOptions) return [];
-  return statusOptions
-    .split(',')
-    .map((option) => option.trim())
-    .filter((option) => option.length > 0);
+const parseStatusConfiguration = (statusConfiguration?: string | null): StatusOption[] => {
+  if (!statusConfiguration) return [];
+  try {
+    const parsed = JSON.parse(statusConfiguration);
+    // Sort by order
+    return (parsed as StatusOption[]).sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error('Failed to parse status configuration:', error);
+    return [];
+  }
 };
 
 /**
@@ -60,7 +66,7 @@ export const ItemStatusDialog: React.FC<ItemStatusDialogProps> = ({
   open,
   itemText,
   currentStatus,
-  statusOptions,
+  statusConfiguration,
   onSave,
   onCancel,
   saving = false,
@@ -69,7 +75,7 @@ export const ItemStatusDialog: React.FC<ItemStatusDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Parse available options
-  const availableOptions = parseStatusOptions(statusOptions);
+  const availableOptions = parseStatusConfiguration(statusConfiguration);
   const hasOptions = availableOptions.length > 0;
 
   // Initialize selected status when dialog opens
@@ -89,7 +95,7 @@ export const ItemStatusDialog: React.FC<ItemStatusDialogProps> = ({
     }
 
     // Validate status is in allowed options
-    if (hasOptions && !availableOptions.includes(selectedStatus)) {
+    if (hasOptions && !availableOptions.some(opt => opt.label === selectedStatus)) {
       setError(
         `"${selectedStatus}" is not a valid status option. Please select from the dropdown.`
       );
@@ -177,7 +183,7 @@ export const ItemStatusDialog: React.FC<ItemStatusDialogProps> = ({
             }}
           >
             {/* Show current status if it's not in options */}
-            {currentStatus && !availableOptions.includes(currentStatus) && (
+            {currentStatus && !availableOptions.some(opt => opt.label === currentStatus) && (
               <MenuItem value={currentStatus}>
                 {currentStatus} (current)
               </MenuItem>
@@ -185,8 +191,21 @@ export const ItemStatusDialog: React.FC<ItemStatusDialogProps> = ({
 
             {/* Show available options */}
             {availableOptions.map((option) => (
-              <MenuItem key={option} value={option}>
-                {option}
+              <MenuItem key={option.label} value={option.label}>
+                {option.label}
+                {option.isCompletion && (
+                  <Typography
+                    component="span"
+                    sx={{
+                      ml: 1,
+                      fontSize: '0.75rem',
+                      color: c5Colors.successGreen,
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    ✓
+                  </Typography>
+                )}
               </MenuItem>
             ))}
 
