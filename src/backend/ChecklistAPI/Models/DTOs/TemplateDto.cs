@@ -102,6 +102,18 @@ public record TemplateDto
     public DateTime? LastModifiedAt { get; init; }
 
     /// <summary>
+    /// User who archived this template
+    /// Null if not archived
+    /// </summary>
+    public string? ArchivedBy { get; init; }
+
+    /// <summary>
+    /// When this template was archived (UTC)
+    /// Null if not archived
+    /// </summary>
+    public DateTime? ArchivedAt { get; init; }
+
+    /// <summary>
     /// Collection of items in this template
     /// Ordered by DisplayOrder
     /// </summary>

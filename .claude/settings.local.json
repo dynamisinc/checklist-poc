@@ -15,7 +15,21 @@
       "Bash(rm:*)",
       "Bash(/dev/null)",
       "Bash(dotnet test:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git fetch:*)",
+      "Bash(dotnet build:*)",
+      "Bash(powershell.exe -Command '$PSVersionTable.PSVersion')",
+      "Bash(nul)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(pwsh:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(Select-String -Pattern \"(Test 3:)|(Position filtering)|(PASS|FAIL).*Position\" -Context 0,2)",
+      "Bash($env:Logging__LogLevel__Default=\"Debug\")",
+      "Bash(timeout /t 6 /nobreak)",
+      "Bash(gh issue list:*)",
+      "Bash(timeout /t 2 /nobreak)",
+      "Bash(Select-String -Pattern \"(Test 8:)|(Test 9:)|(Looking for)|(IDs in)|(Comparing)|(PASS|FAIL).*(Archived|Restored)\" -Context 0,2)"
     ],
     "deny": [],
     "ask": []

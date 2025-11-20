@@ -411,6 +411,8 @@ public class TemplateService : ITemplateService
             LastModifiedBy = template.LastModifiedBy,
             LastModifiedByPosition = template.LastModifiedByPosition,
             LastModifiedAt = template.LastModifiedAt,
+            ArchivedBy = template.ArchivedBy,
+            ArchivedAt = template.ArchivedAt,
             Items = template.Items.OrderBy(i => i.DisplayOrder).Select(MapItemToDto).ToList()
         };
     }

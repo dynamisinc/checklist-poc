@@ -586,8 +586,8 @@ function Test-ArchiveTemplate {
     Invoke-ApiRequest -Method DELETE -Endpoint "/api/templates/$invalidId" -ExpectedStatusCode 404
     Write-TestPass "Invalid ID correctly returns 404"
 
-    # Return template ID for admin tests
-    return $templateId
+    # Return template ID for admin tests (trimmed to avoid whitespace issues)
+    return $templateId.Trim()
 }
 
 # ============================================================================
@@ -596,6 +596,9 @@ function Test-ArchiveTemplate {
 
 function Test-GetArchivedTemplates {
     param([string]$ArchivedTemplateId)
+
+    # Trim any whitespace from the parameter
+    $ArchivedTemplateId = $ArchivedTemplateId.Trim()
 
     Write-TestHeader "Test 8: GET /api/templates/archived - Get Archived Templates (Admin)"
 
@@ -645,6 +648,9 @@ function Test-GetArchivedTemplates {
 
             # Should contain the archived template
             if ($ArchivedTemplateId) {
+                Write-TestInfo "Looking for archived template ID: $ArchivedTemplateId in $($adminResponse.Count) archived templates"
+                Write-TestInfo "IDs in archived list: $($adminResponse.id -join ', ')"
+                Write-TestInfo "Comparing '$($adminResponse[0].id)' (type: $($adminResponse[0].id.GetType().Name)) with '$ArchivedTemplateId' (type: $($ArchivedTemplateId.GetType().Name))"
                 $found = $adminResponse | Where-Object { $_.id -eq $ArchivedTemplateId }
                 if ($found) {
                     Write-TestPass "Archived template found in archived list"
@@ -652,8 +658,11 @@ function Test-GetArchivedTemplates {
                     Test-PropertyExists -Object $found -PropertyName "archivedAt" -TestName "Archived template has archivedAt"
                 }
                 else {
-                    Write-TestFail "Archived template not found in archived list"
+                    Write-TestFail "Archived template not found in archived list (searched for $ArchivedTemplateId)"
                 }
+            }
+            else {
+                Write-TestInfo "No ArchivedTemplateId provided - skipping archived template verification"
             }
         }
         else {
@@ -671,6 +680,9 @@ function Test-GetArchivedTemplates {
 
 function Test-RestoreTemplate {
     param([string]$ArchivedTemplateId)
+
+    # Trim any whitespace from the parameter
+    $ArchivedTemplateId = $ArchivedTemplateId.Trim()
 
     Write-TestHeader "Test 9: POST /api/templates/{id}/restore - Restore Template (Admin)"
 
@@ -727,13 +739,16 @@ function Test-RestoreTemplate {
         $activeTemplates = Invoke-ApiRequest -Method GET -Endpoint "/api/templates"
 
         if ($activeTemplates) {
+            Write-TestInfo "Looking for restored template ID: $ArchivedTemplateId in $($activeTemplates.Count) active templates"
+            Write-TestInfo "First 5 IDs in active list: $($activeTemplates[0..4].id -join ', ')"
             $found = $activeTemplates | Where-Object { $_.id -eq $ArchivedTemplateId }
 
             if ($found) {
                 Write-TestPass "Restored template now appears in active templates list"
+                Write-TestInfo "Template isArchived=$($found.isArchived)"
             }
             else {
-                Write-TestFail "Restored template not found in active list"
+                Write-TestFail "Restored template not found in active list (searched for $ArchivedTemplateId)"
             }
         }
     }
