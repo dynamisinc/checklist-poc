@@ -24,11 +24,12 @@ import {
   IconButton,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faNoteSticky } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faNoteSticky, faListCheck } from '@fortawesome/free-solid-svg-icons';
 import { useChecklistDetail } from '../hooks/useChecklistDetail';
 import { useItemActions } from '../hooks/useItemActions';
 import { c5Colors } from '../theme/c5Theme';
 import { ItemNotesDialog } from '../components/ItemNotesDialog';
+import { ItemStatusDialog } from '../components/ItemStatusDialog';
 import type { ChecklistItemDto } from '../services/checklistService';
 
 /**
@@ -54,11 +55,15 @@ export const ChecklistDetailPage: React.FC = () => {
     fetchChecklist,
     updateItemLocally,
   } = useChecklistDetail();
-  const { toggleComplete, updateNotes, isProcessing } = useItemActions();
+  const { toggleComplete, updateNotes, updateStatus, isProcessing } = useItemActions();
 
   // Notes dialog state
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ChecklistItemDto | null>(null);
+
+  // Status dialog state
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [editingStatusItem, setEditingStatusItem] = useState<ChecklistItemDto | null>(null);
 
   // Fetch checklist on mount
   useEffect(() => {
@@ -112,6 +117,39 @@ export const ChecklistDetailPage: React.FC = () => {
     if (updatedItem) {
       // Success - close dialog
       handleCloseNotesDialog();
+
+      // Refresh checklist to ensure we have latest data
+      fetchChecklist(checklistId);
+    }
+  };
+
+  // Handle open status dialog
+  const handleOpenStatusDialog = (item: ChecklistItemDto) => {
+    setEditingStatusItem(item);
+    setStatusDialogOpen(true);
+  };
+
+  // Handle close status dialog
+  const handleCloseStatusDialog = () => {
+    setStatusDialogOpen(false);
+    setEditingStatusItem(null);
+  };
+
+  // Handle save status
+  const handleSaveStatus = async (status: string) => {
+    if (!checklistId || !editingStatusItem) return;
+
+    const updatedItem = await updateStatus(
+      checklistId,
+      editingStatusItem.id,
+      status,
+      undefined, // notes - not changing notes here
+      updateItemLocally
+    );
+
+    if (updatedItem) {
+      // Success - close dialog
+      handleCloseStatusDialog();
 
       // Refresh checklist to ensure we have latest data
       fetchChecklist(checklistId);
@@ -375,22 +413,46 @@ export const ChecklistDetailPage: React.FC = () => {
                       )}
                     </Box>
 
-                    {/* Add/Edit Note button */}
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<FontAwesomeIcon icon={faNoteSticky} />}
-                      onClick={() => handleOpenNotesDialog(item)}
-                      disabled={isProcessing(item.id)}
+                    {/* Action buttons */}
+                    <Box
                       sx={{
-                        minWidth: 120,
-                        minHeight: 48,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 1,
                         flexShrink: 0,
                         alignSelf: 'flex-start',
                       }}
                     >
-                      {item.notes ? 'Edit Note' : 'Add Note'}
-                    </Button>
+                      {/* Update Status button */}
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<FontAwesomeIcon icon={faListCheck} />}
+                        onClick={() => handleOpenStatusDialog(item)}
+                        disabled={isProcessing(item.id)}
+                        sx={{
+                          minWidth: 140,
+                          minHeight: 48,
+                        }}
+                      >
+                        Update Status
+                      </Button>
+
+                      {/* Add/Edit Note button */}
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<FontAwesomeIcon icon={faNoteSticky} />}
+                        onClick={() => handleOpenNotesDialog(item)}
+                        disabled={isProcessing(item.id)}
+                        sx={{
+                          minWidth: 140,
+                          minHeight: 48,
+                        }}
+                      >
+                        {item.notes ? 'Edit Note' : 'Add Note'}
+                      </Button>
+                    </Box>
                   </>
                 )}
               </Box>
@@ -408,6 +470,19 @@ export const ChecklistDetailPage: React.FC = () => {
           onSave={handleSaveNotes}
           onCancel={handleCloseNotesDialog}
           saving={isProcessing(editingItem.id)}
+        />
+      )}
+
+      {/* Status Dialog */}
+      {editingStatusItem && (
+        <ItemStatusDialog
+          open={statusDialogOpen}
+          itemText={editingStatusItem.itemText}
+          currentStatus={editingStatusItem.currentStatus}
+          statusOptions={editingStatusItem.statusOptions}
+          onSave={handleSaveStatus}
+          onCancel={handleCloseStatusDialog}
+          saving={isProcessing(editingStatusItem.id)}
         />
       )}
     </Container>
