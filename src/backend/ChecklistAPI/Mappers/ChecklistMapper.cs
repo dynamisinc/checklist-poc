@@ -90,7 +90,7 @@ public static class ChecklistMapper
             CompletedByPosition = item.CompletedByPosition,
             CompletedAt = item.CompletedAt,
             CurrentStatus = item.CurrentStatus,
-            StatusOptions = item.StatusOptions,
+            StatusConfiguration = item.StatusConfiguration,
             AllowedPositions = item.AllowedPositions,
             Notes = item.Notes,
             CreatedAt = item.CreatedAt,

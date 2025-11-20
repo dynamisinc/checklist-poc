@@ -76,8 +76,10 @@ public static class TemplateMapper
             ItemText = item.ItemText,
             ItemType = item.ItemType,
             DisplayOrder = item.DisplayOrder,
-            StatusOptions = item.StatusOptions,
-            Notes = item.DefaultNotes
+            IsRequired = item.IsRequired,
+            StatusConfiguration = item.StatusConfiguration,
+            AllowedPositions = item.AllowedPositions,
+            DefaultNotes = item.DefaultNotes
         };
     }
 }

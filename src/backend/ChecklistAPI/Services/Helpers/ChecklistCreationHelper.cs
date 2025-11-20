@@ -86,7 +86,7 @@ public static class ChecklistCreationHelper
                 ItemType = templateItem.ItemType,
                 DisplayOrder = templateItem.DisplayOrder,
                 IsRequired = templateItem.IsRequired,
-                StatusOptions = templateItem.StatusOptions,
+                StatusConfiguration = templateItem.StatusConfiguration,
                 AllowedPositions = templateItem.AllowedPositions,
                 CreatedAt = DateTime.UtcNow
             });
@@ -161,7 +161,7 @@ public static class ChecklistCreationHelper
                 ItemType = item.ItemType,
                 DisplayOrder = item.DisplayOrder,
                 IsRequired = item.IsRequired,
-                StatusOptions = item.StatusOptions,
+                StatusConfiguration = item.StatusConfiguration,
                 AllowedPositions = item.AllowedPositions,
                 CreatedAt = DateTime.UtcNow
             };

@@ -15,12 +15,13 @@ namespace ChecklistAPI.Models.DTOs;
 ///   Items are sorted by DisplayOrder when presenting to users.
 ///   Lower numbers appear first (10, 20, 30...).
 ///
-/// Status Options (for "status" type):
-///   Stored as JSON array: ["Not Started", "In Progress", "Completed", "N/A"]
+/// Status Configuration (for "status" type):
+///   Stored as JSON array with completion flags:
+///   [{"label":"Not Started","isCompletion":false,"order":1}, ...]
 ///   Null for "checkbox" type items.
 ///
 /// Author: Checklist POC Team
-/// Last Modified: 2025-11-19
+/// Last Modified: 2025-11-20
 /// </summary>
 public record TemplateItemDto
 {
@@ -51,15 +52,25 @@ public record TemplateItemDto
     public int DisplayOrder { get; init; }
 
     /// <summary>
-    /// For "status" type items: JSON array of status options
-    /// Example: ["Not Started", "In Progress", "Completed", "Blocked"]
-    /// Null for "checkbox" type items
+    /// Whether this item is required to complete the checklist
     /// </summary>
-    public string? StatusOptions { get; init; }
+    public bool IsRequired { get; init; }
 
     /// <summary>
-    /// Optional notes/instructions for this item
-    /// Example: "Check with logistics coordinator before marking complete"
+    /// For "status" type items: JSON array of status options with completion flags
+    /// Example: [{"label":"Complete","isCompletion":true,"order":1}, ...]
+    /// Null for "checkbox" type items
     /// </summary>
-    public string? Notes { get; init; }
+    public string? StatusConfiguration { get; init; }
+
+    /// <summary>
+    /// Positions allowed to interact with this item (JSON array)
+    /// Null means all positions allowed
+    /// </summary>
+    public string? AllowedPositions { get; init; }
+
+    /// <summary>
+    /// Optional default notes/instructions for this item
+    /// </summary>
+    public string? DefaultNotes { get; init; }
 }

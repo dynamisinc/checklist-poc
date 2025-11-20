@@ -41,7 +41,8 @@ public class ChecklistDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ItemText).IsRequired().HasMaxLength(500);
             entity.Property(e => e.ItemType).IsRequired().HasMaxLength(20);
-            
+            entity.Property(e => e.StatusConfiguration).HasColumnType("nvarchar(max)");
+
             entity.HasIndex(e => new { e.TemplateId, e.DisplayOrder });
         });
         
@@ -74,6 +75,7 @@ public class ChecklistDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ItemText).IsRequired().HasMaxLength(500);
             entity.Property(e => e.ItemType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.StatusConfiguration).HasColumnType("nvarchar(max)");
             entity.Property(e => e.Notes).HasMaxLength(2000);
 
             entity.HasIndex(e => new { e.ChecklistInstanceId, e.DisplayOrder });

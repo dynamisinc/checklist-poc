@@ -20,8 +20,8 @@ namespace ChecklistAPI.Models.DTOs;
 ///
 /// Status Type Fields:
 ///   - CurrentStatus: Selected status value
-///   - StatusOptions: JSON array of available statuses
-///   - Example: ["Not Started", "In Progress", "Complete"]
+///   - StatusConfiguration: JSON array of status options with completion flags
+///   - Example: [{"label":"Complete","isCompletion":true,"order":1}, ...]
 ///
 /// Position-Based Access:
 ///   - AllowedPositions: Comma-separated list of positions that can modify item
@@ -105,10 +105,10 @@ public record ChecklistItemDto
     public string? CurrentStatus { get; init; }
 
     /// <summary>
-    /// JSON array of available status options (status items only)
-    /// Example: "[\"Not Started\", \"In Progress\", \"Complete\"]"
+    /// JSON configuration of status options with completion flags (status items only)
+    /// Example: "[{\"label\":\"Complete\",\"isCompletion\":true,\"order\":1}, ...]"
     /// </summary>
-    public string? StatusOptions { get; init; }
+    public string? StatusConfiguration { get; init; }
 
     /// <summary>
     /// Comma-separated list of positions allowed to modify this item

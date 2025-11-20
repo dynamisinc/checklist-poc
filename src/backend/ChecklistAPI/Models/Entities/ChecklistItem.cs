@@ -18,7 +18,14 @@ public class ChecklistItem
     
     // Status dropdown fields
     public string? CurrentStatus { get; set; }
-    public string? StatusOptions { get; set; }
+
+    /// <summary>
+    /// JSON configuration for status options (only used when ItemType = "status")
+    /// Copied from TemplateItem when checklist instance is created
+    /// Format: [{"label":"Not Started","isCompletion":false,"order":1}, ...]
+    /// </summary>
+    public string? StatusConfiguration { get; set; }
+
     public string? AllowedPositions { get; set; }
 
     // Notes
