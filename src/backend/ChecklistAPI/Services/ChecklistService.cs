@@ -317,6 +317,7 @@ public class ChecklistService : IChecklistService
     public async Task<ChecklistInstanceDto?> CloneChecklistAsync(
         Guid id,
         string newName,
+        bool preserveStatus,
         UserContext userContext)
     {
         try
@@ -326,6 +327,7 @@ public class ChecklistService : IChecklistService
                 _logger,
                 id,
                 newName,
+                preserveStatus,
                 userContext);
 
             _context.ChecklistInstances.Add(clone);

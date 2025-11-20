@@ -146,14 +146,16 @@ public interface IChecklistService
     /// <summary>
     /// Clone an existing checklist with a new name
     /// Useful for creating similar checklists for different operational periods
-    /// Copies all items with their current completion status reset
+    /// Supports both "clean copy" (reset status) and "direct copy" (preserve status)
     /// </summary>
     /// <param name="id">Checklist ID to clone</param>
     /// <param name="newName">Name for the cloned checklist</param>
+    /// <param name="preserveStatus">If true, preserves completion status and notes; if false, resets to fresh checklist</param>
     /// <param name="userContext">Current user context for audit trail</param>
     /// <returns>Newly created cloned checklist</returns>
     Task<ChecklistInstanceDto?> CloneChecklistAsync(
         Guid id,
         string newName,
+        bool preserveStatus,
         UserContext userContext);
 }

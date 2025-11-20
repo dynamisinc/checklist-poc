@@ -106,19 +106,22 @@ public static class ChecklistCreationHelper
 
     /// <summary>
     /// Clones an existing checklist with a new name
-    /// Resets all completion status
+    /// Supports both "clean copy" (reset status) and "direct copy" (preserve status)
     /// </summary>
+    /// <param name="preserveStatus">If true, preserves completion status and notes; if false, resets to fresh checklist</param>
     public static async Task<ChecklistInstance> CloneChecklistAsync(
         ChecklistDbContext context,
         ILogger logger,
         Guid checklistId,
         string newName,
+        bool preserveStatus,
         UserContext userContext)
     {
         logger.LogInformation(
-            "Cloning checklist {ChecklistId} as '{NewName}'",
+            "Cloning checklist {ChecklistId} as '{NewName}' ({Mode})",
             checklistId,
-            newName);
+            newName,
+            preserveStatus ? "direct copy" : "clean copy");
 
         var original = await context.ChecklistInstances
             .Include(c => c.Items)
@@ -146,10 +149,10 @@ public static class ChecklistCreationHelper
             CreatedAt = DateTime.UtcNow
         };
 
-        // Copy items (reset completion status)
+        // Copy items
         foreach (var item in original.Items)
         {
-            clone.Items.Add(new ChecklistItem
+            var newItem = new ChecklistItem
             {
                 Id = Guid.NewGuid(),
                 ChecklistInstanceId = clone.Id,
@@ -161,16 +164,47 @@ public static class ChecklistCreationHelper
                 StatusOptions = item.StatusOptions,
                 AllowedPositions = item.AllowedPositions,
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+
+            // Preserve status if requested (direct copy)
+            if (preserveStatus)
+            {
+                newItem.IsCompleted = item.IsCompleted;
+                newItem.CompletedAt = item.CompletedAt;
+                newItem.CompletedBy = item.CompletedBy;
+                newItem.CompletedByPosition = item.CompletedByPosition;
+                newItem.CurrentStatus = item.CurrentStatus;
+                newItem.Notes = item.Notes;
+                newItem.LastModifiedAt = item.LastModifiedAt;
+                newItem.LastModifiedBy = item.LastModifiedBy;
+                newItem.LastModifiedByPosition = item.LastModifiedByPosition;
+            }
+            // Otherwise reset (clean copy) - already done by default
+
+            clone.Items.Add(newItem);
         }
 
-        // Initialize progress tracking
-        InitializeProgress(clone);
+        // Initialize or copy progress tracking
+        if (preserveStatus)
+        {
+            // Copy progress from original
+            clone.TotalItems = original.TotalItems;
+            clone.CompletedItems = original.CompletedItems;
+            clone.RequiredItems = original.RequiredItems;
+            clone.RequiredItemsCompleted = original.RequiredItemsCompleted;
+            clone.ProgressPercentage = original.ProgressPercentage;
+        }
+        else
+        {
+            // Initialize fresh progress
+            InitializeProgress(clone);
+        }
 
         logger.LogInformation(
-            "Cloned checklist {OriginalId} to {NewId}",
+            "Cloned checklist {OriginalId} to {NewId} with {ItemCount} items",
             checklistId,
-            clone.Id);
+            clone.Id,
+            clone.Items.Count);
 
         return clone;
     }

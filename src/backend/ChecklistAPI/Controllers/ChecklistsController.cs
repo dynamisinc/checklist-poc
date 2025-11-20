@@ -296,9 +296,10 @@ public class ChecklistsController : ControllerBase
 
     /// <summary>
     /// Clone an existing checklist with a new name
+    /// Supports both "clean copy" (reset status) and "direct copy" (preserve status)
     /// </summary>
     /// <param name="id">Checklist ID to clone</param>
-    /// <param name="request">New name for clone</param>
+    /// <param name="request">Clone configuration (name, preserve status)</param>
     /// <returns>Newly created cloned checklist</returns>
     [HttpPost("{id:guid}/clone")]
     [ProducesResponseType(StatusCodes.Status201Created)]
@@ -315,7 +316,11 @@ public class ChecklistsController : ControllerBase
 
         var userContext = GetUserContext();
 
-        var clone = await _checklistService.CloneChecklistAsync(id, request.NewName, userContext);
+        var clone = await _checklistService.CloneChecklistAsync(
+            id,
+            request.NewName,
+            request.PreserveStatus,
+            userContext);
 
         if (clone == null)
         {
@@ -324,9 +329,10 @@ public class ChecklistsController : ControllerBase
         }
 
         _logger.LogInformation(
-            "Checklist {ChecklistId} cloned to {NewId} by {User}",
+            "Checklist {ChecklistId} cloned to {NewId} ({Mode}) by {User}",
             id,
             clone.Id,
+            request.PreserveStatus ? "direct copy" : "clean copy",
             userContext.Email);
 
         return CreatedAtAction(
@@ -367,4 +373,11 @@ public record CloneChecklistRequest
     /// New name for the cloned checklist
     /// </summary>
     public string NewName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Whether to preserve completion status and notes from original (default: false)
+    /// - false: "Clean copy" - resets all completion, status, notes (fresh start)
+    /// - true: "Direct copy" - preserves completion status, notes, timestamps
+    /// </summary>
+    public bool PreserveStatus { get; init; } = false;
 }
