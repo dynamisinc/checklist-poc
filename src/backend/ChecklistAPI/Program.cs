@@ -25,6 +25,10 @@ builder.Services.AddDbContext<ChecklistDbContext>(options =>
 builder.Services.AddScoped<ITemplateService, TemplateService>();
 builder.Services.AddScoped<IChecklistService, ChecklistService>();
 builder.Services.AddScoped<IChecklistItemService, ChecklistItemService>();
+builder.Services.AddScoped<IItemLibraryService, ItemLibraryService>();
+
+// Add HTTP context accessor for service to access current user
+builder.Services.AddHttpContextAccessor();
 
 // CORS for frontend (allow both HTTP and HTTPS for local development)
 builder.Services.AddCors(options =>

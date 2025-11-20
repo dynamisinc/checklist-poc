@@ -490,6 +490,59 @@ export interface TemplateItemFormState {
 }
 
 // ============================================================================
+// Item Library Types
+// ============================================================================
+
+/**
+ * Item Library Entry
+ * Reusable checklist items that can be added to templates
+ */
+export interface ItemLibraryEntry {
+  id: string;
+  itemText: string;
+  itemType: ItemType;
+  category: string;
+  statusConfiguration?: string; // JSON string of StatusOption[]
+  allowedPositions?: string; // JSON string of positions
+  defaultNotes?: string;
+  tags?: string; // JSON string of tag array
+  isRequiredByDefault: boolean;
+  usageCount: number;
+  createdBy: string;
+  createdAt: string; // ISO 8601 datetime
+  lastModifiedBy?: string;
+  lastModifiedAt?: string; // ISO 8601 datetime
+}
+
+/**
+ * Request to create a new library item
+ */
+export interface CreateItemLibraryEntryRequest {
+  itemText: string;
+  itemType: ItemType;
+  category: string;
+  statusConfiguration?: string;
+  allowedPositions?: string;
+  defaultNotes?: string;
+  tags?: string[];
+  isRequiredByDefault: boolean;
+}
+
+/**
+ * Request to update an existing library item
+ */
+export interface UpdateItemLibraryEntryRequest {
+  itemText: string;
+  itemType: ItemType;
+  category: string;
+  statusConfiguration?: string;
+  allowedPositions?: string;
+  defaultNotes?: string;
+  tags?: string[];
+  isRequiredByDefault: boolean;
+}
+
+// ============================================================================
 // Constants
 // ============================================================================
 

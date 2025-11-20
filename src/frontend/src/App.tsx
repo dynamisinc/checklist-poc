@@ -9,12 +9,13 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { Box, AppBar, Toolbar, Typography, Button } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClipboardList, faBook } from '@fortawesome/free-solid-svg-icons';
+import { faClipboardList, faBook, faBoxArchive } from '@fortawesome/free-solid-svg-icons';
 import { MyChecklistsPage } from './pages/MyChecklistsPage';
 import { ChecklistDetailPage } from './pages/ChecklistDetailPage';
 import { TemplateLibraryPage } from './pages/TemplateLibraryPage';
 import { TemplateEditorPage } from './pages/TemplateEditorPage';
 import { TemplatePreviewPage } from './pages/TemplatePreviewPage';
+import { ItemLibraryPage } from './pages/ItemLibraryPage';
 import { PositionSelector } from './components/PositionSelector';
 import { c5Colors } from './theme/c5Theme';
 
@@ -78,6 +79,21 @@ const AppNavBar: React.FC<AppNavBarProps> = ({ onPositionChange }) => {
             <FontAwesomeIcon icon={faBook} style={{ marginRight: 8 }} />
             Template Library
           </Button>
+          <Button
+            component={Link}
+            to="/item-library"
+            sx={{
+              color: 'white',
+              fontWeight: location.pathname === '/item-library' ? 'bold' : 'normal',
+              textDecoration: location.pathname === '/item-library' ? 'underline' : 'none',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            <FontAwesomeIcon icon={faBoxArchive} style={{ marginRight: 8 }} />
+            Item Library
+          </Button>
         </Box>
 
         <PositionSelector onPositionChange={onPositionChange} />
@@ -123,6 +139,9 @@ function App() {
 
           {/* Template Library page */}
           <Route path="/templates" element={<TemplateLibraryPage />} />
+
+          {/* Item Library page */}
+          <Route path="/item-library" element={<ItemLibraryPage />} />
 
           {/* Create New Template */}
           <Route path="/templates/new" element={<TemplateEditorPage />} />
