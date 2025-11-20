@@ -20,9 +20,11 @@ import {
   FormControlLabel,
   Switch,
   SelectChangeEvent,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFilter } from '@fortawesome/free-solid-svg-icons';
+import { faFilter, faSearch, faXmark } from '@fortawesome/free-solid-svg-icons';
 import type { ChecklistInstanceDto } from '../services/checklistService';
 
 /**
@@ -38,9 +40,11 @@ interface ChecklistFiltersProps {
   selectedOperationalPeriod: string | null;
   selectedCompletionStatus: CompletionStatusFilter;
   showArchived: boolean;
+  searchQuery: string;
   onOperationalPeriodChange: (periodId: string | null) => void;
   onCompletionStatusChange: (status: CompletionStatusFilter) => void;
   onShowArchivedChange: (show: boolean) => void;
+  onSearchQueryChange: (query: string) => void;
 }
 
 /**
@@ -77,9 +81,11 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
   selectedOperationalPeriod,
   selectedCompletionStatus,
   showArchived,
+  searchQuery,
   onOperationalPeriodChange,
   onCompletionStatusChange,
   onShowArchivedChange,
+  onSearchQueryChange,
 }) => {
   const operationalPeriods = getOperationalPeriods(checklists);
 
@@ -94,36 +100,81 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
     onCompletionStatusChange(event.target.value as CompletionStatusFilter);
   };
 
+  // Handle clear search
+  const handleClearSearch = () => {
+    onSearchQueryChange('');
+  };
+
   // Calculate filter counts
   const periodCount = operationalPeriods.length;
   const hasFilters =
     selectedOperationalPeriod !== null ||
     selectedCompletionStatus !== 'all' ||
-    showArchived;
+    showArchived ||
+    searchQuery.length > 0;
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        gap: 2,
-        mb: 3,
-        flexWrap: 'wrap',
-        alignItems: 'center',
-      }}
-    >
-      {/* Filter icon + label */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <FontAwesomeIcon icon={faFilter} style={{ fontSize: '1rem' }} />
-        <strong>Filters:</strong>
-        {hasFilters && (
-          <Chip
-            label="Active"
-            size="small"
-            color="primary"
-            sx={{ height: 20, fontSize: '0.7rem' }}
-          />
-        )}
+    <Box sx={{ mb: 3 }}>
+      {/* Search bar - full width */}
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search checklists by name..."
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <FontAwesomeIcon icon={faSearch} style={{ fontSize: '1rem' }} />
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery.length > 0 && (
+              <InputAdornment position="end">
+                <Box
+                  onClick={handleClearSearch}
+                  sx={{
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    '&:hover': { opacity: 0.7 },
+                  }}
+                >
+                  <FontAwesomeIcon icon={faXmark} style={{ fontSize: '1rem' }} />
+                </Box>
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: 'white',
+            },
+          }}
+        />
       </Box>
+
+      {/* Filter controls row */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        {/* Filter icon + label */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FontAwesomeIcon icon={faFilter} style={{ fontSize: '1rem' }} />
+          <strong>Filters:</strong>
+          {hasFilters && (
+            <Chip
+              label="Active"
+              size="small"
+              color="primary"
+              sx={{ height: 20, fontSize: '0.7rem' }}
+            />
+          )}
+        </Box>
 
       {/* Operational Period filter */}
       {periodCount > 0 && (
@@ -168,18 +219,19 @@ export const ChecklistFilters: React.FC<ChecklistFiltersProps> = ({
         </Select>
       </FormControl>
 
-      {/* Show Archived toggle */}
-      <FormControlLabel
-        control={
-          <Switch
-            checked={showArchived}
-            onChange={(e) => onShowArchivedChange(e.target.checked)}
-            size="small"
-          />
-        }
-        label="Show Archived"
-        sx={{ ml: 1 }}
-      />
+        {/* Show Archived toggle */}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showArchived}
+              onChange={(e) => onShowArchivedChange(e.target.checked)}
+              size="small"
+            />
+          }
+          label="Show Archived"
+          sx={{ ml: 1 }}
+        />
+      </Box>
     </Box>
   );
 };

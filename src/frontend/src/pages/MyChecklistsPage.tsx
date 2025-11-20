@@ -43,10 +43,19 @@ export const MyChecklistsPage: React.FC = () => {
   const [selectedOperationalPeriod, setSelectedOperationalPeriod] = useState<string | null>(null);
   const [selectedCompletionStatus, setSelectedCompletionStatus] = useState<CompletionStatusFilter>('all');
   const [showArchived, setShowArchived] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Apply filters to checklists
   const filteredChecklists = useMemo(() => {
     let filtered = checklists;
+
+    // Filter by search query (case-insensitive)
+    if (searchQuery.trim().length > 0) {
+      const lowerQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter((c) =>
+        c.name.toLowerCase().includes(lowerQuery)
+      );
+    }
 
     // Filter by operational period
     if (selectedOperationalPeriod) {
@@ -71,7 +80,7 @@ export const MyChecklistsPage: React.FC = () => {
     // If not, we'll need to fetch archived separately
 
     return filtered;
-  }, [checklists, selectedOperationalPeriod, selectedCompletionStatus]);
+  }, [checklists, searchQuery, selectedOperationalPeriod, selectedCompletionStatus]);
 
   // Group filtered checklists by operational period
   // TODO: Get currentOperationalPeriodId from C5 context when available
@@ -151,9 +160,11 @@ export const MyChecklistsPage: React.FC = () => {
           selectedOperationalPeriod={selectedOperationalPeriod}
           selectedCompletionStatus={selectedCompletionStatus}
           showArchived={showArchived}
+          searchQuery={searchQuery}
           onOperationalPeriodChange={setSelectedOperationalPeriod}
           onCompletionStatusChange={setSelectedCompletionStatus}
           onShowArchivedChange={setShowArchived}
+          onSearchQueryChange={setSearchQuery}
         />
       )}
 
