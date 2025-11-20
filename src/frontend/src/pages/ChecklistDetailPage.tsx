@@ -310,7 +310,7 @@ export const ChecklistDetailPage: React.FC = () => {
       <Box
         sx={{
           position: 'sticky',
-          top: 64, // Height of AppBar
+          top: 0,
           zIndex: 100,
           backgroundColor: 'white',
           py: 1.5,
