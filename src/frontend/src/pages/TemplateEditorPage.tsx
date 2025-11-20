@@ -78,6 +78,9 @@ export const TemplateEditorPage: React.FC = () => {
   const [category, setCategory] = useState<TemplateCategory | ''>('');
   const [items, setItems] = useState<TemplateItemFormData[]>([]);
 
+  // UI state
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -142,6 +145,8 @@ export const TemplateEditorPage: React.FC = () => {
       defaultNotes: '',
     };
     setItems([...items, newItem]);
+    // Auto-expand new items
+    setExpandedItems((prev) => new Set(prev).add(newItem.id));
   };
 
   const handleUpdateItem = (id: string, updates: Partial<TemplateItemFormData>) => {
@@ -156,6 +161,62 @@ export const TemplateEditorPage: React.FC = () => {
       displayOrder: (idx + 1) * 10,
     }));
     setItems(reordered);
+    // Remove from expanded set
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const handleMoveUp = (id: string) => {
+    const index = items.findIndex((item) => item.id === id);
+    if (index <= 0) return;
+
+    const reordered = [...items];
+    [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+
+    // Update display order
+    const withUpdatedOrder = reordered.map((item, idx) => ({
+      ...item,
+      displayOrder: (idx + 1) * 10,
+    }));
+    setItems(withUpdatedOrder);
+  };
+
+  const handleMoveDown = (id: string) => {
+    const index = items.findIndex((item) => item.id === id);
+    if (index < 0 || index >= items.length - 1) return;
+
+    const reordered = [...items];
+    [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+
+    // Update display order
+    const withUpdatedOrder = reordered.map((item, idx) => ({
+      ...item,
+      displayOrder: (idx + 1) * 10,
+    }));
+    setItems(withUpdatedOrder);
+  };
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleExpandAll = () => {
+    setExpandedItems(new Set(items.map((item) => item.id)));
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedItems(new Set());
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -339,9 +400,29 @@ export const TemplateEditorPage: React.FC = () => {
 
       {/* Items Section */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Checklist Items
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">
+            Checklist Items
+          </Typography>
+          {items.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleExpandAll}
+              >
+                Expand All
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleCollapseAll}
+              >
+                Collapse All
+              </Button>
+            </Box>
+          )}
+        </Box>
 
         {errors.items && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -370,8 +451,13 @@ export const TemplateEditorPage: React.FC = () => {
                   key={item.id}
                   item={item}
                   index={index}
+                  totalItems={items.length}
                   onUpdate={handleUpdateItem}
                   onRemove={handleRemoveItem}
+                  onMoveUp={handleMoveUp}
+                  onMoveDown={handleMoveDown}
+                  isExpanded={expandedItems.has(item.id)}
+                  onToggleExpand={handleToggleExpand}
                 />
               ))}
             </SortableContext>

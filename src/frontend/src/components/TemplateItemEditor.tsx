@@ -34,6 +34,8 @@ import {
   faTrash,
   faChevronDown,
   faChevronUp,
+  faArrowUp,
+  faArrowDown,
 } from '@fortawesome/free-solid-svg-icons';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -55,8 +57,13 @@ export interface TemplateItemFormData {
 interface TemplateItemEditorProps {
   item: TemplateItemFormData;
   index: number;
+  totalItems: number;
   onUpdate: (id: string, updates: Partial<TemplateItemFormData>) => void;
   onRemove: (id: string) => void;
+  onMoveUp: (id: string) => void;
+  onMoveDown: (id: string) => void;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
 }
 
 /**
@@ -65,8 +72,13 @@ interface TemplateItemEditorProps {
 export const TemplateItemEditor: React.FC<TemplateItemEditorProps> = ({
   item,
   index,
+  totalItems,
   onUpdate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  isExpanded,
+  onToggleExpand,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -118,11 +130,28 @@ export const TemplateItemEditor: React.FC<TemplateItemEditorProps> = ({
       }}
     >
       {/* Header Row */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          mb: isExpanded ? 2 : 0,
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: '#F5F5F5',
+          },
+          p: 1,
+          ml: -1,
+          mr: -1,
+          borderRadius: 1,
+        }}
+        onClick={() => onToggleExpand(item.id)}
+      >
         {/* Drag Handle */}
         <Box
           {...attributes}
           {...listeners}
+          onClick={(e) => e.stopPropagation()}
           sx={{
             cursor: 'grab',
             color: c5Colors.dimGray,
@@ -136,35 +165,87 @@ export const TemplateItemEditor: React.FC<TemplateItemEditorProps> = ({
           <FontAwesomeIcon icon={faGripVertical} size="lg" />
         </Box>
 
-        {/* Item Number */}
-        <Typography variant="h6" sx={{ minWidth: '80px' }}>
-          Item #{index + 1}
-        </Typography>
+        {/* Expand/Collapse Icon */}
+        <IconButton size="small" sx={{ p: 0.5 }}>
+          <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} size="sm" />
+        </IconButton>
 
-        {/* Spacer */}
-        <Box sx={{ flexGrow: 1 }} />
+        {/* Item Number and Summary */}
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            Item #{index + 1}
+          </Typography>
+          {!isExpanded && (
+            <Typography variant="body2" color="text.secondary" sx={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '500px',
+            }}>
+              {item.itemText || '(No text)'}
+              {' • '}
+              <Chip
+                label={item.itemType === ItemType.CHECKBOX ? 'Checkbox' : 'Status'}
+                size="small"
+                sx={{ height: '20px', fontSize: '0.7rem' }}
+              />
+              {item.isRequired && (
+                <Chip
+                  label="Required"
+                  size="small"
+                  color="primary"
+                  sx={{ height: '20px', fontSize: '0.7rem', ml: 0.5 }}
+                />
+              )}
+            </Typography>
+          )}
+        </Box>
+
+        {/* Move Up/Down Buttons */}
+        <Box onClick={(e) => e.stopPropagation()} sx={{ display: 'flex', gap: 0.5 }}>
+          <IconButton
+            size="small"
+            onClick={() => onMoveUp(item.id)}
+            disabled={index === 0}
+            title="Move up"
+          >
+            <FontAwesomeIcon icon={faArrowUp} size="sm" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => onMoveDown(item.id)}
+            disabled={index === totalItems - 1}
+            title="Move down"
+          >
+            <FontAwesomeIcon icon={faArrowDown} size="sm" />
+          </IconButton>
+        </Box>
 
         {/* Delete Button */}
-        <IconButton
-          size="small"
-          onClick={() => onRemove(item.id)}
-          sx={{ color: c5Colors.lavaRed }}
-          title="Remove item"
-        >
-          <FontAwesomeIcon icon={faTrash} />
-        </IconButton>
+        <Box onClick={(e) => e.stopPropagation()}>
+          <IconButton
+            size="small"
+            onClick={() => onRemove(item.id)}
+            sx={{ color: c5Colors.lavaRed }}
+            title="Remove item"
+          >
+            <FontAwesomeIcon icon={faTrash} />
+          </IconButton>
+        </Box>
       </Box>
 
-      {/* Item Text */}
-      <TextField
-        fullWidth
-        label="Item Text"
-        placeholder="e.g., Verify all personnel have safety equipment"
-        value={item.itemText}
-        onChange={(e) => onUpdate(item.id, { itemText: e.target.value })}
-        required
-        sx={{ mb: 2 }}
-      />
+      {/* Collapsible Content */}
+      <Collapse in={isExpanded}>
+        {/* Item Text */}
+        <TextField
+          fullWidth
+          label="Item Text"
+          placeholder="e.g., Verify all personnel have safety equipment"
+          value={item.itemText}
+          onChange={(e) => onUpdate(item.id, { itemText: e.target.value })}
+          required
+          sx={{ mb: 2 }}
+        />
 
       {/* Item Type */}
       <FormControl component="fieldset" sx={{ mb: 2 }}>
@@ -267,6 +348,7 @@ export const TemplateItemEditor: React.FC<TemplateItemEditorProps> = ({
             helperText="These notes will appear on checklist items by default"
           />
         </Box>
+      </Collapse>
       </Collapse>
     </Paper>
   );
