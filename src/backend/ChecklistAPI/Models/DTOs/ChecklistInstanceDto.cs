@@ -62,10 +62,10 @@ public record ChecklistInstanceDto
 
     /// <summary>
     /// Operational period this checklist belongs to (optional)
-    /// Example: "OP-001", "OP-2025-11-20"
+    /// Foreign key to OperationalPeriod entity
     /// Null for incident-level checklists
     /// </summary>
-    public string? OperationalPeriodId { get; init; }
+    public Guid? OperationalPeriodId { get; init; }
 
     /// <summary>
     /// Human-readable operational period name (optional)

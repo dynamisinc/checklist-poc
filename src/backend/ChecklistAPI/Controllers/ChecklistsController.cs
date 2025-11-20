@@ -118,7 +118,7 @@ public class ChecklistsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<List<ChecklistInstanceDto>>> GetChecklistsByOperationalPeriod(
         string eventId,
-        string operationalPeriodId,
+        Guid operationalPeriodId,
         [FromQuery] bool includeArchived = false)
     {
         var checklists = await _checklistService.GetChecklistsByOperationalPeriodAsync(

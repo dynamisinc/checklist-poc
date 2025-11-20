@@ -64,11 +64,10 @@ public record UpdateChecklistRequest
 
     /// <summary>
     /// Operational period this checklist belongs to (optional)
-    /// Example: "OP-001", "OP-2025-11-20"
+    /// Foreign key to OperationalPeriod entity
     /// Set to null to make incident-level
     /// </summary>
-    [MaxLength(100, ErrorMessage = "Operational period ID cannot exceed 100 characters")]
-    public string? OperationalPeriodId { get; init; }
+    public Guid? OperationalPeriodId { get; init; }
 
     /// <summary>
     /// Human-readable operational period name (optional)

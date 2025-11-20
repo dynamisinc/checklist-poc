@@ -72,12 +72,12 @@ public interface IChecklistService
     /// Used by Operational Period Dashboard
     /// </summary>
     /// <param name="eventId">Event identifier</param>
-    /// <param name="operationalPeriodId">Operational period identifier</param>
+    /// <param name="operationalPeriodId">Operational period GUID</param>
     /// <param name="includeArchived">If true, includes archived checklists (default: false)</param>
     /// <returns>List of checklists for this operational period</returns>
     Task<List<ChecklistInstanceDto>> GetChecklistsByOperationalPeriodAsync(
         string eventId,
-        string operationalPeriodId,
+        Guid? operationalPeriodId,
         bool includeArchived = false);
 
     /// <summary>

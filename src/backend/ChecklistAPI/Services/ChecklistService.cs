@@ -157,7 +157,7 @@ public class ChecklistService : IChecklistService
 
     public async Task<List<ChecklistInstanceDto>> GetChecklistsByOperationalPeriodAsync(
         string eventId,
-        string operationalPeriodId,
+        Guid? operationalPeriodId,
         bool includeArchived = false)
     {
         _logger.LogInformation(

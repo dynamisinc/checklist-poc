@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,17 +6,20 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ChecklistAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class AddOperationalPeriods : Migration
+    public partial class FixOperationalPeriodEventIdType : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // 1. Drop old OperationalPeriodId column (was string, needs to be Guid)
-            migrationBuilder.DropColumn(
+            migrationBuilder.AlterColumn<Guid>(
                 name: "OperationalPeriodId",
-                table: "ChecklistInstances");
+                table: "ChecklistInstances",
+                type: "uniqueidentifier",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(max)",
+                oldNullable: true);
 
-            // 2. Create OperationalPeriods table
             migrationBuilder.CreateTable(
                 name: "OperationalPeriods",
                 columns: table => new
@@ -26,14 +29,14 @@ namespace ChecklistAPI.Migrations
                     Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EndTime = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    IsCurrent = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    IsCurrent = table.Column<bool>(type: "bit", nullable: false),
                     Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    IsArchived = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
-                    ArchivedBy = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    IsArchived = table.Column<bool>(type: "bit", nullable: false),
+                    ArchivedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ArchivedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedBy = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    LastModifiedBy = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
@@ -41,7 +44,11 @@ namespace ChecklistAPI.Migrations
                     table.PrimaryKey("PK_OperationalPeriods", x => x.Id);
                 });
 
-            // 3. Create indexes on OperationalPeriods
+            migrationBuilder.CreateIndex(
+                name: "IX_ChecklistInstances_OperationalPeriodId",
+                table: "ChecklistInstances",
+                column: "OperationalPeriodId");
+
             migrationBuilder.CreateIndex(
                 name: "IX_OperationalPeriods_EventId",
                 table: "OperationalPeriods",
@@ -57,19 +64,6 @@ namespace ChecklistAPI.Migrations
                 table: "OperationalPeriods",
                 column: "IsArchived");
 
-            // 4. Add new OperationalPeriodId column as Guid? FK to ChecklistInstances
-            migrationBuilder.AddColumn<Guid>(
-                name: "OperationalPeriodId",
-                table: "ChecklistInstances",
-                type: "uniqueidentifier",
-                nullable: true);
-
-            // 5. Create FK constraint with ON DELETE SET NULL
-            migrationBuilder.CreateIndex(
-                name: "IX_ChecklistInstances_OperationalPeriodId",
-                table: "ChecklistInstances",
-                column: "OperationalPeriodId");
-
             migrationBuilder.AddForeignKey(
                 name: "FK_ChecklistInstances_OperationalPeriods_OperationalPeriodId",
                 table: "ChecklistInstances",
@@ -82,31 +76,25 @@ namespace ChecklistAPI.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // 1. Drop FK constraint
             migrationBuilder.DropForeignKey(
                 name: "FK_ChecklistInstances_OperationalPeriods_OperationalPeriodId",
                 table: "ChecklistInstances");
 
-            // 2. Drop index on ChecklistInstances
+            migrationBuilder.DropTable(
+                name: "OperationalPeriods");
+
             migrationBuilder.DropIndex(
                 name: "IX_ChecklistInstances_OperationalPeriodId",
                 table: "ChecklistInstances");
 
-            // 3. Drop OperationalPeriodId column (Guid)
-            migrationBuilder.DropColumn(
-                name: "OperationalPeriodId",
-                table: "ChecklistInstances");
-
-            // 4. Drop OperationalPeriods table
-            migrationBuilder.DropTable(
-                name: "OperationalPeriods");
-
-            // 5. Re-add OperationalPeriodId as string (previous schema)
-            migrationBuilder.AddColumn<string>(
+            migrationBuilder.AlterColumn<string>(
                 name: "OperationalPeriodId",
                 table: "ChecklistInstances",
                 type: "nvarchar(max)",
-                nullable: true);
+                nullable: true,
+                oldClrType: typeof(Guid),
+                oldType: "uniqueidentifier",
+                oldNullable: true);
         }
     }
 }

@@ -18,7 +18,7 @@ public class OperationalPeriod
     /// <summary>
     /// The event this operational period belongs to
     /// </summary>
-    public Guid EventId { get; set; }
+    public string EventId { get; set; } = string.Empty;
 
     /// <summary>
     /// Display name (e.g., "OP 1 - 12/20 0600-1800")

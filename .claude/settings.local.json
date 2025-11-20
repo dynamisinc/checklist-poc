@@ -30,7 +30,19 @@
       "Bash(gh issue list:*)",
       "Bash(timeout /t 2 /nobreak)",
       "Bash(Select-String -Pattern \"(Test 8:)|(Test 9:)|(Looking for)|(IDs in)|(Comparing)|(PASS|FAIL).*(Archived|Restored)\" -Context 0,2)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(Select-String -Pattern \"(Test 3:|Position filtering|PASS|FAIL)\" -Context 0,3)",
+      "Bash(Select-String -Pattern \"Test 3:|Position|filtering|PASS|FAIL\" -Context 0,1)",
+      "Bash(dotnet ef migrations:*)",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 25156 -Force\")",
+      "Bash(dotnet ef database update:*)",
+      "Bash(powershell.exe -Command \"Get-Content ''c:\\code\\checklist-poc\\src\\backend\\ChecklistAPI.Tests\\Services\\ChecklistServiceTests.cs'' | Measure-Object -Line\")",
+      "Bash(powershell.exe -Command \"Get-Process -Name ChecklistAPI -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(powershell.exe -Command \"Start-Sleep -Seconds 8\")",
+      "Bash(dotnet ef database:*)",
+      "Bash(sqlcmd:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(Select-String -Pattern \"error CS\")"
     ],
     "deny": [],
     "ask": []

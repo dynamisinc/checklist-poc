@@ -26,12 +26,12 @@ builder.Services.AddScoped<ITemplateService, TemplateService>();
 builder.Services.AddScoped<IChecklistService, ChecklistService>();
 builder.Services.AddScoped<IChecklistItemService, ChecklistItemService>();
 
-// CORS for frontend
+// CORS for frontend (allow both HTTP and HTTPS for local development)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -40,12 +40,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Always enable Swagger and SwaggerUI
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// Enable HTTPS redirection
+app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
 
