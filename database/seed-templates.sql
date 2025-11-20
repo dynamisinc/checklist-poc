@@ -36,15 +36,15 @@ VALUES (
 );
 
 -- Safety Briefing Items (all checkbox type)
-INSERT INTO TemplateItems (Id, TemplateId, ItemText, ItemType, DisplayOrder, StatusOptions, Notes)
+INSERT INTO TemplateItems (Id, TemplateId, ItemText, ItemType, DisplayOrder, IsRequired, StatusOptions, DefaultNotes, CreatedAt)
 VALUES
-    (NEWID(), @SafetyBriefingId, 'Review weather forecast and conditions for operational period', 'checkbox', 10, NULL, 'Check NOAA weather radio and local forecasts'),
-    (NEWID(), @SafetyBriefingId, 'Identify and brief all known hazards in operational area', 'checkbox', 20, NULL, 'Include environmental, structural, and operational hazards'),
-    (NEWID(), @SafetyBriefingId, 'Verify all personnel have required PPE and safety equipment', 'checkbox', 30, NULL, 'Hard hats, safety vests, gloves, eye protection as needed'),
-    (NEWID(), @SafetyBriefingId, 'Confirm emergency communication procedures and radio channels', 'checkbox', 40, NULL, 'Test radios and establish check-in intervals'),
-    (NEWID(), @SafetyBriefingId, 'Review evacuation routes and accountability procedures', 'checkbox', 50, NULL, 'Designate assembly areas and accountability managers'),
-    (NEWID(), @SafetyBriefingId, 'Brief medical emergency procedures and first aid locations', 'checkbox', 60, NULL, 'Identify nearest medical facilities and trauma centers'),
-    (NEWID(), @SafetyBriefingId, 'Document safety briefing attendance and any concerns raised', 'checkbox', 70, NULL, 'All personnel must sign attendance roster');
+    (NEWID(), @SafetyBriefingId, 'Review weather forecast and conditions for operational period', 'checkbox', 10, 0, NULL, 'Check NOAA weather radio and local forecasts', GETUTCDATE()),
+    (NEWID(), @SafetyBriefingId, 'Identify and brief all known hazards in operational area', 'checkbox', 20, 0, NULL, 'Include environmental, structural, and operational hazards', GETUTCDATE()),
+    (NEWID(), @SafetyBriefingId, 'Verify all personnel have required PPE and safety equipment', 'checkbox', 30, 0, NULL, 'Hard hats, safety vests, gloves, eye protection as needed', GETUTCDATE()),
+    (NEWID(), @SafetyBriefingId, 'Confirm emergency communication procedures and radio channels', 'checkbox', 40, 0, NULL, 'Test radios and establish check-in intervals', GETUTCDATE()),
+    (NEWID(), @SafetyBriefingId, 'Review evacuation routes and accountability procedures', 'checkbox', 50, 0, NULL, 'Designate assembly areas and accountability managers', GETUTCDATE()),
+    (NEWID(), @SafetyBriefingId, 'Brief medical emergency procedures and first aid locations', 'checkbox', 60, 0, NULL, 'Identify nearest medical facilities and trauma centers', GETUTCDATE()),
+    (NEWID(), @SafetyBriefingId, 'Document safety briefing attendance and any concerns raised', 'checkbox', 70, 0, NULL, 'All personnel must sign attendance roster', GETUTCDATE());
 
 -- ============================================================================
 -- Template 2: Incident Commander Initial Actions (Mixed item types)
@@ -67,20 +67,20 @@ VALUES (
 );
 
 -- IC Initial Actions Items (mix of checkbox and status)
-INSERT INTO TemplateItems (Id, TemplateId, ItemText, ItemType, DisplayOrder, StatusOptions, Notes)
+INSERT INTO TemplateItems (Id, TemplateId, ItemText, ItemType, DisplayOrder, IsRequired, StatusOptions, DefaultNotes, CreatedAt)
 VALUES
-    (NEWID(), @ICInitialActionsId, 'Establish command and assume Incident Commander role', 'checkbox', 10, NULL, 'Notify EOC and relevant authorities'),
-    (NEWID(), @ICInitialActionsId, 'Complete initial situation assessment', 'status', 20, '["Not Started", "In Progress", "Completed", "Delayed"]', 'Document findings in ICS 201'),
-    (NEWID(), @ICInitialActionsId, 'Determine incident priorities and strategic objectives', 'status', 30, '["Not Started", "In Progress", "Completed"]', NULL),
-    (NEWID(), @ICInitialActionsId, 'Establish Incident Command Post (ICP) location', 'checkbox', 40, NULL, 'Ensure adequate space, communications, and safety'),
-    (NEWID(), @ICInitialActionsId, 'Request additional resources as needed', 'status', 50, '["Not Needed", "Requested", "En Route", "On Scene"]', 'Use ICS 213 for resource requests'),
-    (NEWID(), @ICInitialActionsId, 'Designate Safety Officer', 'checkbox', 60, NULL, 'Brief on authority and responsibilities'),
-    (NEWID(), @ICInitialActionsId, 'Establish unified command if multi-jurisdictional', 'status', 70, '["N/A", "Needed", "In Progress", "Established"]', NULL),
-    (NEWID(), @ICInitialActionsId, 'Determine operational period length', 'checkbox', 80, NULL, 'Typically 12 or 24 hours for initial period'),
-    (NEWID(), @ICInitialActionsId, 'Initiate Incident Action Plan (IAP) development', 'status', 90, '["Not Started", "In Progress", "Completed"]', 'Complete ICS 202, 203, 204 as minimum'),
-    (NEWID(), @ICInitialActionsId, 'Establish communication plan and radio frequencies', 'checkbox', 100, NULL, 'Complete ICS 205'),
-    (NEWID(), @ICInitialActionsId, 'Conduct initial command and general staff meeting', 'checkbox', 110, NULL, 'Brief on situation, objectives, and organization'),
-    (NEWID(), @ICInitialActionsId, 'Submit initial situation report to EOC/higher authority', 'status', 120, '["Not Started", "In Progress", "Submitted", "Acknowledged"]', 'Include ICS 201');
+    (NEWID(), @ICInitialActionsId, 'Establish command and assume Incident Commander role', 'checkbox', 10, 0, NULL, 'Notify EOC and relevant authorities', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Complete initial situation assessment', 'status', 20, 0, '["Not Started", "In Progress", "Completed", "Delayed"]', 'Document findings in ICS 201', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Determine incident priorities and strategic objectives', 'status', 30, 0, '["Not Started", "In Progress", "Completed"]', NULL, GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Establish Incident Command Post (ICP) location', 'checkbox', 40, 0, NULL, 'Ensure adequate space, communications, and safety', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Request additional resources as needed', 'status', 50, 0, '["Not Needed", "Requested", "En Route", "On Scene"]', 'Use ICS 213 for resource requests', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Designate Safety Officer', 'checkbox', 60, 0, NULL, 'Brief on authority and responsibilities', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Establish unified command if multi-jurisdictional', 'status', 70, 0, '["N/A", "Needed", "In Progress", "Established"]', NULL, GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Determine operational period length', 'checkbox', 80, 0, NULL, 'Typically 12 or 24 hours for initial period', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Initiate Incident Action Plan (IAP) development', 'status', 90, 0, '["Not Started", "In Progress", "Completed"]', 'Complete ICS 202, 203, 204 as minimum', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Establish communication plan and radio frequencies', 'checkbox', 100, 0, NULL, 'Complete ICS 205', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Conduct initial command and general staff meeting', 'checkbox', 110, 0, NULL, 'Brief on situation, objectives, and organization', GETUTCDATE()),
+    (NEWID(), @ICInitialActionsId, 'Submit initial situation report to EOC/higher authority', 'status', 120, 0, '["Not Started", "In Progress", "Submitted", "Acknowledged"]', 'Include ICS 201', GETUTCDATE());
 
 -- ============================================================================
 -- Template 3: Shelter Opening Checklist (Status-heavy for tracking)
@@ -103,23 +103,23 @@ VALUES (
 );
 
 -- Shelter Opening Items (mostly status for detailed tracking)
-INSERT INTO TemplateItems (Id, TemplateId, ItemText, ItemType, DisplayOrder, StatusOptions, Notes)
+INSERT INTO TemplateItems (Id, TemplateId, ItemText, ItemType, DisplayOrder, IsRequired, StatusOptions, DefaultNotes, CreatedAt)
 VALUES
-    (NEWID(), @ShelterOpeningId, 'Complete facility safety inspection', 'status', 10, '["Not Started", "In Progress", "Completed", "Failed - Do Not Occupy"]', 'Check for structural damage, hazardous materials, utilities'),
-    (NEWID(), @ShelterOpeningId, 'Verify utilities are functional (power, water, HVAC)', 'status', 20, '["Not Verified", "Partial", "Fully Functional", "Non-Functional"]', NULL),
-    (NEWID(), @ShelterOpeningId, 'Set up registration and intake area', 'status', 30, '["Not Started", "In Progress", "Complete"]', 'Tables, chairs, forms, computers if available'),
-    (NEWID(), @ShelterOpeningId, 'Establish dormitory areas and sleeping arrangements', 'status', 40, '["Not Started", "In Progress", "Complete"]', 'Separate areas for families, singles, accessible needs'),
-    (NEWID(), @ShelterOpeningId, 'Stock supplies (cots, blankets, hygiene kits, water)', 'status', 50, '["Not Started", "Partial", "Fully Stocked"]', 'Minimum 3-day supply for expected capacity'),
-    (NEWID(), @ShelterOpeningId, 'Set up feeding operations and food service area', 'status', 60, '["Not Started", "In Progress", "Operational"]', 'Coordinate with Red Cross or food vendor'),
-    (NEWID(), @ShelterOpeningId, 'Establish medical area and first aid station', 'status', 70, '["Not Started", "Set Up", "Staffed and Operational"]', 'Stock first aid supplies, AED, medications storage'),
-    (NEWID(), @ShelterOpeningId, 'Post shelter rules and emergency procedures signage', 'checkbox', 80, NULL, 'Include evacuation routes, rules, phone numbers'),
-    (NEWID(), @ShelterOpeningId, 'Test fire alarm and emergency systems', 'status', 90, '["Not Tested", "Tested - Pass", "Tested - Fail"]', 'Document results and notify building owner if failed'),
-    (NEWID(), @ShelterOpeningId, 'Assign staff roles and brief all shelter workers', 'status', 100, '["Not Started", "In Progress", "Complete"]', 'Shelter manager, registration, dormitory, feeding, security'),
-    (NEWID(), @ShelterOpeningId, 'Activate communications (phones, internet, radio)', 'status', 110, '["Not Started", "Partial", "Fully Operational"]', 'Test all systems before declaring shelter open'),
-    (NEWID(), @ShelterOpeningId, 'Coordinate with law enforcement for security', 'status', 120, '["Not Needed", "Requested", "On Site"]', 'May not be needed for small shelters'),
-    (NEWID(), @ShelterOpeningId, 'Set up childcare and activities area', 'status', 130, '["Not Needed", "In Progress", "Complete"]', 'Toys, books, activities for children'),
-    (NEWID(), @ShelterOpeningId, 'Notify EOC and public that shelter is open', 'status', 140, '["Not Ready", "Ready", "Notification Sent"]', 'Provide address, capacity, accessible status'),
-    (NEWID(), @ShelterOpeningId, 'Begin accepting evacuees and documenting intake', 'status', 150, '["Not Started", "Accepting Evacuees"]', 'Track numbers for situation reports');
+    (NEWID(), @ShelterOpeningId, 'Complete facility safety inspection', 'status', 10, 0, '["Not Started", "In Progress", "Completed", "Failed - Do Not Occupy"]', 'Check for structural damage, hazardous materials, utilities', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Verify utilities are functional (power, water, HVAC)', 'status', 20, 0, '["Not Verified", "Partial", "Fully Functional", "Non-Functional"]', NULL, GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Set up registration and intake area', 'status', 30, 0, '["Not Started", "In Progress", "Complete"]', 'Tables, chairs, forms, computers if available', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Establish dormitory areas and sleeping arrangements', 'status', 40, 0, '["Not Started", "In Progress", "Complete"]', 'Separate areas for families, singles, accessible needs', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Stock supplies (cots, blankets, hygiene kits, water)', 'status', 50, 0, '["Not Started", "Partial", "Fully Stocked"]', 'Minimum 3-day supply for expected capacity', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Set up feeding operations and food service area', 'status', 60, 0, '["Not Started", "In Progress", "Operational"]', 'Coordinate with Red Cross or food vendor', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Establish medical area and first aid station', 'status', 70, 0, '["Not Started", "Set Up", "Staffed and Operational"]', 'Stock first aid supplies, AED, medications storage', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Post shelter rules and emergency procedures signage', 'checkbox', 80, 0, NULL, 'Include evacuation routes, rules, phone numbers', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Test fire alarm and emergency systems', 'status', 90, 0, '["Not Tested", "Tested - Pass", "Tested - Fail"]', 'Document results and notify building owner if failed', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Assign staff roles and brief all shelter workers', 'status', 100, 0, '["Not Started", "In Progress", "Complete"]', 'Shelter manager, registration, dormitory, feeding, security', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Activate communications (phones, internet, radio)', 'status', 110, 0, '["Not Started", "Partial", "Fully Operational"]', 'Test all systems before declaring shelter open', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Coordinate with law enforcement for security', 'status', 120, 0, '["Not Needed", "Requested", "On Site"]', 'May not be needed for small shelters', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Set up childcare and activities area', 'status', 130, 0, '["Not Needed", "In Progress", "Complete"]', 'Toys, books, activities for children', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Notify EOC and public that shelter is open', 'status', 140, 0, '["Not Ready", "Ready", "Notification Sent"]', 'Provide address, capacity, accessible status', GETUTCDATE()),
+    (NEWID(), @ShelterOpeningId, 'Begin accepting evacuees and documenting intake', 'status', 150, 0, '["Not Started", "Accepting Evacuees"]', 'Track numbers for situation reports', GETUTCDATE());
 
 GO
 

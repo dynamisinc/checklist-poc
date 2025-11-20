@@ -30,12 +30,13 @@ dotnet build
 cd C:\code\checklist-poc
 
 # Load seed data into database
-sqlcmd -S localhost -d ChecklistPOC -i database\seed-templates.sql -E
+sqlcmd -S localhost -d ChecklistPOC -i database\seed-templates.sql -E -C
 
 # You should see:
-# - Verification query results
+# - 3 templates created (Safety, ICS Forms, Logistics)
+# - 34 total template items (7 + 12 + 15)
+# - Verification query showing item counts
 # - "Seed data loaded successfully!" message
-# - Template count summary
 ```
 
 ## Step 3: Start the Backend API
@@ -52,7 +53,49 @@ dotnet watch run
 # - Swagger UI: https://localhost:5001/swagger
 ```
 
-## Step 4: Test with Swagger UI
+## Step 4: Run Automated Integration Tests (Recommended)
+
+The fastest way to test all endpoints is using the PowerShell integration test script:
+
+```powershell
+# From project root
+cd C:\code\checklist-poc\tests\integration
+
+# Run the integration tests
+.\test-templates-api.ps1
+
+# For verbose output:
+.\test-templates-api.ps1 -Verbose
+
+# To test a different URL:
+.\test-templates-api.ps1 -BaseUrl "https://localhost:5001"
+```
+
+**What it tests:**
+- ✅ GET /api/templates - Get all templates
+- ✅ GET /api/templates/{id} - Get single template by ID
+- ✅ GET /api/templates/category/{category} - Get templates by category
+- ✅ POST /api/templates - Create new template
+- ✅ PUT /api/templates/{id} - Update template
+- ✅ POST /api/templates/{id}/duplicate - Duplicate template
+- ✅ DELETE /api/templates/{id} - Archive template (soft delete)
+- ✅ GET /api/templates/archived - Get archived templates (Admin only)
+- ✅ POST /api/templates/{id}/restore - Restore archived template (Admin only)
+- ✅ DELETE /api/templates/{id}/permanent - Permanent delete (Admin only)
+
+**Expected output:**
+```
+Total Tests: ~40-50
+Passed:      ~40-50
+Failed:      0
+Pass Rate:   100%
+```
+
+If any tests fail, the script will show detailed error messages.
+
+---
+
+## Step 5: Manual Testing with Swagger UI (Optional)
 
 Open your browser to: **https://localhost:5001/swagger**
 
@@ -354,9 +397,61 @@ Once all tests pass:
 4. Next: Implement SignalR hub for real-time updates
 5. Next: Create ChecklistInstance CRUD operations
 
+## Troubleshooting the Integration Tests
+
+### Common Issues
+
+**"API is not running"**
+```powershell
+# Make sure the backend is running:
+cd src/backend/ChecklistAPI
+dotnet run
+```
+
+**SSL Certificate Errors**
+- The script uses `-SkipCertificateCheck` to bypass local dev cert issues
+- This is normal for local development with self-signed certificates
+
+**Test Failures**
+- Check the console output where the API is running for error details
+- Look for Application Insights telemetry in the logs
+- Failed tests will show the HTTP status code and error message
+
+**Seed Data Missing**
+```powershell
+# Re-run the seed script:
+sqlcmd -S localhost -d ChecklistPOC -i database\seed-templates.sql -E -C
+```
+
+---
+
+## Monitoring Logs During Tests
+
+When running the integration tests, watch the API console output for structured logging:
+
+**Expected log output:**
+```
+[Information] Fetching all templates (includeInactive: False)
+[Information] Retrieved 3 templates
+[Information] Fetching template {templateId}
+[Information] Creating template 'Test Template...' by test-user@cobra.mil (Integration Test Runner)
+[Information] Created template {templateId} with 2 items
+[Information] Updating template {templateId} by test-user@cobra.mil
+[Information] Updated template {templateId} with 1 items
+[Information] Duplicating template {templateId} as 'DUPLICATE - ...'
+[Information] Duplicated template {originalId} to {newId}
+[Information] Archiving template {templateId} by test-user@cobra.mil
+[Information] Archived template {templateId}
+```
+
+All operations include user attribution (createdBy, lastModifiedBy) from the mock user headers.
+
+---
+
 ## Questions or Issues?
 
 - Check Application Insights logs for detailed error tracking
 - Review console output for service-layer logging
 - Use SQL Profiler to see generated queries
 - Swagger UI includes schema documentation for all DTOs
+- Run tests with `-Verbose` flag for detailed HTTP request/response info

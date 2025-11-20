@@ -136,7 +136,7 @@ public class TemplateService : ITemplateService
                 ItemType = itemRequest.ItemType,
                 DisplayOrder = itemRequest.DisplayOrder,
                 StatusOptions = itemRequest.StatusOptions,
-                Notes = itemRequest.Notes
+                DefaultNotes = itemRequest.Notes
             });
         }
 
@@ -182,31 +182,38 @@ public class TemplateService : ITemplateService
         template.LastModifiedAt = DateTime.UtcNow;
 
         // Replace all items (PUT semantics)
+        // Remove existing items
         _context.TemplateItems.RemoveRange(template.Items);
-        template.Items.Clear();
 
-        foreach (var itemRequest in request.Items)
+        // Add new items
+        var newItems = request.Items.Select(itemRequest => new TemplateItem
         {
-            template.Items.Add(new TemplateItem
-            {
-                Id = Guid.NewGuid(),
-                TemplateId = template.Id,
-                ItemText = itemRequest.ItemText,
-                ItemType = itemRequest.ItemType,
-                DisplayOrder = itemRequest.DisplayOrder,
-                StatusOptions = itemRequest.StatusOptions,
-                Notes = itemRequest.Notes
-            });
-        }
+            Id = Guid.NewGuid(),
+            TemplateId = template.Id,
+            ItemText = itemRequest.ItemText,
+            ItemType = itemRequest.ItemType,
+            DisplayOrder = itemRequest.DisplayOrder,
+            StatusOptions = itemRequest.StatusOptions,
+            DefaultNotes = itemRequest.Notes,
+            CreatedAt = DateTime.UtcNow
+        }).ToList();
+
+        _context.TemplateItems.AddRange(newItems);
 
         await _context.SaveChangesAsync();
 
         _logger.LogInformation(
             "Updated template {TemplateId} with {ItemCount} items",
             id,
-            template.Items.Count);
+            newItems.Count);
 
-        return MapToDto(template);
+        // Reload template with new items for return
+        template = await _context.Templates
+            .Include(t => t.Items.OrderBy(i => i.DisplayOrder))
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        return template == null ? null : MapToDto(template);
     }
 
     public async Task<bool> ArchiveTemplateAsync(Guid id, UserContext userContext)
@@ -233,6 +240,93 @@ public class TemplateService : ITemplateService
         _logger.LogInformation("Archived template {TemplateId}", id);
 
         return true;
+    }
+
+    public async Task<bool> RestoreTemplateAsync(Guid id, UserContext userContext)
+    {
+        _logger.LogInformation(
+            "Restoring archived template {TemplateId} by {User}",
+            id,
+            userContext.Email);
+
+        var template = await _context.Templates.FindAsync(id);
+
+        if (template == null)
+        {
+            _logger.LogWarning("Template {TemplateId} not found for restoration", id);
+            return false;
+        }
+
+        template.IsArchived = false;
+        template.ArchivedBy = null;
+        template.ArchivedAt = null;
+        template.LastModifiedBy = userContext.Email;
+        template.LastModifiedByPosition = userContext.Position;
+        template.LastModifiedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Restored template {TemplateId}", id);
+
+        return true;
+    }
+
+    public async Task<bool> PermanentlyDeleteTemplateAsync(Guid id, UserContext userContext)
+    {
+        _logger.LogWarning(
+            "PERMANENT DELETE requested for template {TemplateId} by {User} (Admin: {IsAdmin})",
+            id,
+            userContext.Email,
+            userContext.IsAdmin);
+
+        if (!userContext.IsAdmin)
+        {
+            _logger.LogError(
+                "Unauthorized permanent delete attempt by non-admin user {User}",
+                userContext.Email);
+            throw new UnauthorizedAccessException("Only administrators can permanently delete templates");
+        }
+
+        var template = await _context.Templates
+            .Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        if (template == null)
+        {
+            _logger.LogWarning("Template {TemplateId} not found for permanent deletion", id);
+            return false;
+        }
+
+        // Log what we're about to delete for audit trail
+        _logger.LogWarning(
+            "PERMANENTLY DELETING template {TemplateId} '{TemplateName}' with {ItemCount} items by admin {User}",
+            id,
+            template.Name,
+            template.Items.Count,
+            userContext.Email);
+
+        _context.Templates.Remove(template);
+        await _context.SaveChangesAsync();
+
+        _logger.LogWarning("Template {TemplateId} permanently deleted", id);
+
+        return true;
+    }
+
+    public async Task<List<TemplateDto>> GetArchivedTemplatesAsync()
+    {
+        _logger.LogInformation("Fetching archived templates");
+
+        var templates = await _context.Templates
+            .Include(t => t.Items.OrderBy(i => i.DisplayOrder))
+            .Where(t => t.IsArchived)
+            .OrderBy(t => t.ArchivedAt)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {Count} archived templates", templates.Count);
+
+        return templates.Select(MapToDto).ToList();
     }
 
     public async Task<TemplateDto?> DuplicateTemplateAsync(
@@ -281,7 +375,7 @@ public class TemplateService : ITemplateService
                 ItemType = item.ItemType,
                 DisplayOrder = item.DisplayOrder,
                 StatusOptions = item.StatusOptions,
-                Notes = item.Notes
+                DefaultNotes = item.DefaultNotes
             });
         }
 
@@ -334,7 +428,7 @@ public class TemplateService : ITemplateService
             ItemType = item.ItemType,
             DisplayOrder = item.DisplayOrder,
             StatusOptions = item.StatusOptions,
-            Notes = item.Notes
+            Notes = item.DefaultNotes
         };
     }
 }

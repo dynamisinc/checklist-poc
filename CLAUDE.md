@@ -131,20 +131,25 @@ checklist-poc/
 - [x] C5 Design System theme (full Material-UI customization)
 - [x] CORS configuration for local development
 - [x] Swagger API documentation setup
-- [x] Comprehensive documentation (README, UI_PATTERNS, USER-STORIES)
+- [x] Comprehensive documentation (README, UI_PATTERNS, USER-STORIES, CODING_STANDARDS)
+- [x] **Application Insights integration** with Azure CLI setup guide
+- [x] **Mock authentication middleware** (MockUserMiddleware) for POC
+- [x] **Complete DTO layer** (5 DTOs with validation)
+- [x] **Template service layer** (ITemplateService interface + implementation)
+- [x] **TemplatesController** with full CRUD (7 endpoints)
+- [x] **Comprehensive logging** throughout all layers
+- [x] **Seed data** for 3 sample templates (Safety, ICS, Logistics)
 
 ### 🚧 In Progress / Planned
-- [ ] API Controllers (Templates, Checklists, Items)
-- [ ] Service layer implementation
-- [ ] DTOs and AutoMapper configuration
+- [ ] ChecklistsController and ChecklistService (instance management)
+- [ ] ItemsController (item completion, status updates)
 - [ ] SignalR hub for real-time collaboration
-- [ ] Mock authentication middleware
 - [ ] Frontend components (cards, dialogs, forms)
 - [ ] Frontend pages (Template Library, Checklist Detail, etc.)
 - [ ] API service layer (axios clients)
 - [ ] Custom React hooks (useChecklists, useTemplates, useChecklistHub)
 - [ ] Unit and integration tests
-- [ ] Seed data scripts
+- [ ] Additional seed data for checklist instances
 
 ---
 
@@ -560,21 +565,32 @@ const handleToggleComplete = async (itemId: string) => {
 };
 ```
 
-### 4. **Forgiving Design**
+### 4. **Forgiving Design - Soft Delete Pattern**
+
+The application uses **soft deletes** (archiving) for all delete operations to prevent accidental data loss.
+
 ```typescript
-// ✅ GOOD: Undo window for destructive actions
-const handleArchive = (checklistId: string) => {
-  archiveChecklist(checklistId);
+// ✅ GOOD: Soft delete with admin recovery
+const handleDelete = (templateId: string) => {
+  // Soft delete - sets IsArchived = true
+  deleteTemplate(templateId);
 
   toast.info(
     <div>
-      Checklist archived.
-      <Button onClick={() => restoreChecklist(checklistId)}>Undo</Button>
+      Template archived. Contact an administrator to restore.
     </div>,
-    { autoClose: 30000 } // 30-second undo window
+    { autoClose: 5000 }
   );
 };
 ```
+
+**Key Features:**
+- **Soft delete by default** - DELETE /api/templates/{id} archives, doesn't delete
+- **Admin restore** - POST /api/templates/{id}/restore unarchives
+- **Admin permanent delete** - DELETE /api/templates/{id}/permanent (cannot be undone)
+- **Full audit trail** - ArchivedBy, ArchivedAt fields track who deleted what
+
+See `docs/SOFT_DELETE_PATTERN.md` for complete implementation details.
 
 ### 5. **C5 Design System Adherence**
 

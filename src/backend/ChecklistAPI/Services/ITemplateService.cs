@@ -88,6 +88,32 @@ public interface ITemplateService
     Task<bool> ArchiveTemplateAsync(Guid id, UserContext userContext);
 
     /// <summary>
+    /// Restore an archived template (set IsArchived = false)
+    /// Admin-only operation to undelete archived templates
+    /// </summary>
+    /// <param name="id">Template ID to restore</param>
+    /// <param name="userContext">Current user context for audit trail</param>
+    /// <returns>True if restored, false if not found</returns>
+    Task<bool> RestoreTemplateAsync(Guid id, UserContext userContext);
+
+    /// <summary>
+    /// Permanently delete a template from the database
+    /// ADMIN-ONLY OPERATION - Cannot be undone!
+    /// Deletes template and all associated items
+    /// </summary>
+    /// <param name="id">Template ID to permanently delete</param>
+    /// <param name="userContext">Current user context (must be admin)</param>
+    /// <returns>True if deleted, false if not found</returns>
+    Task<bool> PermanentlyDeleteTemplateAsync(Guid id, UserContext userContext);
+
+    /// <summary>
+    /// Get all archived templates
+    /// Admin-only operation to view archived templates
+    /// </summary>
+    /// <returns>List of archived templates</returns>
+    Task<List<TemplateDto>> GetArchivedTemplatesAsync();
+
+    /// <summary>
     /// Duplicate an existing template with a new name
     /// Useful for creating variations of standard templates
     /// </summary>

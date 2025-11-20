@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet run)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File test-templates-api.ps1 -BaseUrl \"http://localhost:5000\")",
+      "Bash(curl:*)",
+      "Bash(dotnet run:*)",
+      "Bash(gh issue create:*)",
+      "Bash(tee:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

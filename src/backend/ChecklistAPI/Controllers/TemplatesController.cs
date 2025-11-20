@@ -18,10 +18,13 @@ namespace ChecklistAPI.Controllers;
 ///   GET    /api/templates              - List all active templates
 ///   GET    /api/templates/{id}         - Get single template
 ///   GET    /api/templates/category/{category} - Filter by category
+///   GET    /api/templates/archived     - Get archived templates (Admin only)
 ///   POST   /api/templates              - Create new template
 ///   PUT    /api/templates/{id}         - Update existing template
 ///   DELETE /api/templates/{id}         - Soft delete (archive) template
+///   POST   /api/templates/{id}/restore - Restore archived template (Admin only)
 ///   POST   /api/templates/{id}/duplicate - Duplicate template
+///   DELETE /api/templates/{id}/permanent - PERMANENTLY delete template (Admin only)
 ///
 /// User Context:
 ///   Automatically injected by MockUserMiddleware (POC)
@@ -193,6 +196,113 @@ public class TemplatesController : ControllerBase
             userContext.Email);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Get all archived templates (Admin only)
+    /// </summary>
+    /// <returns>List of archived templates</returns>
+    [HttpGet("archived")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<List<TemplateDto>>> GetArchivedTemplates()
+    {
+        var userContext = GetUserContext();
+
+        if (!userContext.IsAdmin)
+        {
+            _logger.LogWarning(
+                "Non-admin user {User} attempted to access archived templates",
+                userContext.Email);
+            return Forbid();
+        }
+
+        var templates = await _templateService.GetArchivedTemplatesAsync();
+        return Ok(templates);
+    }
+
+    /// <summary>
+    /// Restore an archived template (Admin only)
+    /// </summary>
+    /// <param name="id">Template ID to restore</param>
+    /// <returns>No content on success</returns>
+    [HttpPost("{id:guid}/restore")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RestoreTemplate(Guid id)
+    {
+        var userContext = GetUserContext();
+
+        if (!userContext.IsAdmin)
+        {
+            _logger.LogWarning(
+                "Non-admin user {User} attempted to restore template {TemplateId}",
+                userContext.Email,
+                id);
+            return Forbid();
+        }
+
+        var success = await _templateService.RestoreTemplateAsync(id, userContext);
+
+        if (!success)
+        {
+            _logger.LogWarning("Template {TemplateId} not found for restoration", id);
+            return NotFound(new { message = $"Template {id} not found" });
+        }
+
+        _logger.LogInformation(
+            "Template {TemplateId} restored by admin {User}",
+            id,
+            userContext.Email);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Permanently delete a template (Admin only - CANNOT BE UNDONE)
+    /// </summary>
+    /// <param name="id">Template ID to permanently delete</param>
+    /// <returns>No content on success</returns>
+    [HttpDelete("{id:guid}/permanent")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PermanentlyDeleteTemplate(Guid id)
+    {
+        var userContext = GetUserContext();
+
+        if (!userContext.IsAdmin)
+        {
+            _logger.LogError(
+                "Non-admin user {User} attempted permanent delete of template {TemplateId}",
+                userContext.Email,
+                id);
+            return Forbid();
+        }
+
+        try
+        {
+            var success = await _templateService.PermanentlyDeleteTemplateAsync(id, userContext);
+
+            if (!success)
+            {
+                _logger.LogWarning("Template {TemplateId} not found for permanent deletion", id);
+                return NotFound(new { message = $"Template {id} not found" });
+            }
+
+            _logger.LogWarning(
+                "Template {TemplateId} PERMANENTLY DELETED by admin {User}",
+                id,
+                userContext.Email);
+
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Unauthorized permanent delete attempt");
+            return Forbid();
+        }
     }
 
     /// <summary>
