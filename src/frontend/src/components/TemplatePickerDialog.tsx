@@ -7,6 +7,12 @@
  * - Recently used templates
  * - Usage statistics and popularity
  * - Template type indicators (MANUAL, AUTO_CREATE, RECURRING)
+ *
+ * Phase 3: Mobile optimization
+ * - Bottom sheet on mobile devices
+ * - Standard dialog on desktop
+ * - Touch-optimized UI elements
+ * - Responsive layouts
  */
 
 import React, { useState, useEffect } from 'react';
@@ -26,11 +32,14 @@ import {
   Chip,
   Divider,
   Collapse,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faChevronDown, faChevronUp, faStar, faClock } from '@fortawesome/free-solid-svg-icons';
 import { c5Colors } from '../theme/c5Theme';
 import { TemplateType, type Template } from '../types';
+import { BottomSheet } from './BottomSheet';
 
 interface TemplatePickerDialogProps {
   open: boolean;
@@ -39,13 +48,16 @@ interface TemplatePickerDialogProps {
 }
 
 /**
- * TemplatePickerDialog Component with Smart Suggestions
+ * TemplatePickerDialog Component with Smart Suggestions and Responsive Design
  */
 export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
   open,
   onClose,
   onCreateChecklist,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // <600px
+
   const [suggestedTemplates, setSuggestedTemplates] = useState<Template[]>([]);
   const [allTemplates, setAllTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
@@ -316,6 +328,186 @@ export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
   const recentlyUsedTemplates = suggestedTemplates.filter(t => isRecentlyUsed(t) && !matchesPosition(t));
   const otherSuggestions = suggestedTemplates.filter(t => !matchesPosition(t) && !isRecentlyUsed(t));
 
+  /**
+   * Shared content for both Dialog and BottomSheet
+   */
+  const renderContent = () => (
+    <Box>
+      {/* Loading State */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <Box sx={{ py: 2 }}>
+          <Typography color="error" variant="body2">
+            {error}
+          </Typography>
+          <Button onClick={fetchTemplates} sx={{ mt: 1 }}>
+            Retry
+          </Button>
+        </Box>
+      )}
+
+      {/* Template List */}
+      {!loading && !error && (
+        <>
+          {/* Recommended for You Section */}
+          {recommendedTemplates.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold', color: c5Colors.cobaltBlue }}>
+                ⭐ Recommended for You ({recommendedTemplates.length})
+              </Typography>
+              <List sx={{ maxHeight: isMobile ? 200 : 250, overflowY: 'auto' }}>
+                {recommendedTemplates.map(renderTemplateItem)}
+              </List>
+            </Box>
+          )}
+
+          {/* Recently Used Section */}
+          {recentlyUsedTemplates.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                🕐 Recently Used ({recentlyUsedTemplates.length})
+              </Typography>
+              <List sx={{ maxHeight: isMobile ? 150 : 200, overflowY: 'auto' }}>
+                {recentlyUsedTemplates.map(renderTemplateItem)}
+              </List>
+            </Box>
+          )}
+
+          {/* Other Suggestions Section */}
+          {otherSuggestions.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                Other Suggestions ({otherSuggestions.length})
+              </Typography>
+              <List sx={{ maxHeight: isMobile ? 150 : 200, overflowY: 'auto' }}>
+                {otherSuggestions.map(renderTemplateItem)}
+              </List>
+            </Box>
+          )}
+
+          {/* All Templates Section (Collapsible) */}
+          {allTemplates.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Button
+                onClick={() => setShowAllTemplates(!showAllTemplates)}
+                endIcon={<FontAwesomeIcon icon={showAllTemplates ? faChevronUp : faChevronDown} />}
+                sx={{ mb: 1, minHeight: isMobile ? 48 : 36 }}
+              >
+                {showAllTemplates ? 'Hide' : 'Show'} All Templates ({allTemplates.length})
+              </Button>
+              <Collapse in={showAllTemplates}>
+                <List sx={{ maxHeight: isMobile ? 200 : 300, overflowY: 'auto' }}>
+                  {allTemplates.map(renderTemplateItem)}
+                </List>
+              </Collapse>
+            </Box>
+          )}
+
+          {/* Empty State */}
+          {allTemplates.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+              No templates available. Contact an administrator to create templates.
+            </Typography>
+          )}
+
+          {/* Checklist Name Input */}
+          {selectedTemplate && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                Checklist Name
+              </Typography>
+              <TextField
+                fullWidth
+                value={checklistName}
+                onChange={(e) => setChecklistName(e.target.value)}
+                placeholder="Enter checklist name"
+                autoFocus={!isMobile} // Don't auto-focus on mobile (prevents keyboard pop-up)
+                helperText="You can customize the name or keep the template name"
+                sx={{ mb: 1 }}
+                inputProps={{
+                  style: {
+                    minHeight: isMobile ? 48 : 36, // Larger touch target on mobile
+                  },
+                }}
+              />
+            </>
+          )}
+        </>
+      )}
+    </Box>
+  );
+
+  /**
+   * Render action buttons
+   */
+  const renderActions = () => (
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', px: isMobile ? 2 : 0, py: isMobile ? 2 : 0 }}>
+      <Button
+        onClick={handleCancel}
+        disabled={creating}
+        sx={{
+          minHeight: 48,
+          minWidth: 100,
+        }}
+      >
+        Cancel
+      </Button>
+      <Button
+        variant="contained"
+        onClick={handleCreate}
+        disabled={!selectedTemplate || !checklistName.trim() || creating}
+        sx={{
+          backgroundColor: c5Colors.cobaltBlue,
+          minHeight: 48,
+          minWidth: 120,
+          fontWeight: 'bold',
+          '&:hover': {
+            backgroundColor: c5Colors.cobaltBlue,
+            opacity: 0.9,
+          },
+        }}
+      >
+        {creating ? <CircularProgress size={24} color="inherit" /> : 'Create Checklist'}
+      </Button>
+    </Box>
+  );
+
+  // Mobile: Render as BottomSheet
+  if (isMobile) {
+    return (
+      <>
+        <BottomSheet
+          open={open}
+          onClose={handleCancel}
+          height="auto"
+          title={
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                Create Checklist from Template
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Select a template and give your checklist a name
+              </Typography>
+            </Box>
+          }
+        >
+          {renderContent()}
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            {renderActions()}
+          </Box>
+        </BottomSheet>
+      </>
+    );
+  }
+
+  // Desktop/Tablet: Render as Dialog
   return (
     <Dialog
       open={open}
@@ -338,132 +530,11 @@ export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
       </DialogTitle>
 
       <DialogContent dividers>
-        {/* Loading State */}
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress />
-          </Box>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <Box sx={{ py: 2 }}>
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-            <Button onClick={fetchTemplates} sx={{ mt: 1 }}>
-              Retry
-            </Button>
-          </Box>
-        )}
-
-        {/* Template List */}
-        {!loading && !error && (
-          <>
-            {/* Recommended for You Section */}
-            {recommendedTemplates.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold', color: c5Colors.cobaltBlue }}>
-                  ⭐ Recommended for You ({recommendedTemplates.length})
-                </Typography>
-                <List sx={{ maxHeight: 250, overflowY: 'auto' }}>
-                  {recommendedTemplates.map(renderTemplateItem)}
-                </List>
-              </Box>
-            )}
-
-            {/* Recently Used Section */}
-            {recentlyUsedTemplates.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  🕐 Recently Used ({recentlyUsedTemplates.length})
-                </Typography>
-                <List sx={{ maxHeight: 200, overflowY: 'auto' }}>
-                  {recentlyUsedTemplates.map(renderTemplateItem)}
-                </List>
-              </Box>
-            )}
-
-            {/* Other Suggestions Section */}
-            {otherSuggestions.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  Other Suggestions ({otherSuggestions.length})
-                </Typography>
-                <List sx={{ maxHeight: 200, overflowY: 'auto' }}>
-                  {otherSuggestions.map(renderTemplateItem)}
-                </List>
-              </Box>
-            )}
-
-            {/* All Templates Section (Collapsible) */}
-            {allTemplates.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Button
-                  onClick={() => setShowAllTemplates(!showAllTemplates)}
-                  endIcon={<FontAwesomeIcon icon={showAllTemplates ? faChevronUp : faChevronDown} />}
-                  sx={{ mb: 1 }}
-                >
-                  {showAllTemplates ? 'Hide' : 'Show'} All Templates ({allTemplates.length})
-                </Button>
-                <Collapse in={showAllTemplates}>
-                  <List sx={{ maxHeight: 300, overflowY: 'auto' }}>
-                    {allTemplates.map(renderTemplateItem)}
-                  </List>
-                </Collapse>
-              </Box>
-            )}
-
-            {/* Empty State */}
-            {allTemplates.length === 0 && (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-                No templates available. Contact an administrator to create templates.
-              </Typography>
-            )}
-
-            {/* Checklist Name Input */}
-            {selectedTemplate && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  Checklist Name
-                </Typography>
-                <TextField
-                  fullWidth
-                  value={checklistName}
-                  onChange={(e) => setChecklistName(e.target.value)}
-                  placeholder="Enter checklist name"
-                  autoFocus
-                  helperText="You can customize the name or keep the template name"
-                  sx={{ mb: 1 }}
-                />
-              </>
-            )}
-          </>
-        )}
+        {renderContent()}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={handleCancel} disabled={creating}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleCreate}
-          disabled={!selectedTemplate || !checklistName.trim() || creating}
-          sx={{
-            backgroundColor: c5Colors.cobaltBlue,
-            minHeight: 48,
-            minWidth: 120,
-            fontWeight: 'bold',
-            '&:hover': {
-              backgroundColor: c5Colors.cobaltBlue,
-              opacity: 0.9,
-            },
-          }}
-        >
-          {creating ? <CircularProgress size={24} color="inherit" /> : 'Create Checklist'}
-        </Button>
+        {renderActions()}
       </DialogActions>
     </Dialog>
   );
