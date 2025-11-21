@@ -21,9 +21,10 @@ import {
   Collapse,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { useChecklists } from '../hooks/useChecklists';
 import { useOperationalPeriodGrouping } from '../hooks/useOperationalPeriodGrouping';
+import { usePermissions } from '../hooks/usePermissions';
 import { ChecklistCard } from '../components/ChecklistCard';
 import { SectionHeader } from '../components/SectionHeader';
 import {
@@ -31,13 +32,20 @@ import {
   getCompletionCategory,
   type CompletionStatusFilter,
 } from '../components/ChecklistFilters';
+import { TemplatePickerDialog } from '../components/TemplatePickerDialog';
+import { c5Colors } from '../theme/c5Theme';
+import { toast } from 'react-toastify';
 
 /**
  * My Checklists Page Component
  */
 export const MyChecklistsPage: React.FC = () => {
   const { checklists, loading, error, fetchMyChecklists } = useChecklists();
+  const permissions = usePermissions();
   const [showPreviousPeriods, setShowPreviousPeriods] = useState(false);
+
+  // Template picker dialog state
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
 
   // Filter state
   const [selectedOperationalPeriod, setSelectedOperationalPeriod] = useState<string | null>(null);
@@ -105,6 +113,49 @@ export const MyChecklistsPage: React.FC = () => {
     fetchMyChecklists(showArchived);
   }, [fetchMyChecklists, showArchived]);
 
+  /**
+   * Handle creating a new checklist from a template
+   */
+  const handleCreateChecklist = async (templateId: string, checklistName: string) => {
+    try {
+      // Get current user position from localStorage (mock auth)
+      const storedProfile = localStorage.getItem('mockUserProfile');
+      const profile = storedProfile ? JSON.parse(storedProfile) : null;
+      const position = profile?.positions?.[0] || 'Unknown';
+
+      // Create checklist from template
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/checklists`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': 'user@example.com', // Mock auth
+          'X-User-Position': position,
+        },
+        body: JSON.stringify({
+          templateId,
+          name: checklistName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checklist');
+      }
+
+      const newChecklist = await response.json();
+
+      toast.success(`Checklist "${checklistName}" created successfully`);
+
+      // Refresh checklists to show the new one
+      fetchMyChecklists(showArchived);
+
+      return newChecklist;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create checklist';
+      toast.error(message);
+      throw err;
+    }
+  };
+
   // Loading state
   if (loading && checklists.length === 0) {
     return (
@@ -146,17 +197,41 @@ export const MyChecklistsPage: React.FC = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Page Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ mb: 1 }}>
-          My Checklists
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {totalChecklists} checklist{totalChecklists !== 1 ? 's' : ''} assigned
-          to your position
-          {checklists.length !== totalChecklists && (
-            <> ({checklists.length} total, {totalChecklists} matching filters)</>
-          )}
-        </Typography>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <Box>
+          <Typography variant="h4" sx={{ mb: 1 }}>
+            My Checklists
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {totalChecklists} checklist{totalChecklists !== 1 ? 's' : ''} assigned
+            to your position
+            {checklists.length !== totalChecklists && (
+              <> ({checklists.length} total, {totalChecklists} matching filters)</>
+            )}
+          </Typography>
+        </Box>
+
+        {/* Create Checklist Button - Contributors and Manage roles */}
+        {permissions.canCreateInstance && (
+          <Button
+            variant="contained"
+            startIcon={<FontAwesomeIcon icon={faPlus} />}
+            onClick={() => setTemplatePickerOpen(true)}
+            sx={{
+              backgroundColor: c5Colors.cobaltBlue,
+              minHeight: 48,
+              minWidth: 48,
+              px: 3,
+              fontWeight: 'bold',
+              '&:hover': {
+                backgroundColor: c5Colors.cobaltBlue,
+                opacity: 0.9,
+              },
+            }}
+          >
+            Create Checklist
+          </Button>
+        )}
       </Box>
 
       {/* Filters */}
@@ -312,6 +387,13 @@ export const MyChecklistsPage: React.FC = () => {
           )}
         </>
       )}
+
+      {/* Template Picker Dialog */}
+      <TemplatePickerDialog
+        open={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        onCreateChecklist={handleCreateChecklist}
+      />
     </Container>
   );
 };
