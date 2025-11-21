@@ -239,40 +239,44 @@ export const TemplateLibraryPage: React.FC = () => {
                   </Typography>
                 </CardContent>
 
-                <CardActions sx={{ p: 2, pt: 0, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<FontAwesomeIcon icon={faEye} />}
-                    onClick={() => navigate(`/templates/${template.id}/preview`)}
-                    sx={{
-                      minHeight: 48, // C5 minimum touch target
-                      flex: '1 1 auto',
-                    }}
-                  >
-                    Preview
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<FontAwesomeIcon icon={faCopy} />}
-                    onClick={() => navigate(`/templates/${template.id}/duplicate`)}
-                    sx={{
-                      minHeight: 48, // C5 minimum touch target
-                      flex: '1 1 auto',
-                    }}
-                  >
-                    Duplicate
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<FontAwesomeIcon icon={faEdit} />}
-                    onClick={() => navigate(`/templates/${template.id}/edit`)}
-                    sx={{
-                      minHeight: 48, // C5 minimum touch target
-                      flex: '1 1 auto',
-                    }}
-                  >
-                    Edit
-                  </Button>
+                <CardActions sx={{ p: 2, pt: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {/* Row 1: Preview, Duplicate, Edit buttons */}
+                  <Box sx={{ display: 'flex', gap: 1, width: '100%' }}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<FontAwesomeIcon icon={faEye} />}
+                      onClick={() => navigate(`/templates/${template.id}/preview`)}
+                      sx={{
+                        minHeight: 48, // C5 minimum touch target
+                        flex: 1,
+                      }}
+                    >
+                      Preview
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<FontAwesomeIcon icon={faCopy} />}
+                      onClick={() => navigate(`/templates/${template.id}/duplicate`)}
+                      sx={{
+                        minHeight: 48, // C5 minimum touch target
+                        flex: 1,
+                      }}
+                    >
+                      Duplicate
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<FontAwesomeIcon icon={faEdit} />}
+                      onClick={() => navigate(`/templates/${template.id}/edit`)}
+                      sx={{
+                        minHeight: 48, // C5 minimum touch target
+                        flex: 1,
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </Box>
+                  {/* Row 2: Create Checklist button */}
                   <Button
                     variant="contained"
                     fullWidth
@@ -280,7 +284,6 @@ export const TemplateLibraryPage: React.FC = () => {
                     onClick={() => handleCreateFromTemplate(template)}
                     sx={{
                       minHeight: 48, // C5 minimum touch target
-                      flex: '1 1 100%', // Take full width on its own row
                     }}
                   >
                     Create Checklist
