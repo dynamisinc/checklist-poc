@@ -916,6 +916,509 @@ public class TemplateServiceTests : IDisposable
 
     #endregion
 
+    #region GetTemplateSuggestionsAsync Tests
+
+    [Fact]
+    public async Task GetTemplateSuggestionsAsync_ReturnsTemplates_OrderedByRelevanceScore()
+    {
+        // Arrange - Create templates with different metadata
+        var position = "Safety Officer";
+        var eventCategory = "Fire";
+
+        // Template 1: Perfect match (position + event category + recent + popular)
+        var template1 = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Perfect Match Template",
+            Category = "Safety",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Safety Officer", "Operations Chief" }),
+            EventCategories = System.Text.Json.JsonSerializer.Serialize(new[] { "Fire", "Hazmat" }),
+            UsageCount = 25,
+            LastUsedAt = DateTime.UtcNow.AddDays(-5)
+        };
+
+        // Template 2: Position match only
+        var template2 = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Position Match Template",
+            Category = "Safety",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Safety Officer" }),
+            UsageCount = 10
+        };
+
+        // Template 3: Event category match only
+        var template3 = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Event Category Match Template",
+            Category = "Operations",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            EventCategories = System.Text.Json.JsonSerializer.Serialize(new[] { "Fire" }),
+            UsageCount = 15
+        };
+
+        // Template 4: Popular but no matches
+        var template4 = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Popular Template",
+            Category = "General",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            UsageCount = 40
+        };
+
+        await _context.Templates.AddRangeAsync(template1, template2, template3, template4);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTemplateSuggestionsAsync(position, eventCategory, limit: 10);
+
+        // Assert
+        Assert.Equal(4, result.Count);
+
+        // Template 1 should be first (position + event category + recent + popular = highest score)
+        Assert.Equal(template1.Id, result[0].Id);
+
+        // Template 2 should be second (position match = 1000 + popularity)
+        Assert.Equal(template2.Id, result[1].Id);
+
+        // Template 3 should be third (event category match = 500 + popularity)
+        Assert.Equal(template3.Id, result[2].Id);
+
+        // Template 4 should be fourth (only popularity = 80)
+        Assert.Equal(template4.Id, result[3].Id);
+    }
+
+    [Fact]
+    public async Task GetTemplateSuggestionsAsync_PositionMatchHasHighestPriority()
+    {
+        // Arrange
+        var position = "Planning Section Chief";
+
+        // Template with position match but low usage
+        var template1 = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Position Match Low Usage",
+            Category = "Planning",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Planning Section Chief" }),
+            UsageCount = 1
+        };
+
+        // Template with high usage but no position match
+        var template2 = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "High Usage No Match",
+            Category = "General",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            UsageCount = 50,
+            LastUsedAt = DateTime.UtcNow.AddDays(-1)
+        };
+
+        await _context.Templates.AddRangeAsync(template1, template2);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTemplateSuggestionsAsync(position, limit: 10);
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        // Position match should be first despite lower usage
+        Assert.Equal(template1.Id, result[0].Id);
+        Assert.Equal(template2.Id, result[1].Id);
+    }
+
+    [Fact]
+    public async Task GetTemplateSuggestionsAsync_ExcludesInactiveAndArchivedTemplates()
+    {
+        // Arrange
+        var position = "Safety Officer";
+
+        // Active template
+        var activeTemplate = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Active Template",
+            Category = "Safety",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Safety Officer" })
+        };
+
+        // Inactive template
+        var inactiveTemplate = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Inactive Template",
+            Category = "Safety",
+            IsActive = false,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Safety Officer" })
+        };
+
+        // Archived template
+        var archivedTemplate = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Archived Template",
+            Category = "Safety",
+            IsActive = true,
+            IsArchived = true,
+            ArchivedBy = "test@test.com",
+            ArchivedAt = DateTime.UtcNow,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Safety Officer" })
+        };
+
+        await _context.Templates.AddRangeAsync(activeTemplate, inactiveTemplate, archivedTemplate);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTemplateSuggestionsAsync(position, limit: 10);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(activeTemplate.Id, result[0].Id);
+    }
+
+    [Fact]
+    public async Task GetTemplateSuggestionsAsync_RespectsLimitParameter()
+    {
+        // Arrange
+        var position = "Operations Chief";
+
+        // Create 15 templates
+        for (int i = 1; i <= 15; i++)
+        {
+            var template = new Template
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Template {i}",
+                Category = "Operations",
+                IsActive = true,
+                IsArchived = false,
+                CreatedBy = "test@test.com",
+                CreatedByPosition = "Test Position",
+                UsageCount = i // Different usage counts for sorting
+            };
+            await _context.Templates.AddAsync(template);
+        }
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTemplateSuggestionsAsync(position, limit: 5);
+
+        // Assert
+        Assert.Equal(5, result.Count);
+    }
+
+    [Fact]
+    public async Task GetTemplateSuggestionsAsync_RecencyScoreDecreases_OverTime()
+    {
+        // Arrange
+        var position = "Logistics Chief";
+
+        // Recently used template (5 days ago)
+        var recentTemplate = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Recent Template",
+            Category = "Logistics",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            LastUsedAt = DateTime.UtcNow.AddDays(-5),
+            UsageCount = 10
+        };
+
+        // Older template (25 days ago)
+        var olderTemplate = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Older Template",
+            Category = "Logistics",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            LastUsedAt = DateTime.UtcNow.AddDays(-25),
+            UsageCount = 10 // Same usage count
+        };
+
+        // Very old template (40 days ago - should get 0 recency score)
+        var veryOldTemplate = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Very Old Template",
+            Category = "Logistics",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            LastUsedAt = DateTime.UtcNow.AddDays(-40),
+            UsageCount = 10
+        };
+
+        await _context.Templates.AddRangeAsync(recentTemplate, olderTemplate, veryOldTemplate);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTemplateSuggestionsAsync(position, limit: 10);
+
+        // Assert
+        Assert.Equal(3, result.Count);
+        // Recent template should be first (higher recency score)
+        Assert.Equal(recentTemplate.Id, result[0].Id);
+        // Older template should be second
+        Assert.Equal(olderTemplate.Id, result[1].Id);
+        // Very old template should be third (no recency bonus)
+        Assert.Equal(veryOldTemplate.Id, result[2].Id);
+    }
+
+    [Fact]
+    public async Task GetTemplateSuggestionsAsync_CaseInsensitivePositionMatching()
+    {
+        // Arrange
+        var position = "safety officer"; // lowercase
+
+        var template = new Template
+        {
+            Id = Guid.NewGuid(),
+            Name = "Safety Template",
+            Category = "Safety",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Safety Officer" }) // PascalCase
+        };
+
+        await _context.Templates.AddAsync(template);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTemplateSuggestionsAsync(position, limit: 10);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(template.Id, result[0].Id);
+    }
+
+    #endregion
+
+    #region Create/Update with Metadata Tests
+
+    [Fact]
+    public async Task CreateTemplateAsync_SavesRecommendedPositions_AndEventCategories()
+    {
+        // Arrange
+        var positions = new[] { "Safety Officer", "Operations Chief" };
+        var eventCategories = new[] { "Fire", "Hazmat", "Earthquake" };
+
+        var request = new CreateTemplateRequest
+        {
+            Name = "Multi-Hazard Safety Template",
+            Description = "Comprehensive safety checklist for multiple event types",
+            Category = "Safety",
+            Tags = "safety, multi-hazard",
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(positions),
+            EventCategories = System.Text.Json.JsonSerializer.Serialize(eventCategories),
+            Items = new List<CreateTemplateItemRequest>()
+        };
+
+        // Act
+        var result = await _service.CreateTemplateAsync(request, _testUser);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotNull(result.RecommendedPositions);
+        Assert.NotNull(result.EventCategories);
+
+        var savedPositions = System.Text.Json.JsonSerializer.Deserialize<string[]>(result.RecommendedPositions);
+        var savedCategories = System.Text.Json.JsonSerializer.Deserialize<string[]>(result.EventCategories);
+
+        Assert.NotNull(savedPositions);
+        Assert.Equal(2, savedPositions.Length);
+        Assert.Contains("Safety Officer", savedPositions);
+        Assert.Contains("Operations Chief", savedPositions);
+
+        Assert.NotNull(savedCategories);
+        Assert.Equal(3, savedCategories.Length);
+        Assert.Contains("Fire", savedCategories);
+        Assert.Contains("Hazmat", savedCategories);
+        Assert.Contains("Earthquake", savedCategories);
+
+        // Verify usage metadata defaults
+        Assert.Equal(0, result.UsageCount);
+        Assert.Null(result.LastUsedAt);
+    }
+
+    [Fact]
+    public async Task UpdateTemplateAsync_UpdatesRecommendedPositions_AndEventCategories()
+    {
+        // Arrange - Create template with initial metadata
+        var templateId = await CreateTestTemplate("Template to Update");
+
+        var newPositions = new[] { "Logistics Chief", "Planning Chief" };
+        var newCategories = new[] { "Flood", "Hurricane" };
+
+        var request = new UpdateTemplateRequest
+        {
+            Name = "Updated Template",
+            Category = "Logistics",
+            IsActive = true,
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(newPositions),
+            EventCategories = System.Text.Json.JsonSerializer.Serialize(newCategories),
+            Items = new List<CreateTemplateItemRequest>()
+        };
+
+        // Act
+        var result = await _service.UpdateTemplateAsync(templateId, request, _testUser);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotNull(result.RecommendedPositions);
+        Assert.NotNull(result.EventCategories);
+
+        var savedPositions = System.Text.Json.JsonSerializer.Deserialize<string[]>(result.RecommendedPositions);
+        var savedCategories = System.Text.Json.JsonSerializer.Deserialize<string[]>(result.EventCategories);
+
+        Assert.NotNull(savedPositions);
+        Assert.Equal(2, savedPositions.Length);
+        Assert.Contains("Logistics Chief", savedPositions);
+        Assert.Contains("Planning Chief", savedPositions);
+
+        Assert.NotNull(savedCategories);
+        Assert.Equal(2, savedCategories.Length);
+        Assert.Contains("Flood", savedCategories);
+        Assert.Contains("Hurricane", savedCategories);
+    }
+
+    [Fact]
+    public async Task DuplicateTemplateAsync_ResetsUsageMetadata()
+    {
+        // Arrange - Create template with usage metadata
+        var templateId = Guid.NewGuid();
+        var originalTemplate = new Template
+        {
+            Id = templateId,
+            Name = "Popular Template",
+            Category = "Safety",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            UsageCount = 50,
+            LastUsedAt = DateTime.UtcNow.AddDays(-2),
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(new[] { "Safety Officer" }),
+            EventCategories = System.Text.Json.JsonSerializer.Serialize(new[] { "Fire" })
+        };
+
+        await _context.Templates.AddAsync(originalTemplate);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var duplicate = await _service.DuplicateTemplateAsync(
+            templateId,
+            "Duplicated Popular Template",
+            _testUser);
+
+        // Assert
+        Assert.NotNull(duplicate);
+
+        // Usage metadata should be reset
+        Assert.Equal(0, duplicate.UsageCount);
+        Assert.Null(duplicate.LastUsedAt);
+
+        // But recommendation metadata should be copied
+        Assert.Equal(originalTemplate.RecommendedPositions, duplicate.RecommendedPositions);
+        Assert.Equal(originalTemplate.EventCategories, duplicate.EventCategories);
+    }
+
+    [Fact]
+    public async Task DuplicateTemplateAsync_CopiesAllMetadataFields()
+    {
+        // Arrange
+        var positions = new[] { "Operations Chief", "Safety Officer" };
+        var eventCategories = new[] { "Wildfire", "Flood" };
+        var autoCreateCategories = new[] { "Wildfire" };
+
+        var templateId = Guid.NewGuid();
+        var originalTemplate = new Template
+        {
+            Id = templateId,
+            Name = "Complex Template",
+            Description = "Template with all metadata",
+            Category = "Operations",
+            Tags = "wildfire, flood, operations",
+            IsActive = true,
+            IsArchived = false,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            TemplateType = ChecklistAPI.Models.Enums.TemplateType.AutoCreate,
+            AutoCreateForCategories = System.Text.Json.JsonSerializer.Serialize(autoCreateCategories),
+            RecommendedPositions = System.Text.Json.JsonSerializer.Serialize(positions),
+            EventCategories = System.Text.Json.JsonSerializer.Serialize(eventCategories),
+            UsageCount = 25,
+            LastUsedAt = DateTime.UtcNow.AddDays(-5)
+        };
+
+        await _context.Templates.AddAsync(originalTemplate);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var duplicate = await _service.DuplicateTemplateAsync(
+            templateId,
+            "Duplicated Complex Template",
+            _testUser);
+
+        // Assert
+        Assert.NotNull(duplicate);
+        Assert.Equal("Duplicated Complex Template", duplicate.Name);
+        Assert.Equal(originalTemplate.Description, duplicate.Description);
+        Assert.Equal(originalTemplate.Category, duplicate.Category);
+        Assert.Equal(originalTemplate.Tags, duplicate.Tags);
+        Assert.Equal(originalTemplate.TemplateType, duplicate.TemplateType);
+        Assert.Equal(originalTemplate.AutoCreateForCategories, duplicate.AutoCreateForCategories);
+        Assert.Equal(originalTemplate.RecommendedPositions, duplicate.RecommendedPositions);
+        Assert.Equal(originalTemplate.EventCategories, duplicate.EventCategories);
+
+        // Usage metadata should be reset
+        Assert.Equal(0, duplicate.UsageCount);
+        Assert.Null(duplicate.LastUsedAt);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     /// <summary>
