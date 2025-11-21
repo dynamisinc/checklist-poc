@@ -126,8 +126,8 @@
 ---
 
 ### Story 1.6: Template Categories and Tags
-**As a** COBRA administrator  
-**I want to** organize templates with categories and tags  
+**As a** COBRA administrator
+**I want to** organize templates with categories and tags
 **So that** users can quickly find relevant templates for their incident type
 
 **Acceptance Criteria:**
@@ -147,11 +147,115 @@
 
 ---
 
+### Story 1.7: Smart Template Suggestions
+**As a** COBRA operational user
+**I want to** see intelligent template recommendations based on my position and context
+**So that** I can quickly find the right template without searching through dozens of options
+
+**Acceptance Criteria:**
+- Template picker displays smart suggestions organized into sections:
+  - **⭐ Recommended for You** - Templates matching user's ICS position
+  - **🕒 Recently Used** - Templates used within last 30 days
+  - **💡 Other Suggestions** - Popular and event-category-matched templates
+  - **📋 All Templates** - Full alphabetical list (collapsed by default)
+- Multi-factor scoring algorithm prioritizes templates:
+  - Position match: +1000 points (highest priority)
+  - Event category match: +500 points
+  - Recently used (30-day window): +0 to +200 points (scaled by recency)
+  - Popularity: +0 to +100 points (capped at 50 uses)
+- Visual badges explain why template is suggested:
+  - 📍 "Recommended for [Position]" (blue badge)
+  - 🔥 "Popular (X uses)" (green badge)
+  - 🕒 "Last used X days ago" (orange badge)
+  - ⚡ "Auto-creates for [Event]" (purple badge)
+  - 🔁 "Auto-creates [frequency]" (cyan badge)
+- System automatically tracks template usage:
+  - UsageCount increments when checklist created
+  - LastUsedAt updates to current timestamp
+  - No user action required
+- API endpoint: `GET /api/templates/suggestions?position={position}&eventCategory={category}&limit={limit}`
+- Templates in "Recommended" section appear first (user sees best matches immediately)
+- "All Templates" section allows browsing if suggestions don't match need
+- Search filter works across all sections
+- Section headers show count: "Recommended for You (3)"
+- Empty sections automatically collapse (don't show "0 templates")
+- Typical usage: User finds right template in 10-15 seconds (vs. 2-3 minutes previously)
+
+**Technical Notes:**
+- Backend: New fields on Template entity:
+  - RecommendedPositions (JSON array of position names)
+  - EventCategories (JSON array of event types)
+  - UsageCount (INT, default 0)
+  - LastUsedAt (DATETIME2, nullable)
+- Migration: `20251121040000_AddTemplateSuggestionsMetadata.cs`
+- Indexes: IX_Templates_UsageCount, IX_Templates_LastUsedAt
+- API scoring algorithm in TemplateService.GetTemplateSuggestionsAsync()
+- Automatic usage tracking in ChecklistService.CreateFromTemplateAsync()
+- Frontend: TemplatePickerDialog categorizes and displays suggestions
+- Badge rendering based on template metadata
+- Position extracted from user profile (localStorage in POC, JWT in production)
+
+**Story Points:** 8
+
+**Implementation Status:** ✅ Complete (Phase 2)
+
+---
+
 ## Epic: Checklist Instance Management
 
+### Story 2.0: Quick Checklist Creation from My Checklists
+**As a** COBRA contributor or manager
+**I want to** quickly create a new checklist from the My Checklists page
+**So that** I don't have to navigate through multiple pages to start working
+
+**Acceptance Criteria:**
+- **"Create Checklist" button** prominently displayed on My Checklists page
+  - Location: Page header (top-right area)
+  - Style: Filled Cobalt Blue button (#0020C2)
+  - Icon: Plus icon (+) with "Create Checklist" label
+  - Minimum size: 48x48 pixels for touch
+- **Permission gating:**
+  - Button visible for: Contributor, Manage roles
+  - Button hidden for: None, Readonly roles
+  - Uses usePermissions hook: `canCreateInstance` check
+- **Click behavior:**
+  - Opens TemplatePickerDialog with smart suggestions
+  - Dialog pre-filtered to show only MANUAL templates (excludes auto-create/recurring)
+  - User's position automatically detected from profile
+  - Smart suggestions prioritize relevant templates
+- **User flow:**
+  1. User clicks "Create Checklist" button
+  2. Template picker opens (Dialog on desktop, BottomSheet on mobile)
+  3. User sees smart suggestions based on their position
+  4. User selects template
+  5. Dialog closes and next step begins (out of scope: checklist form)
+- **Empty state integration:**
+  - If user has no checklists, button provides clear call-to-action
+  - Empty state message encourages using the button
+  - No confusion about how to get started
+- **Mobile optimization:**
+  - Button sized for touch (48x48 minimum)
+  - Prominent placement above checklist list
+  - Works seamlessly with BottomSheet picker on mobile
+- **Typical usage time:** 15-20 seconds from My Checklists page to template selected
+
+**Technical Notes:**
+- Button rendered conditionally: `{canCreateInstance && <Button>...}`
+- Opens TemplatePickerDialog component with smart suggestions
+- Position passed from user profile (localStorage in POC)
+- Template type filtering: Only show MANUAL templates (templateType === 0)
+- Foundation for full checklist creation workflow
+- Reduces friction: No need to navigate to separate "Create" page
+
+**Story Points:** 2
+
+**Implementation Status:** ✅ Complete (Phase 1)
+
+---
+
 ### Story 2.1: Create Checklist Instance from Template
-**As a** COBRA operational user  
-**I want to** create a checklist instance from a template  
+**As a** COBRA operational user
+**I want to** create a checklist instance from a template
 **So that** I can track completion of required tasks during an incident
 
 **Acceptance Criteria:**
@@ -480,6 +584,116 @@
 
 ## Epic: Permissions and Position-Based Access
 
+### Story 4.0: Role-Based Permission System
+**As a** COBRA system administrator
+**I want to** assign users to one of four permission roles (None, Readonly, Contributor, Manage)
+**So that** access to features is controlled based on user capability and training level
+
+**Acceptance Criteria:**
+- Four permission roles defined: None, Readonly, Contributor, Manage
+- Each role has specific capabilities as defined in capability matrix
+- Role assignment determines:
+  - Navigation items visible in app
+  - Actions available on checklists and templates
+  - Data visibility (own checklists vs. all checklists)
+- **Contributor role** (casual users):
+  - Can view template library
+  - Can create checklists from templates
+  - Can edit own checklists and complete items
+  - Cannot create/edit templates
+  - Cannot access item library or analytics
+  - Target training time: 30 minutes
+- **Readonly role** (observers):
+  - Can view all checklists and templates
+  - Can view analytics/reports
+  - Cannot create or edit anything
+  - Target training time: 5 minutes
+- **Manage role** (administrators):
+  - Full access to all features
+  - Can create/edit templates
+  - Can access item library
+  - Can view analytics
+  - Can manage system settings
+  - Target training time: 2+ hours
+- Permission checks enforced both client-side (UI) and server-side (API)
+- Declarative permission checking via React hook: `usePermissions()`
+- Navigation conditionally renders based on role
+- Actions conditionally display based on role
+- Clear visual indicators when actions are disabled due to permissions
+
+**Technical Notes:**
+- POC: `usePermissions` hook reads from localStorage profile
+- Production: Replace with JWT token claims from authentication
+- Client-side checks hide UI elements
+- Server-side checks enforce authorization on all API endpoints
+- Capability matrix documented in `docs/ROLES_AND_PERMISSIONS.md`
+- Hook listens to custom `profileChanged` event for reactivity
+- localStorage key: `mockUserProfile` with `{ positions: string[], role: PermissionRole }`
+
+**Story Points:** 5
+
+**Implementation Status:** ✅ Complete (Phase 1)
+
+---
+
+### Story 4.0b: Profile Management for POC Demo
+**As a** COBRA evaluator or demo user
+**I want to** easily switch between different positions and permission roles
+**So that** I can test and demonstrate role-based functionality without authentication
+
+**Acceptance Criteria:**
+- **Profile Menu component** accessible from app header (avatar/profile icon)
+- **Position selection:**
+  - Checkbox list of common ICS positions (Safety Officer, Operations Chief, etc.)
+  - Can select multiple positions simultaneously
+  - Primary position = first selected position
+  - Selected positions persist across page refresh
+- **Role selection:**
+  - Dropdown with four options: None, Readonly, Contributor, Manage
+  - Each option shows description of capabilities
+  - Role displayed with visual indicator (badge or label)
+  - Selected role persists across page refresh
+- **Profile persistence:**
+  - Uses localStorage for POC demo (key: `mockUserProfile`)
+  - Stores: `{ positions: string[], role: PermissionRole }`
+  - Survives page refresh and navigation
+- **Reactivity:**
+  - Changing profile immediately updates app
+  - Navigation items refresh based on new role
+  - Custom `profileChanged` event broadcasts change
+  - usePermissions hook listens and re-evaluates
+  - No page refresh required
+- **Visual feedback:**
+  - Current position(s) and role displayed in profile menu
+  - Active selections highlighted
+  - Clear "Save" or auto-save behavior
+  - Success indicator when profile saved
+- **User experience:**
+  - Quick access (1-2 clicks to open menu)
+  - Clear labels and descriptions
+  - Intuitive interaction (checkboxes for multi-select, dropdown for single-select)
+  - Mobile-friendly (touch targets 48x48 pixels)
+- **For demo purposes:**
+  - Simulates authenticated user context
+  - Allows rapid switching between personas
+  - Foundation ready for real authentication
+  - Easy for evaluators to explore different role behaviors
+
+**Technical Notes:**
+- Component: `ProfileMenu.tsx` (replaces simple PositionSelector)
+- localStorage key: `mockUserProfile`
+- Custom event: `window.dispatchEvent(new Event('profileChanged'))`
+- usePermissions hook listens to: `storage` and `profileChanged` events
+- Production replacement: Read position/role from JWT token claims
+- Server-side: No authentication in POC (would require JWT validation in production)
+- Multi-position support ready (frontend handles array, backend can be updated later)
+
+**Story Points:** 3
+
+**Implementation Status:** ✅ Complete (Phase 1)
+
+---
+
 ### Story 4.1: Position-Based Checklist Visibility
 **As a** COBRA operational user  
 **I want to** see only checklists relevant to my current position  
@@ -782,8 +996,8 @@
 ## Epic: User Experience Enhancements
 
 ### Story 7.1: Mobile-Optimized Checklist View
-**As a** COBRA field operations user  
-**I want to** use checklists on mobile devices  
+**As a** COBRA field operations user
+**I want to** use checklists on mobile devices
 **So that** I can update checklists from the field without returning to command post
 
 **Acceptance Criteria:**
@@ -802,6 +1016,67 @@
 - Consider PWA capabilities for offline support
 
 **Story Points:** 8
+
+---
+
+### Story 7.1b: Mobile-Optimized Template Picker
+**As a** COBRA field operations user
+**I want to** select templates using a mobile-native interface
+**So that** I can create checklists quickly from my phone or tablet
+
+**Acceptance Criteria:**
+- **Responsive rendering based on screen size:**
+  - Mobile (<600px): Bottom sheet drawer slides up from bottom
+  - Desktop/Tablet (≥600px): Standard dialog centered on screen
+- **Bottom sheet features (mobile only):**
+  - Slides up from bottom with smooth animation
+  - Drag handle at top (40px wide, 4px height, gray)
+  - Swipe down to dismiss gesture
+  - Tap backdrop to close
+  - Rounded top corners (16px border radius)
+  - Max height: 90% of viewport
+  - Close button (X) in header
+- **Touch optimization:**
+  - All buttons minimum 48x48 pixels
+  - Template list items minimum 56px height
+  - Entire list item row is clickable (not just text)
+  - Adequate spacing between interactive elements (16px minimum)
+- **No auto-focus on mobile:**
+  - Search field does NOT auto-focus on mobile (prevents unwanted keyboard)
+  - User can manually tap search if needed
+  - Desktop still auto-focuses for keyboard users
+- **Responsive section heights:**
+  - Mobile: Recommended section max 200px, Other sections max 150px
+  - Desktop: Recommended section max 250px, Other sections max 200px
+  - All sections scrollable independently
+- **Consistent behavior across devices:**
+  - Same content rendered in both mobile and desktop views
+  - Same smart suggestions algorithm
+  - Same search/filter functionality
+  - Same badge indicators
+- **Native app-like feel on mobile:**
+  - Familiar gesture patterns (swipe to dismiss)
+  - Smooth animations
+  - No jarring transitions
+  - Feels like built-in iOS/Android app
+- **Tested on:**
+  - iOS Safari (iPhone 12+)
+  - Chrome Android (Samsung Galaxy, Pixel)
+  - Desktop Chrome (responsive mode)
+
+**Technical Notes:**
+- New component: `BottomSheet.tsx` (reusable mobile drawer)
+- Uses Material-UI `SwipeableDrawer` component
+- Responsive detection: `useMediaQuery(theme.breakpoints.down('sm'))`
+- Conditional rendering: `isMobile ? <BottomSheet> : <Dialog>`
+- Shared content function for DRY principle
+- No code duplication between mobile/desktop views
+- Touch targets verified with browser dev tools
+- Gestures tested on physical devices
+
+**Story Points:** 5
+
+**Implementation Status:** ✅ Complete (Phase 3)
 
 ---
 
