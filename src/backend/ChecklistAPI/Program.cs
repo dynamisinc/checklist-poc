@@ -26,6 +26,7 @@ builder.Services.AddScoped<ITemplateService, TemplateService>();
 builder.Services.AddScoped<IChecklistService, ChecklistService>();
 builder.Services.AddScoped<IChecklistItemService, ChecklistItemService>();
 builder.Services.AddScoped<IItemLibraryService, ItemLibraryService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 // Add HTTP context accessor for service to access current user
 builder.Services.AddHttpContextAccessor();
