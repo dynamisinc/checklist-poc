@@ -112,28 +112,36 @@ public class AnalyticsService : IAnalyticsService
                 .OrderByDescending(t => t.CreatedAt)
                 .Take(5)
                 .Include(t => t.Items)
-                .Select(t => new TemplateDto(
-                    Id: t.Id,
-                    Name: t.Name,
-                    Description: t.Description,
-                    Category: t.Category,
-                    Tags: t.Tags,
-                    IsActive: t.IsActive,
-                    CreatedBy: t.CreatedBy,
-                    CreatedAt: t.CreatedAt,
-                    LastModifiedBy: t.LastModifiedBy,
-                    LastModifiedAt: t.LastModifiedAt,
-                    Items: t.Items.Select(i => new TemplateItemDto(
-                        Id: i.Id,
-                        ItemText: i.ItemText,
-                        ItemType: i.ItemType,
-                        DisplayOrder: i.DisplayOrder,
-                        IsRequired: i.IsRequired,
-                        StatusConfiguration: i.StatusConfiguration,
-                        AllowedPositions: i.AllowedPositions,
-                        DefaultNotes: i.DefaultNotes
-                    )).ToList()
-                ))
+                .Select(t => new TemplateDto
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    Description = t.Description,
+                    Category = t.Category,
+                    Tags = t.Tags,
+                    IsActive = t.IsActive,
+                    IsArchived = t.IsArchived,
+                    CreatedBy = t.CreatedBy,
+                    CreatedByPosition = t.CreatedByPosition,
+                    CreatedAt = t.CreatedAt,
+                    LastModifiedBy = t.LastModifiedBy,
+                    LastModifiedByPosition = t.LastModifiedByPosition,
+                    LastModifiedAt = t.LastModifiedAt,
+                    ArchivedBy = t.ArchivedBy,
+                    ArchivedAt = t.ArchivedAt,
+                    Items = t.Items.Select(i => new TemplateItemDto
+                    {
+                        Id = i.Id,
+                        TemplateId = i.TemplateId,
+                        ItemText = i.ItemText,
+                        ItemType = i.ItemType,
+                        DisplayOrder = i.DisplayOrder,
+                        IsRequired = i.IsRequired,
+                        StatusConfiguration = i.StatusConfiguration,
+                        AllowedPositions = i.AllowedPositions,
+                        DefaultNotes = i.DefaultNotes
+                    }).ToList()
+                })
                 .ToListAsync();
 
             var dashboard = new AnalyticsDashboardDto(
