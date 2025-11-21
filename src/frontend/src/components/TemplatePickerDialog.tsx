@@ -329,9 +329,9 @@ export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
   const otherSuggestions = suggestedTemplates.filter(t => !matchesPosition(t) && !isRecentlyUsed(t));
 
   /**
-   * Shared content for both Dialog and BottomSheet
+   * Render template list only (shared by both mobile and desktop)
    */
-  const renderContent = () => (
+  const renderTemplateList = () => (
     <Box>
       {/* Loading State */}
       {loading && (
@@ -415,40 +415,118 @@ export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
               No templates available. Contact an administrator to create templates.
             </Typography>
           )}
-
-          {/* Checklist Name Input */}
-          {selectedTemplate && (
-            <>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                Checklist Name
-              </Typography>
-              <TextField
-                fullWidth
-                value={checklistName}
-                onChange={(e) => setChecklistName(e.target.value)}
-                placeholder="Enter checklist name"
-                autoFocus={!isMobile} // Don't auto-focus on mobile (prevents keyboard pop-up)
-                helperText="You can customize the name or keep the template name"
-                sx={{ mb: 1 }}
-                inputProps={{
-                  style: {
-                    minHeight: isMobile ? 48 : 36, // Larger touch target on mobile
-                  },
-                }}
-              />
-            </>
-          )}
         </>
       )}
     </Box>
   );
 
   /**
-   * Render action buttons
+   * Render sticky footer with name input and actions (mobile only)
    */
-  const renderActions = () => (
-    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', px: isMobile ? 2 : 0, py: isMobile ? 2 : 0 }}>
+  const renderStickyFooter = () => (
+    <Box
+      sx={{
+        backgroundColor: 'background.paper',
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        pt: 2,
+        pb: 2,
+        px: 2,
+      }}
+    >
+      {/* Checklist Name Input */}
+      {selectedTemplate && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+            Checklist Name
+          </Typography>
+          <TextField
+            fullWidth
+            value={checklistName}
+            onChange={(e) => setChecklistName(e.target.value)}
+            placeholder="Enter checklist name"
+            autoFocus={false} // Never auto-focus on mobile
+            helperText="You can customize the name or keep the template name"
+            inputProps={{
+              style: {
+                minHeight: 48, // Touch-friendly
+              },
+            }}
+          />
+        </Box>
+      )}
+
+      {/* Action Buttons */}
+      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+        <Button
+          onClick={handleCancel}
+          disabled={creating}
+          sx={{
+            minHeight: 48,
+            minWidth: 100,
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleCreate}
+          disabled={!selectedTemplate || !checklistName.trim() || creating}
+          sx={{
+            backgroundColor: c5Colors.cobaltBlue,
+            minHeight: 48,
+            minWidth: 120,
+            fontWeight: 'bold',
+            '&:hover': {
+              backgroundColor: c5Colors.cobaltBlue,
+              opacity: 0.9,
+            },
+          }}
+        >
+          {creating ? <CircularProgress size={24} color="inherit" /> : 'Create Checklist'}
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  /**
+   * Full content for Desktop Dialog (includes name input inline)
+   */
+  const renderDesktopContent = () => (
+    <Box>
+      {renderTemplateList()}
+
+      {/* Checklist Name Input for Desktop */}
+      {selectedTemplate && !loading && !error && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+            Checklist Name
+          </Typography>
+          <TextField
+            fullWidth
+            value={checklistName}
+            onChange={(e) => setChecklistName(e.target.value)}
+            placeholder="Enter checklist name"
+            autoFocus={true} // Auto-focus on desktop
+            helperText="You can customize the name or keep the template name"
+            sx={{ mb: 1 }}
+            inputProps={{
+              style: {
+                minHeight: 36,
+              },
+            }}
+          />
+        </>
+      )}
+    </Box>
+  );
+
+  /**
+   * Render action buttons for Desktop Dialog
+   */
+  const renderDesktopActions = () => (
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
       <Button
         onClick={handleCancel}
         disabled={creating}
@@ -479,7 +557,7 @@ export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
     </Box>
   );
 
-  // Mobile: Render as BottomSheet
+  // Mobile: Render as BottomSheet with scrollable content + sticky footer
   if (isMobile) {
     return (
       <>
@@ -498,10 +576,19 @@ export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
             </Box>
           }
         >
-          {renderContent()}
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-            {renderActions()}
+          {/* Scrollable template list */}
+          <Box
+            sx={{
+              maxHeight: 'calc(90vh - 300px)', // Leave room for header + sticky footer
+              overflowY: 'auto',
+              px: 2,
+            }}
+          >
+            {renderTemplateList()}
           </Box>
+
+          {/* Sticky footer with name input and actions */}
+          {renderStickyFooter()}
         </BottomSheet>
       </>
     );
@@ -530,11 +617,11 @@ export const TemplatePickerDialog: React.FC<TemplatePickerDialogProps> = ({
       </DialogTitle>
 
       <DialogContent dividers>
-        {renderContent()}
+        {renderDesktopContent()}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        {renderActions()}
+        {renderDesktopActions()}
       </DialogActions>
     </Dialog>
   );
