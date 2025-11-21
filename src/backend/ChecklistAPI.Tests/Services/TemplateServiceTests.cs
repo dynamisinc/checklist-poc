@@ -398,6 +398,82 @@ public class TemplateServiceTests : IDisposable
         Assert.Equal("Persisted Template", dbTemplate.Name);
     }
 
+    [Fact]
+    public async Task CreateTemplateAsync_CreatesManualTemplate_ByDefault()
+    {
+        // Arrange
+        var request = new CreateTemplateRequest
+        {
+            Name = "Manual Template",
+            Category = "Safety",
+            Items = new List<CreateTemplateItemRequest>()
+            // No TemplateType specified - should default to Manual
+        };
+
+        // Act
+        var result = await _service.CreateTemplateAsync(request, _testUser);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(ChecklistAPI.Models.Enums.TemplateType.Manual, result.TemplateType);
+        Assert.Null(result.AutoCreateForCategories);
+        Assert.Null(result.RecurrenceConfig);
+    }
+
+    [Fact]
+    public async Task CreateTemplateAsync_CreatesAutoCreateTemplate_WithCategories()
+    {
+        // Arrange
+        var categories = new[] { "Hurricane", "Flood", "Wildfire" };
+        var request = new CreateTemplateRequest
+        {
+            Name = "Auto-Create Safety Briefing",
+            Category = "Safety",
+            TemplateType = ChecklistAPI.Models.Enums.TemplateType.AutoCreate,
+            AutoCreateForCategories = System.Text.Json.JsonSerializer.Serialize(categories),
+            Items = new List<CreateTemplateItemRequest>()
+        };
+
+        // Act
+        var result = await _service.CreateTemplateAsync(request, _testUser);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(ChecklistAPI.Models.Enums.TemplateType.AutoCreate, result.TemplateType);
+        Assert.NotNull(result.AutoCreateForCategories);
+
+        var savedCategories = System.Text.Json.JsonSerializer.Deserialize<string[]>(result.AutoCreateForCategories);
+        Assert.NotNull(savedCategories);
+        Assert.Equal(3, savedCategories.Length);
+        Assert.Contains("Hurricane", savedCategories);
+        Assert.Contains("Flood", savedCategories);
+        Assert.Contains("Wildfire", savedCategories);
+    }
+
+    [Fact]
+    public async Task CreateTemplateAsync_CreatesRecurringTemplate_WithConfig()
+    {
+        // Arrange
+        var recurringConfig = "{\"frequency\": \"daily\", \"startTime\": \"08:00\"}";
+        var request = new CreateTemplateRequest
+        {
+            Name = "Daily Briefing",
+            Category = "Operations",
+            TemplateType = ChecklistAPI.Models.Enums.TemplateType.Recurring,
+            RecurrenceConfig = recurringConfig,
+            Items = new List<CreateTemplateItemRequest>()
+        };
+
+        // Act
+        var result = await _service.CreateTemplateAsync(request, _testUser);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(ChecklistAPI.Models.Enums.TemplateType.Recurring, result.TemplateType);
+        Assert.NotNull(result.RecurrenceConfig);
+        Assert.Equal(recurringConfig, result.RecurrenceConfig);
+    }
+
     #endregion
 
     #region UpdateTemplateAsync Tests
@@ -494,6 +570,63 @@ public class TemplateServiceTests : IDisposable
 
         // Assert
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpdateTemplateAsync_UpdatesTemplateType_ToAutoCreate()
+    {
+        // Arrange - Create Manual template
+        var templateId = await CreateTestTemplate("Manual Template", "Description");
+        var categories = new[] { "Hurricane", "Flood" };
+        var request = new UpdateTemplateRequest
+        {
+            Name = "Manual Template",
+            Category = "Safety",
+            IsActive = true,
+            TemplateType = ChecklistAPI.Models.Enums.TemplateType.AutoCreate,
+            AutoCreateForCategories = System.Text.Json.JsonSerializer.Serialize(categories),
+            Items = new List<CreateTemplateItemRequest>()
+        };
+
+        // Act
+        var result = await _service.UpdateTemplateAsync(templateId, request, _testUser);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(ChecklistAPI.Models.Enums.TemplateType.AutoCreate, result.TemplateType);
+        Assert.NotNull(result.AutoCreateForCategories);
+
+        var savedCategories = System.Text.Json.JsonSerializer.Deserialize<string[]>(result.AutoCreateForCategories);
+        Assert.NotNull(savedCategories);
+        Assert.Equal(2, savedCategories.Length);
+        Assert.Contains("Hurricane", savedCategories);
+        Assert.Contains("Flood", savedCategories);
+    }
+
+    [Fact]
+    public async Task UpdateTemplateAsync_ClearsAutoCreateCategories_WhenChangingToManual()
+    {
+        // Arrange - Create AutoCreate template
+        var categories = new[] { "Hurricane" };
+        var templateId = await CreateAutoCreateTemplate("Auto Template", categories);
+
+        var request = new UpdateTemplateRequest
+        {
+            Name = "Now Manual Template",
+            Category = "Safety",
+            IsActive = true,
+            TemplateType = ChecklistAPI.Models.Enums.TemplateType.Manual,
+            AutoCreateForCategories = null, // Clear categories
+            Items = new List<CreateTemplateItemRequest>()
+        };
+
+        // Act
+        var result = await _service.UpdateTemplateAsync(templateId, request, _testUser);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(ChecklistAPI.Models.Enums.TemplateType.Manual, result.TemplateType);
+        Assert.Null(result.AutoCreateForCategories);
     }
 
     #endregion
@@ -735,6 +868,52 @@ public class TemplateServiceTests : IDisposable
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task DuplicateTemplateAsync_CopiesTemplateType_AndConfiguration()
+    {
+        // Arrange - Create AutoCreate template
+        var categories = new[] { "Hurricane", "Wildfire" };
+        var originalId = await CreateAutoCreateTemplate("Original Auto-Create", categories);
+
+        // Act
+        var duplicate = await _service.DuplicateTemplateAsync(
+            originalId,
+            "Duplicated Auto-Create",
+            _testUser);
+
+        // Assert
+        Assert.NotNull(duplicate);
+        Assert.Equal("Duplicated Auto-Create", duplicate.Name);
+        Assert.Equal(ChecklistAPI.Models.Enums.TemplateType.AutoCreate, duplicate.TemplateType);
+        Assert.NotNull(duplicate.AutoCreateForCategories);
+
+        var savedCategories = System.Text.Json.JsonSerializer.Deserialize<string[]>(duplicate.AutoCreateForCategories);
+        Assert.NotNull(savedCategories);
+        Assert.Equal(2, savedCategories.Length);
+        Assert.Contains("Hurricane", savedCategories);
+        Assert.Contains("Wildfire", savedCategories);
+    }
+
+    [Fact]
+    public async Task DuplicateTemplateAsync_CopiesRecurringConfig()
+    {
+        // Arrange - Create Recurring template
+        var recurringConfig = "{\"frequency\": \"daily\", \"time\": \"09:00\"}";
+        var originalId = await CreateRecurringTemplate("Daily Ops Briefing", recurringConfig);
+
+        // Act
+        var duplicate = await _service.DuplicateTemplateAsync(
+            originalId,
+            "Copy of Daily Ops Briefing",
+            _testUser);
+
+        // Assert
+        Assert.NotNull(duplicate);
+        Assert.Equal(ChecklistAPI.Models.Enums.TemplateType.Recurring, duplicate.TemplateType);
+        Assert.NotNull(duplicate.RecurrenceConfig);
+        Assert.Equal(recurringConfig, duplicate.RecurrenceConfig);
+    }
+
     #endregion
 
     #region Helper Methods
@@ -851,6 +1030,54 @@ public class TemplateServiceTests : IDisposable
                 DisplayOrder = i
             });
         }
+
+        await _context.Templates.AddAsync(template);
+        await _context.SaveChangesAsync();
+
+        return templateId;
+    }
+
+    /// <summary>
+    /// Creates an AutoCreate template with specified incident categories
+    /// </summary>
+    private async Task<Guid> CreateAutoCreateTemplate(string name, string[] categories)
+    {
+        var templateId = Guid.NewGuid();
+        var template = new Template
+        {
+            Id = templateId,
+            Name = name,
+            Category = "Safety",
+            IsActive = true,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            TemplateType = ChecklistAPI.Models.Enums.TemplateType.AutoCreate,
+            AutoCreateForCategories = System.Text.Json.JsonSerializer.Serialize(categories)
+        };
+
+        await _context.Templates.AddAsync(template);
+        await _context.SaveChangesAsync();
+
+        return templateId;
+    }
+
+    /// <summary>
+    /// Creates a Recurring template with specified configuration
+    /// </summary>
+    private async Task<Guid> CreateRecurringTemplate(string name, string recurringConfig)
+    {
+        var templateId = Guid.NewGuid();
+        var template = new Template
+        {
+            Id = templateId,
+            Name = name,
+            Category = "Operations",
+            IsActive = true,
+            CreatedBy = "test@test.com",
+            CreatedByPosition = "Test Position",
+            TemplateType = ChecklistAPI.Models.Enums.TemplateType.Recurring,
+            RecurrenceConfig = recurringConfig
+        };
 
         await _context.Templates.AddAsync(template);
         await _context.SaveChangesAsync();
