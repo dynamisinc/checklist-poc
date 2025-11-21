@@ -199,6 +199,27 @@ public class ChecklistService : IChecklistService
             userContext);
 
         _context.ChecklistInstances.Add(checklist);
+
+        // Track template usage for smart suggestions
+        var template = await _context.Templates.FindAsync(request.TemplateId);
+        if (template != null)
+        {
+            template.UsageCount++;
+            template.LastUsedAt = DateTime.UtcNow;
+            _logger.LogDebug(
+                "Updated usage tracking for template {TemplateId} ({Name}): UsageCount={Count}, LastUsedAt={Time}",
+                template.Id,
+                template.Name,
+                template.UsageCount,
+                template.LastUsedAt);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Template {TemplateId} not found for usage tracking update",
+                request.TemplateId);
+        }
+
         await _context.SaveChangesAsync();
 
         return ChecklistMapper.MapToDto(checklist);
