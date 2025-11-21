@@ -102,6 +102,52 @@ public class TemplatesController : ControllerBase
     }
 
     /// <summary>
+    /// Get smart template suggestions based on position and event category
+    /// </summary>
+    /// <param name="position">User's ICS position (e.g., "Safety Officer")</param>
+    /// <param name="eventCategory">Event category (e.g., "Fire", "Flood") - optional</param>
+    /// <param name="limit">Maximum number of suggestions (default: 10, max: 50)</param>
+    /// <returns>List of suggested templates ranked by relevance</returns>
+    /// <remarks>
+    /// Returns templates ranked by:
+    /// 1. Position match (highest priority) - +1000 points
+    /// 2. Event category match - +500 points
+    /// 3. Recently used (last 30 days) - +0 to +200 points
+    /// 4. Popularity (usage count) - +0 to +100 points
+    /// </remarks>
+    [HttpGet("suggestions")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<TemplateDto>>> GetTemplateSuggestions(
+        [FromQuery] string position,
+        [FromQuery] string? eventCategory = null,
+        [FromQuery] int limit = 10)
+    {
+        if (string.IsNullOrWhiteSpace(position))
+        {
+            return BadRequest(new { message = "Position parameter is required" });
+        }
+
+        if (limit < 1 || limit > 50)
+        {
+            return BadRequest(new { message = "Limit must be between 1 and 50" });
+        }
+
+        var suggestions = await _templateService.GetTemplateSuggestionsAsync(
+            position,
+            eventCategory,
+            limit);
+
+        _logger.LogInformation(
+            "Returned {Count} template suggestions for position {Position}, category {Category}",
+            suggestions.Count,
+            position,
+            eventCategory ?? "(none)");
+
+        return Ok(suggestions);
+    }
+
+    /// <summary>
     /// Create a new template
     /// </summary>
     /// <param name="request">Template data including items</param>

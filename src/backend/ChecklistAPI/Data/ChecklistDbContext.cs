@@ -31,9 +31,11 @@ public class ChecklistDbContext : DbContext
                 .WithOne(e => e.Template)
                 .HasForeignKey(e => e.TemplateId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
+
             entity.HasIndex(e => e.Category);
             entity.HasIndex(e => new { e.IsActive, e.IsArchived });
+            entity.HasIndex(e => e.UsageCount); // For sorting by popularity in suggestions
+            entity.HasIndex(e => e.LastUsedAt); // For recent template suggestions
         });
         
         // TemplateItem configuration

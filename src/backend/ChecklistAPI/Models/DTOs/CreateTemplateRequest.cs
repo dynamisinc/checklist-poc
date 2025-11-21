@@ -80,6 +80,22 @@ public record CreateTemplateRequest
     public string? RecurrenceConfig { get; init; }
 
     /// <summary>
+    /// JSON array of ICS positions this template is recommended for
+    /// Used for smart suggestions to match user's position
+    /// Example: ["Safety Officer", "Operations Section Chief"]
+    /// </summary>
+    [MaxLength(1000, ErrorMessage = "RecommendedPositions cannot exceed 1000 characters")]
+    public string? RecommendedPositions { get; init; }
+
+    /// <summary>
+    /// JSON array of event categories this template is suited for
+    /// Used for smart suggestions to match event type
+    /// Example: ["Fire", "Flood", "Hurricane"]
+    /// </summary>
+    [MaxLength(1000, ErrorMessage = "EventCategories cannot exceed 1000 characters")]
+    public string? EventCategories { get; init; }
+
+    /// <summary>
     /// Collection of items to create with this template
     /// Can be empty, but template won't be very useful
     /// </summary>

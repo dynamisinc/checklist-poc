@@ -26,6 +26,10 @@ export interface Template {
   templateType: TemplateType; // How checklist instances are created
   autoCreateForCategories?: string; // JSON array of incident categories (for AUTO_CREATE type)
   recurrenceConfig?: string; // JSON configuration for recurring templates (future feature)
+  recommendedPositions?: string; // JSON array of ICS positions this template is recommended for
+  eventCategories?: string; // JSON array of event categories this template is suited for
+  usageCount: number; // Number of times template has been used
+  lastUsedAt?: string; // ISO 8601 datetime when template was last used
   items: TemplateItem[];
   createdBy: string;
   createdByPosition: string;

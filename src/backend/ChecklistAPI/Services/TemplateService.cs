@@ -147,6 +147,8 @@ public class TemplateService : ITemplateService
         template.TemplateType = request.TemplateType ?? template.TemplateType;
         template.AutoCreateForCategories = request.AutoCreateForCategories;
         template.RecurrenceConfig = request.RecurrenceConfig;
+        template.RecommendedPositions = request.RecommendedPositions;
+        template.EventCategories = request.EventCategories;
         template.LastModifiedBy = userContext.Email;
         template.LastModifiedByPosition = userContext.Position;
         template.LastModifiedAt = DateTime.UtcNow;
@@ -297,6 +299,142 @@ public class TemplateService : ITemplateService
         _logger.LogInformation("Retrieved {Count} archived templates", templates.Count);
 
         return templates.Select(TemplateMapper.MapToDto).ToList();
+    }
+
+    public async Task<List<TemplateDto>> GetTemplateSuggestionsAsync(
+        string position,
+        string? eventCategory = null,
+        int limit = 10)
+    {
+        _logger.LogInformation(
+            "Getting template suggestions for position: {Position}, eventCategory: {EventCategory}, limit: {Limit}",
+            position,
+            eventCategory ?? "(none)",
+            limit);
+
+        // Get all active, non-archived templates with their items
+        var templates = await _context.Templates
+            .Include(t => t.Items)
+            .Where(t => t.IsActive && !t.IsArchived)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _logger.LogDebug("Found {Count} active templates for suggestion scoring", templates.Count);
+
+        // Calculate relevance score for each template
+        var scoredTemplates = templates.Select(template =>
+        {
+            int score = 0;
+
+            // 1. Position Match (highest priority) - +1000 points
+            if (!string.IsNullOrWhiteSpace(template.RecommendedPositions))
+            {
+                try
+                {
+                    var recommendedPositions = System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                        template.RecommendedPositions,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (recommendedPositions != null &&
+                        recommendedPositions.Any(p => p.Equals(position, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        score += 1000;
+                        _logger.LogDebug(
+                            "Template {TemplateId} ({Name}) matches position {Position} - +1000 score",
+                            template.Id,
+                            template.Name,
+                            position);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to parse RecommendedPositions for template {TemplateId}: {Json}",
+                        template.Id,
+                        template.RecommendedPositions);
+                }
+            }
+
+            // 2. Event Category Match - +500 points
+            if (!string.IsNullOrWhiteSpace(eventCategory) &&
+                !string.IsNullOrWhiteSpace(template.EventCategories))
+            {
+                try
+                {
+                    var eventCategories = System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                        template.EventCategories,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (eventCategories != null &&
+                        eventCategories.Any(c => c.Equals(eventCategory, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        score += 500;
+                        _logger.LogDebug(
+                            "Template {TemplateId} ({Name}) matches event category {Category} - +500 score",
+                            template.Id,
+                            template.Name,
+                            eventCategory);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to parse EventCategories for template {TemplateId}: {Json}",
+                        template.Id,
+                        template.EventCategories);
+                }
+            }
+
+            // 3. Recently Used - +0 to +200 points (scaled by days ago, max 30 days)
+            if (template.LastUsedAt.HasValue)
+            {
+                var daysAgo = (DateTime.UtcNow - template.LastUsedAt.Value).TotalDays;
+                if (daysAgo <= 30)
+                {
+                    var recencyScore = (int)((30 - daysAgo) / 30 * 200);
+                    score += recencyScore;
+                    _logger.LogDebug(
+                        "Template {TemplateId} ({Name}) used {Days:F1} days ago - +{Score} score",
+                        template.Id,
+                        template.Name,
+                        daysAgo,
+                        recencyScore);
+                }
+            }
+
+            // 4. Popularity (usage count) - +0 to +100 points (capped at 50 uses)
+            var popularityScore = Math.Min(template.UsageCount * 2, 100);
+            score += popularityScore;
+            _logger.LogDebug(
+                "Template {TemplateId} ({Name}) used {Count} times - +{Score} score",
+                template.Id,
+                template.Name,
+                template.UsageCount,
+                popularityScore);
+
+            _logger.LogDebug(
+                "Template {TemplateId} ({Name}) total score: {Score}",
+                template.Id,
+                template.Name,
+                score);
+
+            return new { Template = template, Score = score };
+        })
+        .OrderByDescending(x => x.Score)
+        .ThenBy(x => x.Template.Name) // Alphabetical as tiebreaker
+        .Take(limit)
+        .ToList();
+
+        _logger.LogInformation(
+            "Returning {Count} template suggestions (top scores: {Scores})",
+            scoredTemplates.Count,
+            string.Join(", ", scoredTemplates.Take(3).Select(x => $"{x.Template.Name}={x.Score}")));
+
+        return scoredTemplates
+            .Select(x => TemplateMapper.MapToDto(x.Template))
+            .ToList();
     }
 
     public async Task<TemplateDto?> DuplicateTemplateAsync(

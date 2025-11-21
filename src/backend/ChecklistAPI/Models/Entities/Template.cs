@@ -19,6 +19,12 @@ public class Template
     public string? AutoCreateForCategories { get; set; } // JSON array of incident categories (e.g., ["Hurricane", "Flood"])
     public string? RecurrenceConfig { get; set; } // JSON configuration for recurring templates (future feature)
 
+    // Smart suggestions metadata
+    public string? RecommendedPositions { get; set; } // JSON array of ICS positions (e.g., ["Safety Officer", "Ops Chief"])
+    public string? EventCategories { get; set; } // JSON array of event categories (e.g., ["Fire", "Flood", "Hurricane"])
+    public int UsageCount { get; set; } = 0; // Track template popularity
+    public DateTime? LastUsedAt { get; set; } // Track recent usage for suggestions
+
     // Audit fields
     public string CreatedBy { get; set; } = string.Empty;
     public string CreatedByPosition { get; set; } = string.Empty;

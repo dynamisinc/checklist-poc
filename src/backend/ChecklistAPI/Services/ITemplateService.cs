@@ -114,6 +114,23 @@ public interface ITemplateService
     Task<List<TemplateDto>> GetArchivedTemplatesAsync();
 
     /// <summary>
+    /// Get smart template suggestions based on user position and event category
+    /// Returns templates ranked by relevance:
+    ///   1. Position match (highest priority)
+    ///   2. Event category match
+    ///   3. Recently used
+    ///   4. Popular (high usage count)
+    /// </summary>
+    /// <param name="position">User's ICS position (e.g., "Safety Officer")</param>
+    /// <param name="eventCategory">Event category (e.g., "Fire", "Flood") - optional</param>
+    /// <param name="limit">Maximum number of suggestions to return (default: 10)</param>
+    /// <returns>List of suggested templates ordered by relevance</returns>
+    Task<List<TemplateDto>> GetTemplateSuggestionsAsync(
+        string position,
+        string? eventCategory = null,
+        int limit = 10);
+
+    /// <summary>
     /// Duplicate an existing template with a new name
     /// Useful for creating variations of standard templates
     /// </summary>

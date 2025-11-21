@@ -358,6 +358,9 @@ namespace ChecklistAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EventCategories")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -373,12 +376,18 @@ namespace ChecklistAPI.Migrations
                     b.Property<string>("LastModifiedByPosition")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("RecurrenceConfig")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RecommendedPositions")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Tags")
@@ -388,11 +397,18 @@ namespace ChecklistAPI.Migrations
                     b.Property<int>("TemplateType")
                         .HasColumnType("int");
 
+                    b.Property<int>("UsageCount")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Category");
 
                     b.HasIndex("IsActive", "IsArchived");
+
+                    b.HasIndex("LastUsedAt");
+
+                    b.HasIndex("UsageCount");
 
                     b.ToTable("Templates");
                 });

@@ -61,7 +61,11 @@ public static class TemplateCreationHelper
             CreatedAt = DateTime.UtcNow,
             TemplateType = request.TemplateType ?? TemplateType.Manual,
             AutoCreateForCategories = request.AutoCreateForCategories,
-            RecurrenceConfig = request.RecurrenceConfig
+            RecurrenceConfig = request.RecurrenceConfig,
+            RecommendedPositions = request.RecommendedPositions,
+            EventCategories = request.EventCategories,
+            UsageCount = 0,
+            LastUsedAt = null
         };
 
         // Add items with proper ordering
@@ -129,7 +133,11 @@ public static class TemplateCreationHelper
             CreatedAt = DateTime.UtcNow,
             TemplateType = original.TemplateType,
             AutoCreateForCategories = original.AutoCreateForCategories,
-            RecurrenceConfig = original.RecurrenceConfig
+            RecurrenceConfig = original.RecurrenceConfig,
+            RecommendedPositions = original.RecommendedPositions,
+            EventCategories = original.EventCategories,
+            UsageCount = 0, // Reset usage count for duplicate
+            LastUsedAt = null // Reset usage timestamp for duplicate
         };
 
         // Copy items

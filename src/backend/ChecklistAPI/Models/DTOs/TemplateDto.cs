@@ -142,6 +142,36 @@ public record TemplateDto
     public string? RecurrenceConfig { get; init; }
 
     /// <summary>
+    /// JSON array of ICS positions this template is recommended for
+    /// Used for smart suggestions to match user's position
+    /// Example: ["Safety Officer", "Operations Section Chief"]
+    /// Null if template is generic and not position-specific
+    /// </summary>
+    public string? RecommendedPositions { get; init; }
+
+    /// <summary>
+    /// JSON array of event categories this template is suited for
+    /// Used for smart suggestions to match event type
+    /// Example: ["Fire", "Flood", "Hurricane"]
+    /// Null if template is generic across all event types
+    /// </summary>
+    public string? EventCategories { get; init; }
+
+    /// <summary>
+    /// Number of times this template has been used to create checklists
+    /// Used for smart suggestions to show popular templates
+    /// Incremented each time a checklist is created from this template
+    /// </summary>
+    public int UsageCount { get; init; }
+
+    /// <summary>
+    /// Timestamp of when this template was last used to create a checklist (UTC)
+    /// Used for smart suggestions to show recently used templates
+    /// Null if never used
+    /// </summary>
+    public DateTime? LastUsedAt { get; init; }
+
+    /// <summary>
     /// Collection of items in this template
     /// Ordered by DisplayOrder
     /// </summary>
