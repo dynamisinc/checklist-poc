@@ -1,5 +1,6 @@
 ﻿using ChecklistAPI.Data;
 using ChecklistAPI.Extensions;
+using ChecklistAPI.Hubs;
 using ChecklistAPI.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -59,5 +60,6 @@ app.UseMockUserContext();
 
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChecklistHub>("/hubs/checklist");
 
 app.Run();

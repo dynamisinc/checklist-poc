@@ -33,6 +33,7 @@ import { faArrowLeft, faNoteSticky, faCopy, faCircleInfo } from '@fortawesome/fr
 import { toast } from 'react-toastify';
 import { useChecklistDetail } from '../hooks/useChecklistDetail';
 import { useItemActions } from '../hooks/useItemActions';
+import { useChecklistHub } from '../hooks/useChecklistHub';
 import { c5Colors } from '../theme/c5Theme';
 import { ItemNotesDialog } from '../components/ItemNotesDialog';
 import { CreateChecklistDialog, type ChecklistCreationData } from '../components/CreateChecklistDialog';
@@ -79,6 +80,73 @@ export const ChecklistDetailPage: React.FC = () => {
     updateItemLocally,
   } = useChecklistDetail();
   const { toggleComplete, updateNotes, updateStatus, isProcessing } = useItemActions();
+
+  // Real-time collaboration via SignalR
+  const { joinChecklist, leaveChecklist } = useChecklistHub({
+    onItemCompletionChanged: (data) => {
+      console.log('[Real-time] Item completion changed:', data);
+      // Update local state
+      updateItemLocally(data.itemId, {
+        isCompleted: data.isCompleted,
+        completedBy: data.completedBy,
+        completedByPosition: data.completedByPosition,
+        completedAt: data.completedAt,
+      });
+      // Show toast notification
+      const action = data.isCompleted ? 'completed' : 'unmarked';
+      const by = data.completedByPosition || data.completedBy || 'Someone';
+      toast.info(`${by} ${action} an item`, { autoClose: 3000 });
+      // Refresh to get updated progress
+      if (checklistId) {
+        fetchChecklist(checklistId);
+      }
+    },
+    onItemStatusChanged: (data) => {
+      console.log('[Real-time] Item status changed:', data);
+      // Update local state
+      updateItemLocally(data.itemId, {
+        currentStatus: data.newStatus,
+        isCompleted: data.isCompleted,
+      });
+      // Show toast notification
+      const by = data.changedByPosition || data.changedBy || 'Someone';
+      toast.info(`${by} changed item status to "${data.newStatus}"`, { autoClose: 3000 });
+      // Refresh to get updated progress
+      if (checklistId) {
+        fetchChecklist(checklistId);
+      }
+    },
+    onItemNotesChanged: (data) => {
+      console.log('[Real-time] Item notes changed:', data);
+      // Update local state
+      updateItemLocally(data.itemId, {
+        notes: data.notes,
+      });
+      // Show toast notification
+      const by = data.changedByPosition || data.changedBy || 'Someone';
+      toast.info(`${by} updated item notes`, { autoClose: 3000 });
+    },
+    onChecklistUpdated: (data) => {
+      console.log('[Real-time] Checklist updated:', data);
+      // Refresh full checklist to get latest progress
+      if (checklistId) {
+        fetchChecklist(checklistId);
+      }
+    },
+  });
+
+  // Join/leave checklist group when checklistId changes
+  useEffect(() => {
+    if (checklistId) {
+      joinChecklist(checklistId);
+    }
+
+    return () => {
+      if (checklistId) {
+        leaveChecklist(checklistId);
+      }
+    };
+  }, [checklistId, joinChecklist, leaveChecklist]);
 
   // Notes dialog state
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);

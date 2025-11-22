@@ -1,8 +1,10 @@
 using ChecklistAPI.Data;
+using ChecklistAPI.Hubs;
 using ChecklistAPI.Mappers;
 using ChecklistAPI.Models;
 using ChecklistAPI.Models.DTOs;
 using ChecklistAPI.Services.Helpers;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChecklistAPI.Services;
@@ -42,13 +44,16 @@ public class ChecklistItemService : IChecklistItemService
 {
     private readonly ChecklistDbContext _context;
     private readonly ILogger<ChecklistItemService> _logger;
+    private readonly IHubContext<ChecklistHub> _hubContext;
 
     public ChecklistItemService(
         ChecklistDbContext context,
-        ILogger<ChecklistItemService> logger)
+        ILogger<ChecklistItemService> logger,
+        IHubContext<ChecklistHub> hubContext)
     {
         _context = context;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     public async Task<ChecklistItemDto?> GetItemByIdAsync(Guid checklistId, Guid itemId)
@@ -137,6 +142,19 @@ public class ChecklistItemService : IChecklistItemService
             itemId,
             request.IsCompleted ? "COMPLETE" : "INCOMPLETE",
             userContext.Email);
+
+        // Broadcast real-time update to all connected clients viewing this checklist
+        await _hubContext.Clients
+            .Group($"checklist-{checklistId}")
+            .SendAsync("ItemCompletionChanged", new
+            {
+                checklistId = checklistId.ToString(),
+                itemId = itemId.ToString(),
+                isCompleted = item.IsCompleted,
+                completedBy = item.CompletedBy,
+                completedByPosition = item.CompletedByPosition,
+                completedAt = item.CompletedAt
+            });
 
         // Trigger progress recalculation
         await ChecklistProgressHelper.RecalculateProgressAsync(_context, _logger, checklistId);
@@ -236,6 +254,20 @@ public class ChecklistItemService : IChecklistItemService
             request.Status,
             userContext.Email);
 
+        // Broadcast real-time update to all connected clients viewing this checklist
+        await _hubContext.Clients
+            .Group($"checklist-{checklistId}")
+            .SendAsync("ItemStatusChanged", new
+            {
+                checklistId = checklistId.ToString(),
+                itemId = itemId.ToString(),
+                newStatus = item.CurrentStatus,
+                isCompleted = item.IsCompleted,
+                changedBy = userContext.Email,
+                changedByPosition = userContext.Position,
+                changedAt = item.LastModifiedAt
+            });
+
         // Trigger progress recalculation (status items count as complete if status = "Complete")
         await ChecklistProgressHelper.RecalculateProgressAsync(_context, _logger, checklistId);
 
@@ -288,6 +320,19 @@ public class ChecklistItemService : IChecklistItemService
             "Notes updated for item {ItemId} by {User}",
             itemId,
             userContext.Email);
+
+        // Broadcast real-time update to all connected clients viewing this checklist
+        await _hubContext.Clients
+            .Group($"checklist-{checklistId}")
+            .SendAsync("ItemNotesChanged", new
+            {
+                checklistId = checklistId.ToString(),
+                itemId = itemId.ToString(),
+                notes = item.Notes,
+                changedBy = userContext.Email,
+                changedByPosition = userContext.Position,
+                changedAt = item.LastModifiedAt
+            });
 
         // Note: Does NOT trigger progress recalculation (notes-only changes don't affect progress)
 
