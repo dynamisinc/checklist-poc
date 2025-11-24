@@ -48,7 +48,14 @@
       "Bash(Select-String -Pattern \"(Passed|Failed)\")",
       "Bash(Select-Object -First 5)",
       "Bash(timeout /t 8 /nobreak)",
-      "Bash(timeout /t 30 /nobreak)"
+      "Bash(timeout /t 30 /nobreak)",
+      "Bash(npm --version:*)",
+      "Bash(sqllocaldb info:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(dotnet clean:*)",
+      "Bash(/tmp/templates.json 2)"
     ],
     "deny": [],
     "ask": []

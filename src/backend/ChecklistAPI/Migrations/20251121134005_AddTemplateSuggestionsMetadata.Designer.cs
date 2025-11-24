@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChecklistAPI.Migrations
 {
     [DbContext(typeof(ChecklistDbContext))]
-    [Migration("20251121032558_AddTemplateSuggestionsMetadata")]
+    [Migration("20251121134005_AddTemplateSuggestionsMetadata")]
     partial class AddTemplateSuggestionsMetadata
     {
         /// <inheritdoc />

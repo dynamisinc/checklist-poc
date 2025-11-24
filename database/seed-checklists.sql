@@ -50,7 +50,7 @@ DECLARE @EventName VARCHAR(200) = 'Hurricane Milton Response - November 2025';
 INSERT INTO ChecklistInstances (
     Id, Name, TemplateId,
     EventId, EventName,
-    OperationalPeriodId, OperationalPeriodName,
+    OperationalPeriodName,
     AssignedPositions,
     ProgressPercentage, TotalItems, CompletedItems, RequiredItems, RequiredItemsCompleted,
     IsArchived,
@@ -61,7 +61,7 @@ VALUES (
     'Safety Briefing - Nov 20, 2025 - Day Shift',
     @SafetyBriefingTemplateId,
     @EventId, @EventName,
-    'OP-2025-11-20-DAY', 'November 20, 2025 - Day Shift (06:00-18:00)',
+    'November 20, 2025 - Day Shift (06:00-18:00)',
     'Safety Officer,Incident Commander', -- Only visible to these positions
     42.86, -- 3/7 = 42.86%
     7, 3, 7, 3,
@@ -76,18 +76,18 @@ DECLARE @ItemText VARCHAR(500);
 DECLARE @ItemType VARCHAR(50);
 DECLARE @DisplayOrder INT;
 DECLARE @IsRequired BIT;
-DECLARE @StatusOptions VARCHAR(500);
+DECLARE @StatusConfiguration VARCHAR(MAX);
 DECLARE @DefaultNotes VARCHAR(1000);
 DECLARE @ItemCounter INT = 0;
 
 SET @TemplateItemCursor = CURSOR FOR
-SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusOptions, DefaultNotes
+SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusConfiguration, DefaultNotes
 FROM TemplateItems
 WHERE TemplateId = @SafetyBriefingTemplateId
 ORDER BY DisplayOrder;
 
 OPEN @TemplateItemCursor;
-FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
@@ -100,14 +100,14 @@ BEGIN
             Id, ChecklistInstanceId, TemplateItemId,
             ItemText, ItemType, DisplayOrder, IsRequired,
             IsCompleted, CompletedBy, CompletedByPosition, CompletedAt,
-            CurrentStatus, StatusOptions,
+            CurrentStatus, StatusConfiguration,
             CreatedAt
         )
         VALUES (
             NEWID(), @Checklist1Id, @TemplateItemId,
             @ItemText, @ItemType, @DisplayOrder, @IsRequired,
             1, 'sarah.jackson@cobra.mil', 'Safety Officer', DATEADD(MINUTE, -(@ItemCounter * 5), GETUTCDATE()),
-            NULL, @StatusOptions,
+            NULL, @StatusConfiguration,
             DATEADD(HOUR, -2, GETUTCDATE())
         );
     END
@@ -118,19 +118,19 @@ BEGIN
             Id, ChecklistInstanceId, TemplateItemId,
             ItemText, ItemType, DisplayOrder, IsRequired,
             IsCompleted,
-            CurrentStatus, StatusOptions,
+            CurrentStatus, StatusConfiguration,
             CreatedAt
         )
         VALUES (
             NEWID(), @Checklist1Id, @TemplateItemId,
             @ItemText, @ItemType, @DisplayOrder, @IsRequired,
             NULL,
-            NULL, @StatusOptions,
+            NULL, @StatusConfiguration,
             DATEADD(HOUR, -2, GETUTCDATE())
         );
     END
 
-    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 END
 
 CLOSE @TemplateItemCursor;
@@ -146,7 +146,7 @@ DECLARE @Checklist2Id UNIQUEIDENTIFIER = NEWID();
 INSERT INTO ChecklistInstances (
     Id, Name, TemplateId,
     EventId, EventName,
-    OperationalPeriodId, OperationalPeriodName,
+    OperationalPeriodName,
     AssignedPositions,
     ProgressPercentage, TotalItems, CompletedItems, RequiredItems, RequiredItemsCompleted,
     IsArchived,
@@ -157,7 +157,7 @@ VALUES (
     'IC Initial Actions - Hurricane Milton',
     @ICActionsTemplateId,
     @EventId, @EventName,
-    'OP-2025-11-20-DAY', 'November 20, 2025 - Day Shift (06:00-18:00)',
+    'November 20, 2025 - Day Shift (06:00-18:00)',
     NULL, -- Visible to all positions
     0.00, -- Not started
     12, 0, 12, 0,
@@ -167,13 +167,13 @@ VALUES (
 
 -- Copy all items as not completed
 SET @TemplateItemCursor = CURSOR FOR
-SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusOptions, DefaultNotes
+SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusConfiguration, DefaultNotes
 FROM TemplateItems
 WHERE TemplateId = @ICActionsTemplateId
 ORDER BY DisplayOrder;
 
 OPEN @TemplateItemCursor;
-FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
@@ -181,18 +181,18 @@ BEGIN
         Id, ChecklistInstanceId, TemplateItemId,
         ItemText, ItemType, DisplayOrder, IsRequired,
         IsCompleted,
-        CurrentStatus, StatusOptions,
+        CurrentStatus, StatusConfiguration,
         CreatedAt
     )
     VALUES (
         NEWID(), @Checklist2Id, @TemplateItemId,
         @ItemText, @ItemType, @DisplayOrder, @IsRequired,
         NULL,
-        NULL, @StatusOptions,
+        NULL, @StatusConfiguration,
         DATEADD(HOUR, -1, GETUTCDATE())
     );
 
-    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 END
 
 CLOSE @TemplateItemCursor;
@@ -208,7 +208,7 @@ DECLARE @Checklist3Id UNIQUEIDENTIFIER = NEWID();
 INSERT INTO ChecklistInstances (
     Id, Name, TemplateId,
     EventId, EventName,
-    OperationalPeriodId, OperationalPeriodName,
+    OperationalPeriodName,
     AssignedPositions,
     ProgressPercentage, TotalItems, CompletedItems, RequiredItems, RequiredItemsCompleted,
     IsArchived,
@@ -219,7 +219,7 @@ VALUES (
     'Shelter Opening - Oakwood Community Center',
     @ShelterTemplateId,
     @EventId, @EventName,
-    'OP-2025-11-20-NIGHT', 'November 20, 2025 - Night Shift (18:00-06:00)',
+    'November 20, 2025 - Night Shift (18:00-06:00)',
     'Logistics Section Chief,Incident Commander', -- Position-filtered
     93.33, -- 14/15 = 93.33%
     15, 14, 15, 14,
@@ -230,13 +230,13 @@ VALUES (
 -- Copy items from template and mark 14/15 as complete
 SET @ItemCounter = 0;
 SET @TemplateItemCursor = CURSOR FOR
-SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusOptions, DefaultNotes
+SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusConfiguration, DefaultNotes
 FROM TemplateItems
 WHERE TemplateId = @ShelterTemplateId
 ORDER BY DisplayOrder;
 
 OPEN @TemplateItemCursor;
-FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
@@ -249,14 +249,14 @@ BEGIN
             Id, ChecklistInstanceId, TemplateItemId,
             ItemText, ItemType, DisplayOrder, IsRequired,
             IsCompleted, CompletedBy, CompletedByPosition, CompletedAt,
-            CurrentStatus, StatusOptions,
+            CurrentStatus, StatusConfiguration,
             CreatedAt
         )
         VALUES (
             NEWID(), @Checklist3Id, @TemplateItemId,
             @ItemText, @ItemType, @DisplayOrder, @IsRequired,
             1, 'maria.chen@cobra.mil', 'Logistics Section Chief', DATEADD(MINUTE, -(@ItemCounter * 3), GETUTCDATE()),
-            'Complete', @StatusOptions,
+            'Complete', @StatusConfiguration,
             DATEADD(HOUR, -3, GETUTCDATE())
         );
     END
@@ -267,19 +267,19 @@ BEGIN
             Id, ChecklistInstanceId, TemplateItemId,
             ItemText, ItemType, DisplayOrder, IsRequired,
             IsCompleted,
-            CurrentStatus, StatusOptions,
+            CurrentStatus, StatusConfiguration,
             CreatedAt
         )
         VALUES (
             NEWID(), @Checklist3Id, @TemplateItemId,
             @ItemText, @ItemType, @DisplayOrder, @IsRequired,
             NULL,
-            'In Progress', @StatusOptions,
+            'In Progress', @StatusConfiguration,
             DATEADD(HOUR, -3, GETUTCDATE())
         );
     END
 
-    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 END
 
 CLOSE @TemplateItemCursor;
@@ -295,7 +295,7 @@ DECLARE @Checklist4Id UNIQUEIDENTIFIER = NEWID();
 INSERT INTO ChecklistInstances (
     Id, Name, TemplateId,
     EventId, EventName,
-    OperationalPeriodId, OperationalPeriodName,
+    OperationalPeriodName,
     AssignedPositions,
     ProgressPercentage, TotalItems, CompletedItems, RequiredItems, RequiredItemsCompleted,
     IsArchived, ArchivedBy, ArchivedAt,
@@ -306,7 +306,7 @@ VALUES (
     'Safety Briefing - Nov 19, 2025 - Day Shift (ARCHIVED)',
     @SafetyBriefingTemplateId,
     @EventId, @EventName,
-    'OP-2025-11-19-DAY', 'November 19, 2025 - Day Shift (06:00-18:00)',
+    'November 19, 2025 - Day Shift (06:00-18:00)',
     'Safety Officer,Incident Commander',
     100.00, -- Complete
     7, 7, 7, 7,
@@ -316,13 +316,13 @@ VALUES (
 
 -- Copy all items as completed
 SET @TemplateItemCursor = CURSOR FOR
-SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusOptions, DefaultNotes
+SELECT Id, ItemText, ItemType, DisplayOrder, IsRequired, StatusConfiguration, DefaultNotes
 FROM TemplateItems
 WHERE TemplateId = @SafetyBriefingTemplateId
 ORDER BY DisplayOrder;
 
 OPEN @TemplateItemCursor;
-FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
@@ -330,18 +330,18 @@ BEGIN
         Id, ChecklistInstanceId, TemplateItemId,
         ItemText, ItemType, DisplayOrder, IsRequired,
         IsCompleted, CompletedBy, CompletedByPosition, CompletedAt,
-        CurrentStatus, StatusOptions,
+        CurrentStatus, StatusConfiguration,
         CreatedAt
     )
     VALUES (
         NEWID(), @Checklist4Id, @TemplateItemId,
         @ItemText, @ItemType, @DisplayOrder, @IsRequired,
         1, 'sarah.jackson@cobra.mil', 'Safety Officer', DATEADD(DAY, -1, GETUTCDATE()),
-        NULL, @StatusOptions,
+        NULL, @StatusConfiguration,
         DATEADD(DAY, -1, GETUTCDATE())
     );
 
-    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusOptions, @DefaultNotes;
+    FETCH NEXT FROM @TemplateItemCursor INTO @TemplateItemId, @ItemText, @ItemType, @DisplayOrder, @IsRequired, @StatusConfiguration, @DefaultNotes;
 END
 
 CLOSE @TemplateItemCursor;
@@ -361,7 +361,7 @@ PRINT '=========================================================================
 SELECT
     Name,
     EventId,
-    OperationalPeriodId,
+    OperationalPeriodName,
     AssignedPositions,
     ProgressPercentage,
     CAST(CompletedItems AS VARCHAR) + '/' + CAST(TotalItems AS VARCHAR) AS Completion,
@@ -370,11 +370,17 @@ SELECT
 FROM ChecklistInstances
 ORDER BY CreatedAt DESC;
 
+DECLARE @TotalCount INT, @ActiveCount INT, @ArchivedCount INT, @ItemCount INT;
+SELECT @TotalCount = COUNT(*) FROM ChecklistInstances;
+SELECT @ActiveCount = COUNT(*) FROM ChecklistInstances WHERE IsArchived = 0;
+SELECT @ArchivedCount = COUNT(*) FROM ChecklistInstances WHERE IsArchived = 1;
+SELECT @ItemCount = COUNT(*) FROM ChecklistItems;
+
 PRINT '';
-PRINT 'Total Checklists: ' + CAST((SELECT COUNT(*) FROM ChecklistInstances) AS VARCHAR);
-PRINT 'Active Checklists: ' + CAST((SELECT COUNT(*) FROM ChecklistInstances WHERE IsArchived = 0) AS VARCHAR);
-PRINT 'Archived Checklists: ' + CAST((SELECT COUNT(*) FROM ChecklistInstances WHERE IsArchived = 1) AS VARCHAR);
-PRINT 'Total Checklist Items: ' + CAST((SELECT COUNT(*) FROM ChecklistItems) AS VARCHAR);
+PRINT 'Total Checklists: ' + CAST(@TotalCount AS VARCHAR);
+PRINT 'Active Checklists: ' + CAST(@ActiveCount AS VARCHAR);
+PRINT 'Archived Checklists: ' + CAST(@ArchivedCount AS VARCHAR);
+PRINT 'Total Checklist Items: ' + CAST(@ItemCount AS VARCHAR);
 
 PRINT '';
 PRINT '============================================================================';
