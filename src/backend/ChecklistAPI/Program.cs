@@ -1,7 +1,9 @@
-﻿using ChecklistAPI.Data;
+﻿using Azure.Identity;
+using ChecklistAPI.Data;
 using ChecklistAPI.Extensions;
 using ChecklistAPI.Hubs;
 using ChecklistAPI.Services;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,9 +20,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
-// Add DbContext
+// Add DbContext with SQL Server
 builder.Services.AddDbContext<ChecklistDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+    });
+});
 
 // Register application services
 builder.Services.AddScoped<ITemplateService, TemplateService>();
@@ -46,6 +55,27 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Apply migrations on startup (POC only - remove for production)
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ChecklistDbContext>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
+
+        logger.LogInformation("Applying database migrations...");
+        context.Database.Migrate();
+        logger.LogInformation("Database migrations applied successfully");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database");
+        // Don't throw - let app start even if migrations fail
+    }
+}
+
 // Always enable Swagger and SwaggerUI
 app.UseSwagger();
 app.UseSwaggerUI();
@@ -59,7 +89,17 @@ app.UseCors("AllowFrontend");
 app.UseMockUserContext();
 
 app.UseAuthorization();
+
+// Serve static files (React frontend in wwwroot)
+app.UseStaticFiles();
+app.UseDefaultFiles();
+
+// Map API controllers first (these take precedence)
 app.MapControllers();
 app.MapHub<ChecklistHub>("/hubs/checklist");
+
+// Fallback to index.html for client-side routing (SPA)
+// This catches all routes that don't match controllers/hubs above
+app.MapFallbackToFile("index.html");
 
 app.Run();
