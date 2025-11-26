@@ -10,6 +10,7 @@ export interface ChecklistHubHandlers {
   onItemStatusChanged?: (data: ItemStatusChangedEvent) => void;
   onItemNotesChanged?: (data: ItemNotesChangedEvent) => void;
   onChecklistUpdated?: (data: ChecklistUpdatedEvent) => void;
+  onChecklistCreated?: (data: ChecklistCreatedEvent) => void;
 }
 
 export interface ItemCompletionChangedEvent {
@@ -43,6 +44,16 @@ export interface ItemNotesChangedEvent {
 export interface ChecklistUpdatedEvent {
   checklistId: string;
   progressPercentage: number;
+}
+
+export interface ChecklistCreatedEvent {
+  checklistId: string;
+  checklistName: string;
+  eventId: string;
+  eventName: string;
+  positions: string | null;
+  createdBy: string;
+  createdAt: string;
 }
 
 /**
@@ -79,6 +90,7 @@ export interface ChecklistUpdatedEvent {
 export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const handlersRef = useRef(handlers);
+  const hasConnectedOnceRef = useRef(false); // Track if we've ever connected successfully
 
   // Update handlers ref when they change (avoid reconnection)
   useEffect(() => {
@@ -87,7 +99,7 @@ export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
 
   // Initialize SignalR connection
   useEffect(() => {
-    const hubUrl = `${import.meta.env.VITE_API_URL}/hubs/checklist`;
+    const hubUrl = import.meta.env.VITE_HUB_URL || '/hubs/checklist';
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, {
@@ -102,7 +114,8 @@ export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
           return 30000;
         },
       })
-      .configureLogging(signalR.LogLevel.Information)
+      // Use Warning level in dev to suppress React Strict Mode double-mount errors
+      .configureLogging(signalR.LogLevel.Warning)
       .build();
 
     // Register event handlers
@@ -126,6 +139,11 @@ export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
       handlersRef.current.onChecklistUpdated?.(data);
     });
 
+    connection.on('ChecklistCreated', (data: ChecklistCreatedEvent) => {
+      console.log('[SignalR] ChecklistCreated:', data);
+      handlersRef.current.onChecklistCreated?.(data);
+    });
+
     // Connection lifecycle events
     connection.onreconnecting((error) => {
       console.warn('[SignalR] Reconnecting...', error);
@@ -138,11 +156,15 @@ export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
     });
 
     connection.onclose((error) => {
-      console.error('[SignalR] Connection closed:', error);
-      if (error) {
-        toast.error('Real-time connection closed. Please refresh the page.', {
-          autoClose: false,
-        });
+      // Only log and show error if we've successfully connected before
+      // This suppresses React Strict Mode double-mount connection errors
+      if (hasConnectedOnceRef.current) {
+        console.error('[SignalR] Connection closed:', error);
+        if (error) {
+          toast.error('Real-time connection closed. Please refresh the page.', {
+            autoClose: false,
+          });
+        }
       }
     });
 
@@ -151,10 +173,23 @@ export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
       .start()
       .then(() => {
         console.log('[SignalR] Connected to ChecklistHub');
+        hasConnectedOnceRef.current = true;
       })
       .catch((error) => {
+        // Suppress React Strict Mode double-mount errors in development
+        // (These are AbortErrors from "connection stopped during negotiation")
+        const isStrictModeError = error?.message?.includes('stopped during negotiation');
+
+        if (!hasConnectedOnceRef.current && isStrictModeError) {
+          // This is the expected React Strict Mode double-mount error - suppress it
+          return;
+        }
+
+        // Log all other errors (real connection failures)
         console.error('[SignalR] Connection failed:', error);
-        toast.error('Failed to connect to real-time updates', { autoClose: 5000 });
+        if (hasConnectedOnceRef.current) {
+          toast.error('Failed to connect to real-time updates', { autoClose: 5000 });
+        }
       });
 
     connectionRef.current = connection;
@@ -164,8 +199,17 @@ export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
       if (connection.state !== signalR.HubConnectionState.Disconnected) {
         connection
           .stop()
-          .then(() => console.log('[SignalR] Connection stopped'))
-          .catch((error) => console.error('[SignalR] Error stopping connection:', error));
+          .then(() => {
+            // Only log if we've connected successfully before
+            if (hasConnectedOnceRef.current) {
+              console.log('[SignalR] Connection stopped');
+            }
+          })
+          .catch((error) => {
+            if (hasConnectedOnceRef.current) {
+              console.error('[SignalR] Error stopping connection:', error);
+            }
+          });
       }
     };
   }, []); // Empty deps - only initialize once
@@ -181,13 +225,30 @@ export const useChecklistHub = (handlers: ChecklistHubHandlers = {}) => {
     }
 
     try {
+      // Wait for connection to be established if it's still connecting
+      if (connection.state === signalR.HubConnectionState.Connecting) {
+        console.log('[SignalR] Waiting for connection to establish before joining checklist...');
+        // Wait up to 5 seconds for connection
+        const maxWaitTime = 5000;
+        const startTime = Date.now();
+        while (
+          connection.state === signalR.HubConnectionState.Connecting &&
+          Date.now() - startTime < maxWaitTime
+        ) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
       if (connection.state === signalR.HubConnectionState.Connected) {
         await connection.invoke('JoinChecklist', checklistId);
         console.log(`[SignalR] Joined checklist ${checklistId}`);
       } else {
-        console.warn(
-          `[SignalR] Cannot join checklist: connection state is ${connection.state}`
-        );
+        // Only log warning if this isn't the first connection attempt during React Strict Mode
+        if (hasConnectedOnceRef.current) {
+          console.warn(
+            `[SignalR] Cannot join checklist: connection state is ${connection.state}`
+          );
+        }
       }
     } catch (error) {
       console.error('[SignalR] Error joining checklist:', error);
