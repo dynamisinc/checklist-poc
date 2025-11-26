@@ -1,0 +1,19 @@
+{
+  "$schema": "./azure-config.schema.json",
+  "resourceGroup": "c5-poc-eastus2-rg",
+  "location": "eastus2",
+  "appName": "checklist-poc-app",
+  "sqlServer": "sql-c5seeder-eastus2",
+  "sqlServerResourceGroup": "C5DemoSeeder",
+  "sqlDatabase": "ChecklistPOC",
+  "sqlAdminUser": "sqluser",
+  "appServiceOS": "Linux",
+  "enableApplicationInsights": false,
+  "comments": {
+    "appName": "Must be globally unique across Azure",
+    "sqlServer": "sql-c5seeder-eastus2 (in C5DemoSeeder resource group)",
+    "sqlAdminUser": "Your SQL Server admin username",
+    "sqlAdminPassword": "NOT stored here - use Azure Key Vault or environment variable",
+    "appServiceOS": "Linux ($13/month) or Windows ($55/month)"
+  }
+}

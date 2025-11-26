@@ -1,15 +1,15 @@
 -- SQL Script to create traditional SQL authentication user for ChecklistPOC database
 -- Run this in Azure SQL Query Editor as the Entra ID admin
+-- Generated: 2025-11-25
 
 USE [ChecklistPOC];
 GO
 
--- Create SQL login (run in master database first if needed)
--- Then create user in ChecklistPOC database
-CREATE USER [checklistapp] WITH PASSWORD = 'ChecklistApp2025!';
+-- Create SQL user with strong password
+CREATE USER [checklistapp] WITH PASSWORD = 'iNV6DMls!@Y6OoMo';
 GO
 
--- Grant necessary permissions
+-- Grant necessary permissions for EF Core migrations
 ALTER ROLE db_datareader ADD MEMBER [checklistapp];
 ALTER ROLE db_datawriter ADD MEMBER [checklistapp];
 ALTER ROLE db_ddladmin ADD MEMBER [checklistapp];
