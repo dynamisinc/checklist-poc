@@ -47,6 +47,7 @@ let currentUser: MockUserContext = {
  * Used for testing different positions/users in POC
  */
 export const setMockUser = (user: MockUserContext): void => {
+  console.log('[MockUser] Updating user context:', { old: currentUser.position, new: user.position });
   currentUser = user;
 };
 
@@ -81,7 +82,7 @@ apiClient.interceptors.request.use(
     config.headers['X-User-FullName'] = currentUser.fullName;
 
     console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
-      headers: config.headers,
+      user: currentUser.position,
       data: config.data,
     });
 
