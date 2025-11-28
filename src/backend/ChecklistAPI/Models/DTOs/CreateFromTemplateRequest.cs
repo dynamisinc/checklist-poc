@@ -51,20 +51,20 @@ public record CreateFromTemplateRequest
     public string? Name { get; init; }
 
     /// <summary>
-    /// Event this checklist belongs to (required)
+    /// Event this checklist belongs to (optional for POC)
     /// Example: "Hurricane-2025-001"
+    /// Defaults to "POC-Event-001" if not provided
     /// </summary>
-    [Required(ErrorMessage = "Event ID is required")]
     [MaxLength(100, ErrorMessage = "Event ID cannot exceed 100 characters")]
-    public string EventId { get; init; } = string.Empty;
+    public string? EventId { get; init; }
 
     /// <summary>
-    /// Human-readable event name (required)
+    /// Human-readable event name (optional for POC)
     /// Example: "Hurricane Milton Response"
+    /// Defaults to "POC Demo Event" if not provided
     /// </summary>
-    [Required(ErrorMessage = "Event name is required")]
     [MaxLength(200, ErrorMessage = "Event name cannot exceed 200 characters")]
-    public string EventName { get; init; } = string.Empty;
+    public string? EventName { get; init; }
 
     /// <summary>
     /// Operational period this checklist belongs to (optional)

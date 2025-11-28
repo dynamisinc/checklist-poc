@@ -59,13 +59,14 @@ public static class ChecklistCreationHelper
         }
 
         // Create checklist instance
+        // Use defaults for EventId/EventName if not provided (POC mode)
         var checklist = new ChecklistInstance
         {
             Id = Guid.NewGuid(),
             Name = request.Name ?? $"{template.Name} - {DateTime.UtcNow:yyyy-MM-dd}",
             TemplateId = template.Id,
-            EventId = request.EventId,
-            EventName = request.EventName,
+            EventId = request.EventId ?? "POC-Event-001",
+            EventName = request.EventName ?? "POC Demo Event",
             OperationalPeriodId = request.OperationalPeriodId,
             OperationalPeriodName = request.OperationalPeriodName,
             AssignedPositions = request.AssignedPositions,

@@ -14,7 +14,8 @@ END
 GO
 
 -- Create SQL user with new password
-CREATE USER [checklistapp] WITH PASSWORD = 'yCL7T7ibzAAD_2025#';
+-- NOTE: Avoid #, @, !, etc. in password as they can cause connection string parsing issues
+CREATE USER [checklistapp] WITH PASSWORD = 'yCL7T7ibzAAD2025x';
 GO
 
 -- Grant necessary permissions for EF Core migrations
