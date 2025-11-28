@@ -66,7 +66,8 @@
       "Bash(python -m json.tool:*)",
       "Bash(npm run build:*)",
       "Bash(unzip:*)",
-      "Bash(az sql db show:*)"
+      "Bash(az sql db show:*)",
+      "Bash(az group list:*)"
     ],
     "deny": [],
     "ask": []

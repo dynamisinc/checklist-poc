@@ -20,7 +20,7 @@ export const analyticsService = {
    */
   async getDashboard(): Promise<AnalyticsDashboard> {
     try {
-      const response = await apiClient.get<AnalyticsDashboard>('/api/analytics/dashboard');
+      const response = await apiClient.get<AnalyticsDashboard>('/analytics/dashboard');
       return response.data;
     } catch (error) {
       const message = getErrorMessage(error);
