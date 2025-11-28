@@ -73,7 +73,7 @@ export const itemService = {
   ): Promise<ChecklistItemDto> {
     try {
       const response = await apiClient.patch<ChecklistItemDto>(
-        `/api/checklists/${checklistId}/items/${itemId}/completion`,
+        `/checklists/${checklistId}/items/${itemId}/completion`,
         request
       );
       return response.data;
@@ -153,7 +153,7 @@ export const itemService = {
   ): Promise<ChecklistItemDto> {
     try {
       const response = await apiClient.patch<ChecklistItemDto>(
-        `/api/checklists/${checklistId}/items/${itemId}/status`,
+        `/checklists/${checklistId}/items/${itemId}/status`,
         request
       );
       return response.data;
@@ -177,7 +177,7 @@ export const itemService = {
   ): Promise<ChecklistItemDto> {
     try {
       const response = await apiClient.patch<ChecklistItemDto>(
-        `/api/checklists/${checklistId}/items/${itemId}/notes`,
+        `/checklists/${checklistId}/items/${itemId}/notes`,
         request
       );
       return response.data;
