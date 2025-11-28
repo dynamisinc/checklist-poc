@@ -9,7 +9,7 @@
  * For POC/demo purposes only - in production, roles come from authentication.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -28,6 +28,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { ICS_POSITIONS, PermissionRole } from '../types';
 import { cobraTheme } from '../theme/cobraTheme';
+import { setMockUser, getCurrentUser } from '../services/api';
 
 interface ProfileMenuProps {
   onProfileChange: (positions: string[], role: PermissionRole) => void;
@@ -78,6 +79,17 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
 
   const open = Boolean(anchorEl);
 
+  // Sync mock user context with stored profile on mount
+  useEffect(() => {
+    const currentMockUser = getCurrentUser();
+    if (storedProfile.positions.length > 0 && currentMockUser.position !== storedProfile.positions[0]) {
+      setMockUser({
+        ...currentMockUser,
+        position: storedProfile.positions[0],
+      });
+    }
+  }, []); // Only run on mount
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -96,6 +108,13 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
       if (newPositions.length === 0) {
         return prev;
       }
+
+      // Update mock user context for API requests (use first position as primary)
+      const currentMockUser = getCurrentUser();
+      setMockUser({
+        ...currentMockUser,
+        position: newPositions[0],
+      });
 
       // Save and notify
       saveProfile(newPositions, selectedRole);
