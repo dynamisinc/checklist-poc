@@ -46,13 +46,29 @@ interface ItemStatusDialogProps {
 
 /**
  * Parse status configuration from JSON string
+ * Handles both simple string arrays and full StatusOption objects
  */
 const parseStatusConfiguration = (statusConfiguration?: string | null): StatusOption[] => {
   if (!statusConfiguration) return [];
   try {
     const parsed = JSON.parse(statusConfiguration);
-    // Sort by order
-    return (parsed as StatusOption[]).sort((a, b) => a.order - b.order);
+    // Handle both formats: array of strings or array of StatusOption objects
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) return [];
+      // Check if first element is a string (simple format) or object (full format)
+      if (typeof parsed[0] === 'string') {
+        // Convert simple string array to StatusOption array
+        return parsed.map((label: string, index: number) => ({
+          label,
+          isCompletion: label.toLowerCase().includes('complete') || label.toLowerCase().includes('done'),
+          order: index,
+        }));
+      } else {
+        // Already in StatusOption format
+        return (parsed as StatusOption[]).sort((a, b) => a.order - b.order);
+      }
+    }
+    return [];
   } catch (error) {
     console.error('Failed to parse status configuration:', error);
     return [];
