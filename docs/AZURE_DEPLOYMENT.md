@@ -334,7 +334,7 @@ az webapp restart --name checklist-poc-app --resource-group c5-poc-eastus2-rg
 
 ---
 
-### Issue 6: Deployment Shows Success but Changes Not Applied
+### Issue 6: Deployment Shows Success but Changes Not Applied (Wrong Branch)
 
 **Symptoms:**
 - `git push azure HEAD:main` shows "Deployment successful"
@@ -361,6 +361,84 @@ git push azure HEAD:master
 ```
 
 **Prevention:** Always use `git push azure HEAD:master` for deployments.
+
+---
+
+### Issue 7: Git Push Succeeds but Old JS Bundle Still Served (Dual wwwroot)
+
+**Symptoms:**
+- `git push azure HEAD:master` shows deployment successful
+- Browser 404s on JavaScript bundle (e.g., `index-Bgq26yZR.js`)
+- Hard refresh / cache clear doesn't help
+- The NEW bundle hash is in the git repository, but OLD bundle is served
+
+**Cause:** Azure App Service has **two different wwwroot paths** due to mixed deployment methods:
+
+1. **Git deployment target:** `/site/wwwroot/` - where git deploys your full repository
+2. **Published app path:** `/site/wwwroot/wwwroot/` - where ASP.NET serves static files
+
+This happens when the app was initially deployed via ZIP/publish (which puts files in `/site/wwwroot/`) and then subsequent updates use git (which deploys to `/site/wwwroot/src/backend/ChecklistAPI/...`).
+
+**Diagnosis:**
+```bash
+# Check what's actually in the published wwwroot
+curl -s -u "$CREDS" \
+  "https://checklist-poc-app.scm.azurewebsites.net/api/vfs/site/wwwroot/wwwroot/assets/" \
+  | python3 -m json.tool | grep -E '"name"|"mtime"'
+
+# Check what git deployed
+curl -s -u "$CREDS" \
+  "https://checklist-poc-app.scm.azurewebsites.net/api/vfs/site/wwwroot/src/backend/ChecklistAPI/wwwroot/assets/" \
+  | python3 -m json.tool | grep -E '"name"|"mtime"'
+```
+
+**Solution (Manual file sync via Kudu API):**
+
+When git push doesn't update the served files, manually upload via Kudu:
+
+```bash
+# Set credentials (get from Azure Portal > Deployment Center > FTPS credentials)
+CREDS='$checklist-poc-app:YourPassword'
+
+# Delete old bundle
+OLD_BUNDLE="index-OldHash.js"
+curl -X DELETE -u "$CREDS" \
+  "https://checklist-poc-app.scm.azurewebsites.net/api/vfs/site/wwwroot/wwwroot/assets/$OLD_BUNDLE"
+
+# Upload new bundle
+NEW_BUNDLE="index-NewHash.js"
+curl -X PUT -u "$CREDS" \
+  --data-binary @"src/backend/ChecklistAPI/wwwroot/assets/$NEW_BUNDLE" \
+  -H "If-Match: *" \
+  --max-time 120 \
+  "https://checklist-poc-app.scm.azurewebsites.net/api/vfs/site/wwwroot/wwwroot/assets/$NEW_BUNDLE"
+
+# Do the same for CSS and other assets that changed
+```
+
+**Permanent Solution:**
+To avoid this dual-path issue, ensure consistent deployment method:
+
+1. **Option A: ZIP Deploy Only** (Recommended for production)
+   ```bash
+   # Build and publish
+   cd src/backend/ChecklistAPI
+   dotnet publish -c Release -o ./publish
+
+   # ZIP and deploy
+   cd publish
+   zip -r ../deploy.zip .
+   az webapp deploy --resource-group c5-poc-eastus2-rg \
+     --name checklist-poc-app --src-path ../deploy.zip --type zip
+   ```
+
+2. **Option B: Reset to Git-only deployment**
+   - Delete the App Service and recreate it
+   - Only use git push from the start (never ZIP deploy)
+   - Git deployment creates a different directory structure
+
+**Quick Workaround (for development):**
+The `quick-deploy.ps1` script includes a Kudu sync step to handle this automatically.
 
 ---
 
@@ -435,3 +513,68 @@ curl -s "https://checklist-poc-app.azurewebsites.net/" | head -20
 | SQL Server | `checklist-poc-sql` | `c5-poc-eastus2-rg` |
 | Database | `ChecklistPOC` | - |
 | App URL | https://checklist-poc-app.azurewebsites.net | - |
+
+---
+
+## Key Lessons Learned
+
+### 1. Always Push to `master`, Not `main`
+Azure App Service local git deployment uses the `master` branch. Pushing to `main` will upload files but won't trigger deployment.
+
+```bash
+# CORRECT
+git push azure HEAD:master
+
+# WRONG - deploys but doesn't activate
+git push azure HEAD:main
+```
+
+### 2. Dual wwwroot Problem from Mixed Deployments
+When you've deployed via both ZIP (or `dotnet publish`) AND git, Azure creates a confusing directory structure:
+
+- **Git deploys to:** `/site/wwwroot/src/backend/ChecklistAPI/wwwroot/`
+- **App serves from:** `/site/wwwroot/wwwroot/`
+
+This means git push succeeds but your new frontend files aren't served. The solution is to either:
+- Use the `quick-deploy.ps1` script which syncs via Kudu API
+- Manually upload changed assets via Kudu VFS API
+- Stick to ONE deployment method consistently
+
+### 3. SQL Passwords Must Be Simple
+Avoid special characters (`#`, `@`, `%`, `&`, etc.) in SQL passwords. They break connection strings even when URL-encoded.
+
+### 4. API URLs in Frontend Services
+When `baseURL` is set to `/api`, service files should NOT include the `/api` prefix:
+
+```typescript
+// CORRECT (baseURL handles /api)
+await apiClient.get('/templates');
+
+// WRONG (results in /api/api/templates)
+await apiClient.get('/api/templates');
+```
+
+### 5. Use Kudu API for Debugging
+The Kudu SCM site (`https://app-name.scm.azurewebsites.net`) is invaluable:
+
+- **VFS API** - Browse/upload files directly
+- **Command API** - Run shell commands
+- **Process API** - Debug running processes
+- **Logs** - Access application logs
+
+Example: Check what files are actually being served:
+```bash
+curl -u "$CREDS" "https://app.scm.azurewebsites.net/api/vfs/site/wwwroot/wwwroot/assets/"
+```
+
+---
+
+## Troubleshooting Quick Reference
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Push succeeds, no changes | Wrong branch (main vs master) | `git push azure HEAD:master` |
+| JS 404 after deploy | Dual wwwroot issue | Run `quick-deploy.ps1` or manual Kudu sync |
+| SQL 18456 errors | Password special chars | Recreate user with simple password |
+| Double `/api/api/` | Service file includes `/api` | Remove `/api` from service URLs |
+| 500 on all requests | App needs restart | `az webapp restart --name app --resource-group rg` |
