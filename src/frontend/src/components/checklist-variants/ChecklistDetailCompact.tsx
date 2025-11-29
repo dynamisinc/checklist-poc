@@ -19,7 +19,6 @@ import {
   Box,
   Typography,
   IconButton,
-  LinearProgress,
   Card,
   Checkbox,
   Menu,
@@ -48,6 +47,7 @@ import {
   faCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import { ItemNotesDialog } from '../ItemNotesDialog';
+import { ChecklistProgressBarCompact } from '../ChecklistProgressBar';
 import type { ChecklistInstanceDto, ChecklistItemDto } from '../../services/checklistService';
 import type { StatusOption } from '../../types';
 import { c5Colors } from '../../theme/c5Theme';
@@ -59,6 +59,12 @@ interface ChecklistDetailCompactProps {
   onSaveNotes: (itemId: string, notes: string) => Promise<void>;
   onCopy: (mode: 'clone-clean' | 'clone-direct') => void;
   isProcessing: (itemId: string) => boolean;
+  /** ID of the item to highlight (from landing page navigation) */
+  highlightedItemId?: string | null;
+  /** Whether highlight animation is active */
+  isHighlighting?: boolean;
+  /** Ref callback to attach to items for scroll-to behavior */
+  getItemRef?: (itemId: string) => (element: HTMLElement | null) => void;
 }
 
 /**
@@ -74,22 +80,12 @@ const parseStatusOptions = (config?: string | null): StatusOption[] => {
 };
 
 /**
- * Get progress bar color
- */
-const getProgressColor = (percentage: number): string => {
-  if (percentage === 100) return c5Colors.successGreen;
-  if (percentage >= 67) return c5Colors.cobaltBlue;
-  if (percentage >= 34) return c5Colors.canaryYellow;
-  return c5Colors.lavaRed;
-};
-
-/**
  * Get status indicator color
  */
 const getStatusColor = (status: string | undefined, options: StatusOption[]): string => {
   if (!status) return '#9E9E9E'; // Gray for unset
   const opt = options.find(o => o.label === status);
-  if (opt?.isCompletion) return c5Colors.successGreen;
+  if (opt?.isCompletion) return c5Colors.green; // Dark green for completed
   return c5Colors.cobaltBlue;
 };
 
@@ -103,6 +99,8 @@ const CompactItemCard: React.FC<{
   onOpenNotes: (item: ChecklistItemDto) => void;
   onViewInfo: (item: ChecklistItemDto) => void;
   isProcessing: boolean;
+  isHighlighted?: boolean;
+  itemRef?: (element: HTMLElement | null) => void;
 }> = ({
   item,
   onToggleComplete,
@@ -110,6 +108,8 @@ const CompactItemCard: React.FC<{
   onOpenNotes,
   onViewInfo,
   isProcessing,
+  isHighlighted,
+  itemRef,
 }) => {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const statusOptions = parseStatusOptions(item.statusConfiguration);
@@ -117,6 +117,7 @@ const CompactItemCard: React.FC<{
 
   return (
     <Card
+      ref={itemRef}
       variant="outlined"
       sx={{
         mb: 1,
@@ -127,6 +128,10 @@ const CompactItemCard: React.FC<{
         borderRadius: 1,
         // No shadow for compact feel
         boxShadow: 'none',
+        // Highlight animation when navigating from landing page
+        ...(isHighlighted && {
+          animation: 'highlightPulse 1s ease-in-out infinite',
+        }),
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -215,7 +220,7 @@ const CompactItemCard: React.FC<{
         {item.isCompleted && item.itemType === 'checkbox' && (
           <FontAwesomeIcon
             icon={faCheck}
-            style={{ fontSize: 14, color: c5Colors.successGreen }}
+            style={{ fontSize: 14, color: c5Colors.green }}
           />
         )}
 
@@ -271,6 +276,9 @@ export const ChecklistDetailCompact: React.FC<ChecklistDetailCompactProps> = ({
   onSaveNotes,
   onCopy,
   isProcessing,
+  highlightedItemId,
+  isHighlighting,
+  getItemRef,
 }) => {
   const navigate = useNavigate();
 
@@ -324,22 +332,10 @@ export const ChecklistDetailCompact: React.FC<ChecklistDetailCompactProps> = ({
       </Stack>
 
       {/* Compact Progress */}
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <LinearProgress
-          variant="determinate"
-          value={progressPercentage}
-          sx={{
-            flex: 1,
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: '#E0E0E0',
-            '& .MuiLinearProgress-bar': {
-              backgroundColor: getProgressColor(progressPercentage),
-            },
-          }}
-        />
-        <Typography variant="caption" sx={{ fontWeight: 600, minWidth: 45 }}>
-          {checklist.completedItems}/{checklist.totalItems}
+      <Box sx={{ mb: 2 }}>
+        <ChecklistProgressBarCompact value={progressPercentage} width="100%" />
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textAlign: 'right' }}>
+          {checklist.completedItems}/{checklist.totalItems} items
         </Typography>
       </Box>
 
@@ -358,6 +354,8 @@ export const ChecklistDetailCompact: React.FC<ChecklistDetailCompactProps> = ({
             onOpenNotes={handleOpenNotes}
             onViewInfo={handleViewInfo}
             isProcessing={isProcessing(item.id)}
+            isHighlighted={highlightedItemId === item.id && isHighlighting}
+            itemRef={getItemRef?.(item.id)}
           />
         ))
       )}

@@ -10,13 +10,13 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useHighlightItem } from '../hooks/useHighlightItem';
 import {
   Container,
   Typography,
   Box,
   CircularProgress,
   Button,
-  LinearProgress,
   Checkbox,
   FormControlLabel,
   Paper,
@@ -43,19 +43,10 @@ import {
   ChecklistDetailCompact,
   ChecklistDetailProgressive,
 } from '../components/checklist-variants';
+import { ChecklistProgressBar } from '../components/ChecklistProgressBar';
 import { checklistService } from '../services/checklistService';
 import type { ChecklistItemDto } from '../services/checklistService';
 import type { StatusOption } from '../types';
-
-/**
- * Get progress bar color based on completion percentage
- */
-const getProgressColor = (percentage: number): string => {
-  if (percentage === 100) return c5Colors.successGreen;
-  if (percentage >= 67) return c5Colors.cobaltBlue;
-  if (percentage >= 34) return c5Colors.canaryYellow;
-  return c5Colors.lavaRed;
-};
 
 /**
  * Parse status configuration from JSON string
@@ -103,6 +94,9 @@ export const ChecklistDetailPage: React.FC = () => {
     updateItemLocally,
   } = useChecklistDetail();
   const { toggleComplete, updateNotes, updateStatus, isProcessing } = useItemActions();
+
+  // Item highlight state (when navigating from landing page)
+  const { highlightedItemId, isHighlighting, getItemRef } = useHighlightItem();
 
   // Real-time collaboration via SignalR
   const { joinChecklist, leaveChecklist } = useChecklistHub({
@@ -392,6 +386,9 @@ export const ChecklistDetailPage: React.FC = () => {
           onSaveNotes={variantHandleSaveNotes}
           onCopy={variantHandleCopy}
           isProcessing={isProcessing}
+          highlightedItemId={highlightedItemId}
+          isHighlighting={isHighlighting}
+          getItemRef={getItemRef}
         />
         <CreateChecklistDialog
           open={copyDialogOpen}
@@ -420,6 +417,9 @@ export const ChecklistDetailPage: React.FC = () => {
           onSaveNotes={variantHandleSaveNotes}
           onCopy={variantHandleCopy}
           isProcessing={isProcessing}
+          highlightedItemId={highlightedItemId}
+          isHighlighting={isHighlighting}
+          getItemRef={getItemRef}
         />
         <CreateChecklistDialog
           open={copyDialogOpen}
@@ -448,6 +448,9 @@ export const ChecklistDetailPage: React.FC = () => {
           onSaveNotes={variantHandleSaveNotes}
           onCopy={variantHandleCopy}
           isProcessing={isProcessing}
+          highlightedItemId={highlightedItemId}
+          isHighlighting={isHighlighting}
+          getItemRef={getItemRef}
         />
         <CreateChecklistDialog
           open={copyDialogOpen}
@@ -529,6 +532,7 @@ export const ChecklistDetailPage: React.FC = () => {
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
+            alignItems: 'center',
             mb: 0.5,
           }}
         >
@@ -536,22 +540,13 @@ export const ChecklistDetailPage: React.FC = () => {
             Progress
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {checklist.completedItems} / {checklist.totalItems} items ({Number(checklist.progressPercentage).toFixed(0)}%)
+            {checklist.completedItems} / {checklist.totalItems} items
           </Typography>
         </Box>
-        <LinearProgress
-          variant="determinate"
+        <ChecklistProgressBar
           value={Number(checklist.progressPercentage)}
-          sx={{
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: '#E0E0E0',
-            '& .MuiLinearProgress-bar': {
-              backgroundColor: getProgressColor(
-                Number(checklist.progressPercentage)
-              ),
-            },
-          }}
+          height={24}
+          showPercentage={true}
         />
 
         {checklist.requiredItems > 0 && (
@@ -576,15 +571,23 @@ export const ChecklistDetailPage: React.FC = () => {
         </Paper>
       ) : (
         <Box>
-          {checklist.items.map((item) => (
+          {checklist.items.map((item) => {
+            const isItemHighlighted = highlightedItemId === item.id && isHighlighting;
+            return (
             <Paper
               key={item.id}
+              ref={getItemRef(item.id)}
               sx={{
                 p: 2,
                 mb: 2,
                 backgroundColor: item.isCompleted
                   ? '#F5F5F5'
                   : 'background.paper',
+                // Highlight animation when navigating from landing page
+                ...(isItemHighlighted && {
+                  animation: 'highlightPulse 1s ease-in-out infinite',
+                  borderRadius: 1,
+                }),
               }}
             >
               <Box sx={{ width: '100%' }}>
@@ -715,7 +718,7 @@ export const ChecklistDetailPage: React.FC = () => {
                                   sx={{
                                     ml: 1,
                                     fontSize: '0.75rem',
-                                    color: c5Colors.successGreen,
+                                    color: c5Colors.green,
                                     fontWeight: 'bold',
                                   }}
                                 >
@@ -812,7 +815,8 @@ export const ChecklistDetailPage: React.FC = () => {
                 </Collapse>
               </Box>
             </Paper>
-          ))}
+            );
+          })}
         </Box>
       )}
 

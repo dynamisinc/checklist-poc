@@ -43,6 +43,10 @@ interface ChecklistItemClassicProps {
   onOpenNotes: (item: ChecklistItemDto) => void;
   onViewInfo: (item: ChecklistItemDto) => void;
   isProcessing: boolean;
+  /** Whether this item should be highlighted */
+  isHighlighted?: boolean;
+  /** Ref callback for scroll-to behavior */
+  itemRef?: (element: HTMLElement | null) => void;
 }
 
 /**
@@ -84,6 +88,8 @@ export const ChecklistItemClassic: React.FC<ChecklistItemClassicProps> = ({
   onOpenNotes,
   onViewInfo,
   isProcessing,
+  isHighlighted,
+  itemRef,
 }) => {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -103,6 +109,7 @@ export const ChecklistItemClassic: React.FC<ChecklistItemClassicProps> = ({
 
   return (
     <Box
+      ref={itemRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       sx={{
@@ -120,6 +127,11 @@ export const ChecklistItemClassic: React.FC<ChecklistItemClassicProps> = ({
         },
         // Touch-friendly minimum height
         minHeight: 56,
+        // Highlight animation when navigating from landing page
+        ...(isHighlighted && {
+          animation: 'highlightPulse 1s ease-in-out infinite',
+          borderRadius: 1,
+        }),
       }}
     >
       {/* Checkbox (for checkbox items) */}

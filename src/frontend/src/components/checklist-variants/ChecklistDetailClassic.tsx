@@ -19,7 +19,6 @@ import {
   Box,
   Typography,
   IconButton,
-  LinearProgress,
   Paper,
   Dialog,
   DialogTitle,
@@ -35,8 +34,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { ChecklistItemClassic } from './ChecklistItemClassic';
 import { ItemNotesDialog } from '../ItemNotesDialog';
+import { ChecklistProgressBar } from '../ChecklistProgressBar';
 import type { ChecklistInstanceDto, ChecklistItemDto } from '../../services/checklistService';
-import { c5Colors } from '../../theme/c5Theme';
 
 interface ChecklistDetailClassicProps {
   checklist: ChecklistInstanceDto;
@@ -45,17 +44,13 @@ interface ChecklistDetailClassicProps {
   onSaveNotes: (itemId: string, notes: string) => Promise<void>;
   onCopy: (mode: 'clone-clean' | 'clone-direct') => void;
   isProcessing: (itemId: string) => boolean;
+  /** ID of the item to highlight (from landing page navigation) */
+  highlightedItemId?: string | null;
+  /** Whether highlight animation is active */
+  isHighlighting?: boolean;
+  /** Ref callback to attach to items for scroll-to behavior */
+  getItemRef?: (itemId: string) => (element: HTMLElement | null) => void;
 }
-
-/**
- * Get progress bar color based on percentage
- */
-const getProgressColor = (percentage: number): string => {
-  if (percentage === 100) return c5Colors.successGreen;
-  if (percentage >= 67) return c5Colors.cobaltBlue;
-  if (percentage >= 34) return c5Colors.canaryYellow;
-  return c5Colors.lavaRed;
-};
 
 export const ChecklistDetailClassic: React.FC<ChecklistDetailClassicProps> = ({
   checklist,
@@ -64,6 +59,9 @@ export const ChecklistDetailClassic: React.FC<ChecklistDetailClassicProps> = ({
   onSaveNotes,
   onCopy,
   isProcessing,
+  highlightedItemId,
+  isHighlighting,
+  getItemRef,
 }) => {
   const navigate = useNavigate();
 
@@ -151,30 +149,21 @@ export const ChecklistDetailClassic: React.FC<ChecklistDetailClassicProps> = ({
         }}
       >
         <Box sx={{ flex: 1 }}>
-          <LinearProgress
-            variant="determinate"
+          <ChecklistProgressBar
             value={progressPercentage}
-            sx={{
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: '#E0E0E0',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: getProgressColor(progressPercentage),
-                borderRadius: 4,
-              },
-            }}
+            height={20}
+            showPercentage={true}
           />
         </Box>
         <Typography
           variant="body2"
           sx={{
             fontWeight: 600,
-            minWidth: 100,
+            minWidth: 80,
             textAlign: 'right',
-            color: getProgressColor(progressPercentage),
           }}
         >
-          {checklist.completedItems}/{checklist.totalItems} ({progressPercentage.toFixed(0)}%)
+          {checklist.completedItems}/{checklist.totalItems}
         </Typography>
       </Box>
 
@@ -207,6 +196,8 @@ export const ChecklistDetailClassic: React.FC<ChecklistDetailClassicProps> = ({
               onOpenNotes={handleOpenNotes}
               onViewInfo={handleViewInfo}
               isProcessing={isProcessing(item.id)}
+              isHighlighted={highlightedItemId === item.id && isHighlighting}
+              itemRef={getItemRef?.(item.id)}
             />
           ))
         )}

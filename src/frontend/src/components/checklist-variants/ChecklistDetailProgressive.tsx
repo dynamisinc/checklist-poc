@@ -18,7 +18,6 @@ import {
   Box,
   Typography,
   IconButton,
-  LinearProgress,
   Checkbox,
   Collapse,
   Select,
@@ -40,6 +39,7 @@ import {
   faCheck,
   faSave,
 } from '@fortawesome/free-solid-svg-icons';
+import { ChecklistProgressBar } from '../ChecklistProgressBar';
 import type { ChecklistInstanceDto, ChecklistItemDto } from '../../services/checklistService';
 import type { StatusOption } from '../../types';
 import { c5Colors } from '../../theme/c5Theme';
@@ -51,6 +51,12 @@ interface ChecklistDetailProgressiveProps {
   onSaveNotes: (itemId: string, notes: string) => Promise<void>;
   onCopy: (mode: 'clone-clean' | 'clone-direct') => void;
   isProcessing: (itemId: string) => boolean;
+  /** ID of the item to highlight (from landing page navigation) */
+  highlightedItemId?: string | null;
+  /** Whether highlight animation is active */
+  isHighlighting?: boolean;
+  /** Ref callback to attach to items for scroll-to behavior */
+  getItemRef?: (itemId: string) => (element: HTMLElement | null) => void;
 }
 
 /**
@@ -66,16 +72,6 @@ const parseStatusOptions = (config?: string | null): StatusOption[] => {
 };
 
 /**
- * Get progress bar color
- */
-const getProgressColor = (percentage: number): string => {
-  if (percentage === 100) return c5Colors.successGreen;
-  if (percentage >= 67) return c5Colors.cobaltBlue;
-  if (percentage >= 34) return c5Colors.canaryYellow;
-  return c5Colors.lavaRed;
-};
-
-/**
  * Progressive Item Component - Expandable accordion style
  */
 const ProgressiveItem: React.FC<{
@@ -86,6 +82,8 @@ const ProgressiveItem: React.FC<{
   onStatusChange: (itemId: string, newStatus: string) => void;
   onSaveNotes: (itemId: string, notes: string) => void;
   isProcessing: boolean;
+  isHighlighted?: boolean;
+  itemRef?: (element: HTMLElement | null) => void;
 }> = ({
   item,
   isExpanded,
@@ -94,6 +92,8 @@ const ProgressiveItem: React.FC<{
   onStatusChange,
   onSaveNotes,
   isProcessing,
+  isHighlighted,
+  itemRef,
 }) => {
   const [editedNotes, setEditedNotes] = useState(item.notes || '');
   const [notesChanged, setNotesChanged] = useState(false);
@@ -117,10 +117,16 @@ const ProgressiveItem: React.FC<{
 
   return (
     <Box
+      ref={itemRef}
       sx={{
         borderBottom: '1px solid',
         borderColor: 'divider',
         backgroundColor: item.isCompleted ? 'action.hover' : 'background.paper',
+        // Highlight animation when navigating from landing page
+        ...(isHighlighted && {
+          animation: 'highlightPulse 1s ease-in-out infinite',
+          borderRadius: 1,
+        }),
       }}
     >
       {/* Collapsed Row - Always visible */}
@@ -172,7 +178,7 @@ const ProgressiveItem: React.FC<{
                 icon={faCheck}
                 style={{
                   color: statusOptions.find(o => o.label === item.currentStatus)?.isCompletion
-                    ? c5Colors.successGreen
+                    ? c5Colors.green
                     : c5Colors.cobaltBlue,
                   fontSize: 16,
                 }}
@@ -327,6 +333,9 @@ export const ChecklistDetailProgressive: React.FC<ChecklistDetailProgressiveProp
   onSaveNotes,
   onCopy,
   isProcessing,
+  highlightedItemId,
+  isHighlighting,
+  getItemRef,
 }) => {
   const navigate = useNavigate();
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
@@ -362,28 +371,21 @@ export const ChecklistDetailProgressive: React.FC<ChecklistDetailProgressiveProp
 
       {/* Progress */}
       <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
           <Typography variant="body2" color="text.secondary">
             Progress
           </Typography>
-          <Typography variant="body2" fontWeight={600}>
-            {checklist.completedItems}/{checklist.totalItems} ({progressPercentage.toFixed(0)}%)
+          <Typography variant="body2" color="text.secondary">
+            {checklist.completedItems}/{checklist.totalItems} items
           </Typography>
         </Box>
-        <LinearProgress
-          variant="determinate"
+        <ChecklistProgressBar
           value={progressPercentage}
-          sx={{
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: '#E0E0E0',
-            '& .MuiLinearProgress-bar': {
-              backgroundColor: getProgressColor(progressPercentage),
-            },
-          }}
+          height={24}
+          showPercentage={true}
         />
         {checklist.requiredItems > 0 && (
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
             Required: {checklist.requiredItemsCompleted}/{checklist.requiredItems}
           </Typography>
         )}
@@ -415,6 +417,8 @@ export const ChecklistDetailProgressive: React.FC<ChecklistDetailProgressiveProp
               onStatusChange={onStatusChange}
               onSaveNotes={onSaveNotes}
               isProcessing={isProcessing(item.id)}
+              isHighlighted={highlightedItemId === item.id && isHighlighting}
+              itemRef={getItemRef?.(item.id)}
             />
           ))
         )}
