@@ -74,7 +74,8 @@
       "Bash(Select-String -Pattern \"api/api\")",
       "Bash(dir:*)",
       "Bash(cat:*)",
-      "Bash(az sql db show-connection-string:*)"
+      "Bash(az sql db show-connection-string:*)",
+      "Bash(./deploy.sh:*)"
     ],
     "deny": [],
     "ask": []
