@@ -5,7 +5,7 @@
  * Uses BrowserRouter for clean URLs (not hash routing).
  */
 
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -21,7 +21,7 @@ import {
   faBook,
   faBoxArchive,
 } from "@fortawesome/free-solid-svg-icons";
-import { MyChecklistsPage } from "./pages/MyChecklistsPage";
+import { LandingPage } from "./pages/LandingPage";
 import { ChecklistDetailPage } from "./pages/ChecklistDetailPage";
 import { TemplateLibraryPage } from "./pages/TemplateLibraryPage";
 import { TemplateEditorPage } from "./pages/TemplateEditorPage";
@@ -157,7 +157,8 @@ function App() {
 
   /**
    * Handle profile change from ProfileMenu
-   * Triggers re-render of pages to fetch new data
+   * Note: The profileChanged event is already dispatched by saveProfile in ProfileMenu,
+   * so we don't dispatch it here to avoid duplicate network requests.
    */
   const handleProfileChange = (positions: string[], role: PermissionRole) => {
     console.log("[App] Profile changed - Positions:", positions, "Role:", role);
@@ -199,8 +200,8 @@ function App() {
           {/* Default route - redirect to My Checklists */}
           <Route path="/" element={<Navigate to="/checklists" replace />} />
 
-          {/* My Checklists page */}
-          <Route path="/checklists" element={<MyChecklistsPage />} />
+          {/* My Checklists page - uses variant switcher */}
+          <Route path="/checklists" element={<LandingPage />} />
 
           {/* Checklist Detail page */}
           <Route

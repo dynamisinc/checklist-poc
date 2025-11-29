@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide
 
-> **Last Updated:** 2025-11-24
+> **Last Updated:** 2025-11-29
 > **Project Version:** 1.0.0-POC
 > **Status:** Early Development - Backend Foundation Complete, COBRA Styling Integrated
 
@@ -14,7 +14,8 @@
 7. [Working with the Codebase](#working-with-the-codebase)
 8. [Common Tasks & Workflows](#common-tasks--workflows)
 9. [Testing Guidelines](#testing-guidelines)
-10. [Troubleshooting](#troubleshooting)
+10. [Azure Deployment](#azure-deployment)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -1213,6 +1214,83 @@ it('fetches checklists on mount', async () => {
 - **Unit tests:** 80%+ for services and utilities
 - **Integration tests:** Key workflows (create checklist, complete items, real-time sync)
 - **E2E tests (Playwright - future):** Critical paths (template to checklist, collaboration)
+
+---
+
+## Azure Deployment
+
+### Quick Deploy (Recommended)
+
+Use the `quick-deploy.ps1` script for reliable deployments:
+
+```powershell
+cd deploy/scripts
+.\quick-deploy.ps1
+```
+
+**Options:**
+- `.\quick-deploy.ps1 -Message "fix: bug description"` - Custom commit message
+- `.\quick-deploy.ps1 -SkipBuild` - Skip frontend build (use existing dist)
+- `.\quick-deploy.ps1 -SkipTests` - Skip running backend tests
+- `.\quick-deploy.ps1 -SkipKuduSync` - Skip Kudu asset sync (faster but may not update frontend)
+
+### What the Script Does
+
+1. Verifies `azure` git remote is configured
+2. Runs backend tests (optional)
+3. Builds frontend (`npm run build`)
+4. Copies build output to `src/backend/ChecklistAPI/wwwroot/`
+5. Commits changes
+6. Pushes to Azure via `git push azure HEAD:master`
+7. Syncs frontend assets via Kudu API (handles dual wwwroot issue)
+
+### Critical: Push to `master`, Not `main`
+
+Azure App Service deploys from the `master` branch. The script handles this automatically, but if deploying manually:
+
+```bash
+# ✅ CORRECT - triggers deployment
+git push azure HEAD:master
+
+# ❌ WRONG - uploads files but doesn't deploy
+git push azure HEAD:main
+```
+
+### Production URLs
+
+| Resource | URL |
+|----------|-----|
+| **App** | https://checklist-poc-app.azurewebsites.net |
+| **API Swagger** | https://checklist-poc-app.azurewebsites.net/swagger |
+| **Kudu SCM** | https://checklist-poc-app.scm.azurewebsites.net |
+
+### Common Deployment Issues
+
+#### 1. Frontend Not Updating After Deploy
+
+**Cause:** Dual wwwroot issue - git deploys to one location, ASP.NET serves from another.
+
+**Solution:** Use `quick-deploy.ps1` which syncs via Kudu API, or run with `-SkipKuduSync:$false` to ensure sync happens.
+
+#### 2. ZIP Deploy Returns 400 Bad Request
+
+**Cause:** The `deploy-to-azure.ps1` script uses ZIP deploy which can fail due to .NET 10 preview or configuration issues.
+
+**Solution:** Use `quick-deploy.ps1` instead (uses git push + Kudu sync).
+
+#### 3. App Returns 500 After Deploy
+
+**Solution:** Restart the app service:
+```bash
+az webapp restart --name checklist-poc-app --resource-group c5-poc-eastus2-rg
+```
+
+### Full Documentation
+
+See these docs for comprehensive deployment information:
+- `docs/AZURE_DEPLOYMENT.md` - Detailed deployment guide with lessons learned
+- `docs/DEPLOYMENT_QUICK_START.md` - Quick start for new deployments
+- `docs/DEPLOYMENT_WORKFLOWS.md` - Different deployment strategies
 
 ---
 

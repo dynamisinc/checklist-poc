@@ -72,9 +72,17 @@ public class MockUserMiddleware
             var fullName = context.Request.Headers["X-User-FullName"].FirstOrDefault()
                            ?? ExtractNameFromEmail(email);
 
-            var position = context.Request.Headers["X-User-Position"].FirstOrDefault()
+            var positionHeader = context.Request.Headers["X-User-Position"].FirstOrDefault()
                            ?? _configuration["MockAuth:DefaultPosition"]
                            ?? "Incident Commander";
+
+            // Parse positions - can be comma-separated for multiple positions
+            var positions = positionHeader
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+
+            // Primary position is the first one
+            var position = positions.FirstOrDefault() ?? "Incident Commander";
 
             var isAdminStr = context.Request.Headers["X-User-IsAdmin"].FirstOrDefault();
             var isAdmin = !string.IsNullOrEmpty(isAdminStr) && bool.Parse(isAdminStr);
@@ -91,6 +99,7 @@ public class MockUserMiddleware
                 Email = email,
                 FullName = fullName,
                 Position = position,
+                Positions = positions,
                 IsAdmin = isAdmin,
                 CurrentEventId = null, // Could be set from query string in future
                 CurrentOperationalPeriod = null
@@ -101,9 +110,9 @@ public class MockUserMiddleware
 
             // Log for debugging
             _logger.LogInformation(
-                "Mock user context created: {Email} ({Position})",
+                "Mock user context created: {Email} (Positions: {Positions})",
                 userContext.Email,
-                userContext.Position
+                string.Join(", ", userContext.Positions)
             );
         }
         else

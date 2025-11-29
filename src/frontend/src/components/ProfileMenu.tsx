@@ -25,9 +25,19 @@ import {
   Chip,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faChevronDown, faPalette } from '@fortawesome/free-solid-svg-icons';
 import { ICS_POSITIONS, PermissionRole } from '../types';
 import { cobraTheme } from '../theme/cobraTheme';
+import {
+  checklistVariants,
+  type ChecklistVariant,
+  getCurrentVariant,
+  setVariant as setStoredVariant,
+  landingPageVariants,
+  type LandingPageVariant,
+  getCurrentLandingVariant,
+  setLandingVariant as setStoredLandingVariant,
+} from '../experiments';
 import { setMockUser, getCurrentUser } from '../services/api';
 
 interface ProfileMenuProps {
@@ -76,16 +86,37 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPositions, setSelectedPositions] = useState<string[]>(storedProfile.positions);
   const [selectedRole, setSelectedRole] = useState<PermissionRole>(storedProfile.role);
+  const [selectedVariant, setSelectedVariant] = useState<ChecklistVariant>(getCurrentVariant());
+  const [selectedLandingVariant, setSelectedLandingVariant] = useState<LandingPageVariant>(getCurrentLandingVariant());
 
   const open = Boolean(anchorEl);
+
+  // Sync variant state with storage
+  useEffect(() => {
+    const handleVariantChange = () => {
+      setSelectedVariant(getCurrentVariant());
+    };
+    window.addEventListener('variantChanged', handleVariantChange);
+    return () => window.removeEventListener('variantChanged', handleVariantChange);
+  }, []);
+
+  // Sync landing variant state with storage
+  useEffect(() => {
+    const handleLandingVariantChange = () => {
+      setSelectedLandingVariant(getCurrentLandingVariant());
+    };
+    window.addEventListener('landingVariantChanged', handleLandingVariantChange);
+    return () => window.removeEventListener('landingVariantChanged', handleLandingVariantChange);
+  }, []);
 
   // Sync mock user context with stored profile on mount
   useEffect(() => {
     const currentMockUser = getCurrentUser();
-    if (storedProfile.positions.length > 0 && currentMockUser.position !== storedProfile.positions[0]) {
+    if (storedProfile.positions.length > 0) {
       setMockUser({
         ...currentMockUser,
         position: storedProfile.positions[0],
+        positions: storedProfile.positions,
       });
     }
   }, []); // Only run on mount
@@ -109,11 +140,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
         return prev;
       }
 
-      // Update mock user context for API requests (use first position as primary)
+      // Update mock user context for API requests (include all positions)
       const currentMockUser = getCurrentUser();
       setMockUser({
         ...currentMockUser,
         position: newPositions[0],
+        positions: newPositions,
       });
 
       // Save and notify
@@ -131,6 +163,18 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
     // Save and notify
     saveProfile(selectedPositions, newRole);
     onProfileChange(selectedPositions, newRole);
+  };
+
+  const handleVariantChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newVariant = event.target.value as ChecklistVariant;
+    setSelectedVariant(newVariant);
+    setStoredVariant(newVariant);
+  };
+
+  const handleLandingVariantChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newVariant = event.target.value as LandingPageVariant;
+    setSelectedLandingVariant(newVariant);
+    setStoredLandingVariant(newVariant);
   };
 
   // Display text
@@ -274,6 +318,74 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
                   </Box>
                 }
               />
+            </RadioGroup>
+          </FormControl>
+        </Box>
+
+        <Divider />
+
+        {/* UX Variant Selection */}
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <FormControl component="fieldset">
+            <FormLabel component="legend" sx={{ fontWeight: 'bold', fontSize: '0.875rem', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FontAwesomeIcon icon={faPalette} style={{ fontSize: 14 }} />
+              Checklist UX Variant
+            </FormLabel>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              Switch between different checklist experiences for testing
+            </Typography>
+            <RadioGroup value={selectedVariant} onChange={handleVariantChange}>
+              {checklistVariants.map((variant) => (
+                <FormControlLabel
+                  key={variant.id}
+                  value={variant.id}
+                  control={<Radio size="small" />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {variant.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {variant.description}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              ))}
+            </RadioGroup>
+          </FormControl>
+        </Box>
+
+        <Divider />
+
+        {/* Landing Page Variant Selection */}
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <FormControl component="fieldset">
+            <FormLabel component="legend" sx={{ fontWeight: 'bold', fontSize: '0.875rem', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FontAwesomeIcon icon={faPalette} style={{ fontSize: 14 }} />
+              Landing Page Variant
+            </FormLabel>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              Switch between different home page layouts for testing
+            </Typography>
+            <RadioGroup value={selectedLandingVariant} onChange={handleLandingVariantChange}>
+              {landingPageVariants.map((variant) => (
+                <FormControlLabel
+                  key={variant.id}
+                  value={variant.id}
+                  control={<Radio size="small" />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {variant.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {variant.description}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              ))}
             </RadioGroup>
           </FormControl>
         </Box>

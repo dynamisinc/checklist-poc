@@ -26,7 +26,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:5001';
 export interface MockUserContext {
   email: string;
   fullName: string;
-  position: string;
+  position: string; // Primary position (first in positions array)
+  positions?: string[]; // All positions for filtering checklists
   isAdmin: boolean;
 }
 
@@ -78,11 +79,15 @@ apiClient.interceptors.request.use(
   (config) => {
     // Add mock user headers (POC only)
     config.headers['X-User-Email'] = currentUser.email;
-    config.headers['X-User-Position'] = currentUser.position;
+    // Send all positions as comma-separated string (backend will parse)
+    const positionsHeader = currentUser.positions?.length
+      ? currentUser.positions.join(', ')
+      : currentUser.position;
+    config.headers['X-User-Position'] = positionsHeader;
     config.headers['X-User-FullName'] = currentUser.fullName;
 
     console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
-      user: currentUser.position,
+      positions: positionsHeader,
       data: config.data,
     });
 

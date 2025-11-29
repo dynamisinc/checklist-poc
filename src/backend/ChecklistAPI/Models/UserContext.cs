@@ -34,10 +34,17 @@ public class UserContext
     public string FullName { get; set; } = string.Empty;
 
     /// <summary>
-    /// User's ICS position title
+    /// User's ICS position title (primary position, first in the list)
     /// Example: "Incident Commander", "Operations Section Chief", "Safety Officer"
     /// </summary>
     public string Position { get; set; } = string.Empty;
+
+    /// <summary>
+    /// All ICS positions the user is assigned to (comma-separated in header, split into list)
+    /// Used for filtering checklists - user sees checklists assigned to ANY of their positions
+    /// Example: ["Safety Officer", "Operations Section Chief"]
+    /// </summary>
+    public List<string> Positions { get; set; } = new();
 
     /// <summary>
     /// Indicates if user has admin privileges (for template management)

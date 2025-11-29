@@ -138,6 +138,34 @@ export const checklistService = {
   },
 
   /**
+   * Get all checklists (no position filtering)
+   * Used for team overview / leadership views
+   * @param includeArchived Include archived checklists (default: false)
+   * @returns Array of all checklists
+   */
+  async getAllChecklists(
+    includeArchived = false
+  ): Promise<ChecklistInstanceDto[]> {
+    try {
+      const response = await apiClient.get<ChecklistInstanceDto[]>(
+        '/checklists',
+        {
+          params: { includeArchived },
+        }
+      );
+      // Ensure we always return an array
+      if (!Array.isArray(response.data)) {
+        console.error('API returned non-array response:', response.data);
+        return [];
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch all checklists:', error);
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
+  /**
    * Get single checklist by ID
    * @param checklistId Checklist GUID
    * @returns Checklist with items

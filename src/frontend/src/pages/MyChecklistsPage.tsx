@@ -168,6 +168,17 @@ export const MyChecklistsPage: React.FC = () => {
     fetchMyChecklists(showArchived);
   }, [fetchMyChecklists, showArchived]);
 
+  // Listen for profile changes and refetch (without remounting)
+  useEffect(() => {
+    const handleProfileChanged = () => {
+      console.log('[MyChecklistsPage] Profile changed, refetching checklists...');
+      fetchMyChecklists(showArchived);
+    };
+
+    window.addEventListener('profileChanged', handleProfileChanged);
+    return () => window.removeEventListener('profileChanged', handleProfileChanged);
+  }, [fetchMyChecklists, showArchived]);
+
   /**
    * Handle creating a new checklist from a template
    */

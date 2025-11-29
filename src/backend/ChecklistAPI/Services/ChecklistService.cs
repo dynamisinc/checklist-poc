@@ -59,53 +59,55 @@ public class ChecklistService : IChecklistService
         UserContext userContext,
         bool includeArchived = false)
     {
+        var userPositions = userContext.Positions.Count > 0
+            ? userContext.Positions
+            : new List<string> { userContext.Position };
+
         _logger.LogInformation(
-            "Fetching checklists for position: {Position} (includeArchived: {IncludeArchived})",
-            userContext.Position,
+            "Fetching checklists for positions: {Positions} (includeArchived: {IncludeArchived})",
+            string.Join(", ", userPositions),
             includeArchived);
 
         var query = _context.ChecklistInstances
             .Include(c => c.Items.OrderBy(i => i.DisplayOrder))
             .AsQueryable();
 
-        // Filter by archived status
+        // Filter by archived status at DB level
         if (!includeArchived)
         {
             query = query.Where(c => !c.IsArchived);
         }
 
-        // Filter by position: null or empty AssignedPositions = visible to all
-        // For comma-separated positions, we need to check exact matches
-        // Note: Using Contains for DB query, then filtering in-memory for exact match
-        query = query.Where(c =>
-            string.IsNullOrEmpty(c.AssignedPositions) ||
-            c.AssignedPositions.Contains(userContext.Position));
-
+        // Get all non-archived checklists, then filter by position in-memory
+        // (position filtering with multiple positions can't be efficiently translated to SQL)
         var allChecklists = await query
             .OrderByDescending(c => c.CreatedAt)
             .AsNoTracking()
             .ToListAsync();
 
         // Filter for exact position match in comma-separated list
+        // A checklist is visible if:
+        // 1. AssignedPositions is null/empty (visible to all), OR
+        // 2. ANY of the user's positions matches ANY of the checklist's assigned positions
         var checklists = allChecklists.Where(c =>
         {
             if (string.IsNullOrEmpty(c.AssignedPositions))
                 return true; // Null/empty = visible to all
 
-            var positions = c.AssignedPositions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var hasMatch = positions.Contains(userContext.Position);
+            var checklistPositions = c.AssignedPositions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var hasMatch = userPositions.Any(up => checklistPositions.Contains(up));
 
             _logger.LogDebug(
-                "Checklist {ChecklistId} assigned to '{Positions}' - User position '{UserPosition}' - Match: {HasMatch}",
-                c.Id, c.AssignedPositions, userContext.Position, hasMatch);
+                "Checklist {ChecklistId} assigned to '{ChecklistPositions}' - User positions '{UserPositions}' - Match: {HasMatch}",
+                c.Id, c.AssignedPositions, string.Join(", ", userPositions), hasMatch);
 
             return hasMatch;
         }).ToList();
 
         _logger.LogInformation(
-            "Retrieved {Count} checklists for position {Position} (filtered from {TotalCount})",
+            "Retrieved {Count} checklists for positions {Positions} (filtered from {TotalCount})",
             checklists.Count,
-            userContext.Position,
+            string.Join(", ", userPositions),
             allChecklists.Count);
 
         return checklists.Select(ChecklistMapper.MapToDto).ToList();

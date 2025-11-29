@@ -73,7 +73,9 @@
       "Bash(git update-ref:*)",
       "Bash(Select-String -Pattern \"api/api\")",
       "Bash(dir:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(az sql db show-connection-string:*)",
+      "Bash(./deploy.sh:*)"
     ],
     "deny": [],
     "ask": []
