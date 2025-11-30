@@ -177,10 +177,10 @@ public class ChecklistServiceTests : IDisposable
         await SeedTestData();
 
         // Act
-        var result = await _service.GetChecklistsByEventAsync(TestEvent1Id, includeArchived: false);
+        var result = await _service.GetChecklistsByEventAsync(TestEvent1Id, _adminUser, includeArchived: false, showAll: true);
 
         // Assert
-        Assert.Equal(3, result.Count); // Safety, Operations, and General checklists (excluding archived)
+        Assert.Equal(3, result.Count); // Safety, Operations, and General checklists (excluding archived) - showAll bypasses position filtering
         Assert.All(result, c => Assert.Equal(TestEvent1Id, c.EventId));
     }
 
@@ -191,7 +191,7 @@ public class ChecklistServiceTests : IDisposable
         await SeedTestData();
 
         // Act
-        var result = await _service.GetChecklistsByEventAsync(TestEvent1Id, includeArchived: false);
+        var result = await _service.GetChecklistsByEventAsync(TestEvent1Id, _adminUser, includeArchived: false);
 
         // Assert
         Assert.DoesNotContain(result, c => c.IsArchived);
@@ -827,10 +827,10 @@ public class ChecklistServiceTests : IDisposable
         await SeedTestData();
 
         // Act
-        var result = await _service.GetChecklistsByEventAsync(TestEvent1Id, includeArchived: true);
+        var result = await _service.GetChecklistsByEventAsync(TestEvent1Id, _adminUser, includeArchived: true, showAll: true);
 
         // Assert
-        Assert.Equal(4, result.Count); // All 4 checklists including archived
+        Assert.Equal(4, result.Count); // All 4 checklists including archived - showAll bypasses position filtering
         Assert.Contains(result, c => c.IsArchived);
     }
 
@@ -842,7 +842,7 @@ public class ChecklistServiceTests : IDisposable
         var emptyEventId = Guid.NewGuid();
 
         // Act
-        var result = await _service.GetChecklistsByEventAsync(emptyEventId, includeArchived: false);
+        var result = await _service.GetChecklistsByEventAsync(emptyEventId, _adminUser, includeArchived: false);
 
         // Assert
         Assert.Empty(result);

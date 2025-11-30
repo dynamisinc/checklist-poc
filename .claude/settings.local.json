@@ -78,7 +78,8 @@
       "Bash(./deploy.sh:*)",
       "Bash(git rm:*)",
       "Bash(timeout /t 10 /nobreak)",
-      "Bash(az account get-access-token:*)"
+      "Bash(az account get-access-token:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
