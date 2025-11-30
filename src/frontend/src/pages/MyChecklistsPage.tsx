@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faBell } from '@fortawesome/free-solid-svg-icons';
+import { useNavigate } from 'react-router-dom';
 import { useChecklists } from '../hooks/useChecklists';
 import { useOperationalPeriodGrouping } from '../hooks/useOperationalPeriodGrouping';
 import { usePermissions } from '../hooks/usePermissions';
@@ -37,6 +38,7 @@ import {
   type CompletionStatusFilter,
 } from '../components/ChecklistFilters';
 import { TemplatePickerDialog } from '../components/TemplatePickerDialog';
+import { ChecklistVisibilityToggle, getStoredVisibilityPreference } from '../components/ChecklistVisibilityToggle';
 import { CobraNewButton, CobraSecondaryButton } from '../theme/styledComponents';
 import CobraStyles from '../theme/CobraStyles';
 import { cobraTheme } from '../theme/cobraTheme';
@@ -46,6 +48,7 @@ import { toast } from 'react-toastify';
  * My Checklists Page Component
  */
 export const MyChecklistsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { checklists, loading, error, fetchMyChecklists, fetchChecklistsByEvent } = useChecklists();
   const { currentEvent } = useEvents();
   const permissions = usePermissions();
@@ -59,6 +62,7 @@ export const MyChecklistsPage: React.FC = () => {
   const [selectedCompletionStatus, setSelectedCompletionStatus] = useState<CompletionStatusFilter>('all');
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showAllChecklists, setShowAllChecklists] = useState(getStoredVisibilityPreference);
 
   // Real-time updates state
   const [newChecklistsCount, setNewChecklistsCount] = useState(0);
@@ -106,13 +110,13 @@ export const MyChecklistsPage: React.FC = () => {
   // Refresh checklists and clear badge
   const handleRefreshChecklists = useCallback(() => {
     if (currentEvent?.id) {
-      fetchChecklistsByEvent(currentEvent.id, showArchived);
+      fetchChecklistsByEvent(currentEvent.id, showArchived, showAllChecklists);
     } else {
       fetchMyChecklists(showArchived);
     }
     setNewChecklistsCount(0);
     setShowNewChecklistsBadge(false);
-  }, [currentEvent?.id, fetchChecklistsByEvent, fetchMyChecklists, showArchived]);
+  }, [currentEvent?.id, fetchChecklistsByEvent, fetchMyChecklists, showArchived, showAllChecklists]);
 
   // Apply filters to checklists
   const filteredChecklists = useMemo(() => {
@@ -169,14 +173,14 @@ export const MyChecklistsPage: React.FC = () => {
     sortPreviousByDate: true,
   });
 
-  // Fetch checklists on mount, when event changes, or when showArchived changes
+  // Fetch checklists on mount, when event changes, or when filters change
   useEffect(() => {
     if (currentEvent?.id) {
-      fetchChecklistsByEvent(currentEvent.id, showArchived);
+      fetchChecklistsByEvent(currentEvent.id, showArchived, showAllChecklists);
     } else {
       fetchMyChecklists(showArchived);
     }
-  }, [currentEvent?.id, fetchChecklistsByEvent, fetchMyChecklists, showArchived]);
+  }, [currentEvent?.id, fetchChecklistsByEvent, fetchMyChecklists, showArchived, showAllChecklists]);
 
   // Listen for profile changes and event changes to refetch (without remounting)
   useEffect(() => {
@@ -190,11 +194,17 @@ export const MyChecklistsPage: React.FC = () => {
       // The useEffect with currentEvent?.id dependency will handle this
     };
 
+    const handleVisibilityPreferenceChanged = (e: CustomEvent<boolean>) => {
+      setShowAllChecklists(e.detail);
+    };
+
     window.addEventListener('profileChanged', handleProfileChanged);
     window.addEventListener('eventChanged', handleEventChanged);
+    window.addEventListener('visibilityPreferenceChanged', handleVisibilityPreferenceChanged as EventListener);
     return () => {
       window.removeEventListener('profileChanged', handleProfileChanged);
       window.removeEventListener('eventChanged', handleEventChanged);
+      window.removeEventListener('visibilityPreferenceChanged', handleVisibilityPreferenceChanged as EventListener);
     };
   }, [handleRefreshChecklists]);
 
@@ -238,8 +248,8 @@ export const MyChecklistsPage: React.FC = () => {
 
       toast.success(`Checklist "${checklistName}" created successfully`);
 
-      // Refresh checklists to show the new one
-      handleRefreshChecklists();
+      // Navigate to the new checklist
+      navigate(`/checklists/${newChecklist.id}`);
 
       return newChecklist;
     } catch (err) {
@@ -295,12 +305,19 @@ export const MyChecklistsPage: React.FC = () => {
               <Typography variant="body2" color="text.secondary">
                 {currentEvent
                   ? `No checklists for "${currentEvent.name}"`
-                  : 'No checklists assigned to your position'}
+                  : showAllChecklists ? 'No checklists in this event' : 'No checklists assigned to your position'}
               </Typography>
             </Box>
 
             {/* Action Buttons */}
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+              {/* Visibility Toggle - Only visible for Manage role */}
+              <ChecklistVisibilityToggle
+                showAll={showAllChecklists}
+                onChange={setShowAllChecklists}
+                disabled={loading}
+              />
+
               {/* New Checklists Notification Badge */}
               <Fade in={showNewChecklistsBadge}>
                 <CobraSecondaryButton
@@ -381,7 +398,7 @@ export const MyChecklistsPage: React.FC = () => {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {totalChecklists} checklist{totalChecklists !== 1 ? 's' : ''}
-              {currentEvent ? ` for "${currentEvent.name}"` : ' assigned to your position'}
+              {currentEvent ? ` for "${currentEvent.name}"` : showAllChecklists ? '' : ' assigned to your position'}
               {checklists.length !== totalChecklists && (
                 <> ({checklists.length} total, {totalChecklists} matching filters)</>
               )}
@@ -389,7 +406,14 @@ export const MyChecklistsPage: React.FC = () => {
           </Box>
 
           {/* Action Buttons */}
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+            {/* Visibility Toggle - Only visible for Manage role */}
+            <ChecklistVisibilityToggle
+              showAll={showAllChecklists}
+              onChange={setShowAllChecklists}
+              disabled={loading}
+            />
+
             {/* New Checklists Notification Badge */}
             <Fade in={showNewChecklistsBadge}>
               <CobraSecondaryButton

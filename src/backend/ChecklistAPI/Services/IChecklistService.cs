@@ -57,15 +57,19 @@ public interface IChecklistService
     Task<ChecklistInstanceDto?> GetChecklistByIdAsync(Guid id);
 
     /// <summary>
-    /// Get all checklists for a specific event
-    /// Used by Event Dashboard to show all checklists for an incident
+    /// Get all checklists for a specific event, filtered by user position
+    /// Used by Event Dashboard to show checklists visible to the current user
     /// </summary>
     /// <param name="eventId">Event identifier</param>
+    /// <param name="userContext">Current user context (position and email used for filtering)</param>
     /// <param name="includeArchived">If true, includes archived checklists (default: false)</param>
-    /// <returns>List of checklists for this event</returns>
+    /// <param name="showAll">If true and user has Manage role, bypasses position filtering (default: null - uses role-based default)</param>
+    /// <returns>List of checklists for this event visible to the user</returns>
     Task<List<ChecklistInstanceDto>> GetChecklistsByEventAsync(
         Guid eventId,
-        bool includeArchived = false);
+        UserContext userContext,
+        bool includeArchived = false,
+        bool? showAll = null);
 
     /// <summary>
     /// Get all checklists for a specific operational period

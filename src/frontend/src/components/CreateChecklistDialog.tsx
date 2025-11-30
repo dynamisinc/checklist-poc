@@ -24,6 +24,10 @@ import {
   Alert,
   Collapse,
   Stack,
+  FormControlLabel,
+  Checkbox,
+  FormGroup,
+  FormLabel,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
@@ -35,6 +39,7 @@ import {
   CobraSecondaryButton,
 } from '../theme/styledComponents';
 import CobraStyles from '../theme/CobraStyles';
+import { ICS_POSITIONS } from '../types';
 
 /**
  * Mode of checklist creation
@@ -110,7 +115,7 @@ export const CreateChecklistDialog: React.FC<CreateChecklistDialogProps> = ({
   // Form state
   const [name, setName] = useState('');
   const [operationalPeriodName, setOperationalPeriodName] = useState(defaultOperationalPeriodName || '');
-  const [assignedPositions, setAssignedPositions] = useState('');
+  const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,7 +134,7 @@ export const CreateChecklistDialog: React.FC<CreateChecklistDialogProps> = ({
 
       // Set defaults
       setOperationalPeriodName(defaultOperationalPeriodName || '');
-      setAssignedPositions('');
+      setSelectedPositions([]);
       setShowAdvanced(false);
     }
   }, [open, mode, templateName, sourceChecklistName, defaultOperationalPeriodName]);
@@ -160,7 +165,7 @@ export const CreateChecklistDialog: React.FC<CreateChecklistDialogProps> = ({
       eventName,
       operationalPeriodId: defaultOperationalPeriodId,
       operationalPeriodName: operationalPeriodName.trim() || undefined,
-      assignedPositions: assignedPositions.trim() || undefined,
+      assignedPositions: selectedPositions.length > 0 ? selectedPositions.join(', ') : undefined,
     };
 
     if (mode === 'from-template') {
@@ -275,15 +280,35 @@ export const CreateChecklistDialog: React.FC<CreateChecklistDialogProps> = ({
 
           <Collapse in={showAdvanced}>
             <Box sx={{ mt: 2 }}>
-              <CobraTextField
-                fullWidth
-                label="Assigned Positions (Optional)"
-                value={assignedPositions}
-                onChange={(e) => setAssignedPositions(e.target.value)}
-                disabled={saving}
-                helperText="Comma-separated list: Incident Commander, Safety Officer"
-                placeholder="Leave blank to make visible to all positions"
-              />
+              <FormLabel component="legend" sx={{ mb: 1, fontWeight: 500, fontSize: '0.875rem' }}>
+                Assigned Positions (Optional)
+              </FormLabel>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                Leave all unchecked to make visible to all positions
+              </Typography>
+              <FormGroup sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                {ICS_POSITIONS.map((position) => (
+                  <FormControlLabel
+                    key={position}
+                    control={
+                      <Checkbox
+                        checked={selectedPositions.includes(position)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPositions((prev) => [...prev, position]);
+                          } else {
+                            setSelectedPositions((prev) => prev.filter((p) => p !== position));
+                          }
+                        }}
+                        disabled={saving}
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="body2">{position}</Typography>}
+                    sx={{ mx: 0 }}
+                  />
+                ))}
+              </FormGroup>
             </Box>
           </Collapse>
         </Box>

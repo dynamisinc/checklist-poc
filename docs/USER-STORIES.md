@@ -877,9 +877,10 @@
 **Acceptance Criteria:**
 - Checklists assigned to specific ICS positions during instance creation
 - User sees only checklists assigned to their current position in current event
+- Users can always view checklists they created, regardless of position assignment
 - Switching positions immediately updates checklist visibility
 - Position assignments displayed clearly on checklist instance detail
-- Admin users and Command staff can view all checklists regardless of position assignment
+- Manage role users can view all checklists regardless of position assignment (for oversight)
 - Unassigned checklists (no specific positions) visible to all users in event
 
 **Technical Notes:**

@@ -36,7 +36,8 @@ interface UseChecklistsReturn extends UseChecklistsState {
   fetchAllChecklists: (includeArchived?: boolean) => Promise<void>;
   fetchChecklistsByEvent: (
     eventId: string,
-    includeArchived?: boolean
+    includeArchived?: boolean,
+    showAll?: boolean
   ) => Promise<void>;
   fetchChecklistsByPeriod: (
     eventId: string,
@@ -173,15 +174,19 @@ export const useChecklists = (): UseChecklistsReturn => {
 
   /**
    * Fetch checklists by event
+   * @param eventId Event identifier
+   * @param includeArchived Include archived checklists
+   * @param showAll If true and user has Manage role, shows all checklists regardless of position
    */
   const fetchChecklistsByEvent = useCallback(
-    async (eventId: string, includeArchived = false): Promise<void> => {
+    async (eventId: string, includeArchived = false, showAll?: boolean): Promise<void> => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
         const checklists = await checklistService.getChecklistsByEvent(
           eventId,
-          includeArchived
+          includeArchived,
+          showAll
         );
         setState((prev) => ({
           ...prev,

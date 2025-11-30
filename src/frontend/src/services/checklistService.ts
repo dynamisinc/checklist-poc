@@ -187,17 +187,19 @@ export const checklistService = {
    * Get checklists by event
    * @param eventId Event identifier
    * @param includeArchived Include archived checklists
+   * @param showAll If true and user has Manage role, shows all checklists regardless of position
    * @returns Array of checklists for event
    */
   async getChecklistsByEvent(
     eventId: string,
-    includeArchived = false
+    includeArchived = false,
+    showAll?: boolean
   ): Promise<ChecklistInstanceDto[]> {
     try {
       const response = await apiClient.get<ChecklistInstanceDto[]>(
         `/api/checklists/event/${encodeURIComponent(eventId)}`,
         {
-          params: { includeArchived },
+          params: { includeArchived, showAll },
         }
       );
       return response.data;

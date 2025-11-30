@@ -32,6 +32,7 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faPalette, faUserPen } from '@fortawesome/free-solid-svg-icons';
+import { useSearchParams } from 'react-router-dom';
 import { ICS_POSITIONS, PermissionRole } from '../types';
 import { cobraTheme } from '../theme/cobraTheme';
 import {
@@ -130,6 +131,7 @@ const saveProfile = (positions: string[], role: PermissionRole) => {
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => {
   const storedProfile = getStoredProfile();
   const storedAccount = getStoredAccount();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPositions, setSelectedPositions] = useState<string[]>(storedProfile.positions);
@@ -155,7 +157,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
     return () => window.removeEventListener('variantChanged', handleVariantChange);
   }, []);
 
-  // Sync landing variant state with storage
+  // Sync landing variant state with storage and URL changes
   useEffect(() => {
     const handleLandingVariantChange = () => {
       setSelectedLandingVariant(getCurrentLandingVariant());
@@ -163,6 +165,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
     window.addEventListener('landingVariantChanged', handleLandingVariantChange);
     return () => window.removeEventListener('landingVariantChanged', handleLandingVariantChange);
   }, []);
+
+  // Re-sync when URL search params change (e.g., navigating with ?landing=control)
+  useEffect(() => {
+    setSelectedLandingVariant(getCurrentLandingVariant());
+  }, [searchParams]);
 
   // Sync mock user context with stored profile and account on mount
   useEffect(() => {
@@ -241,6 +248,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
     const newVariant = event.target.value as LandingPageVariant;
     setSelectedLandingVariant(newVariant);
     setStoredLandingVariant(newVariant);
+    // Clear URL param so localStorage takes precedence
+    if (searchParams.has('landing')) {
+      searchParams.delete('landing');
+      setSearchParams(searchParams, { replace: true });
+    }
   };
 
   // Account switch handlers

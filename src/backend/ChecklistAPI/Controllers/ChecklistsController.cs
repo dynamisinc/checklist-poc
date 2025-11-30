@@ -94,18 +94,21 @@ public class ChecklistsController : ControllerBase
     }
 
     /// <summary>
-    /// Get all checklists for a specific event
+    /// Get all checklists for a specific event (filtered by user position)
     /// </summary>
     /// <param name="eventId">Event identifier</param>
     /// <param name="includeArchived">Include archived checklists (default: false)</param>
-    /// <returns>List of checklists for this event</returns>
+    /// <param name="showAll">If true and user has Manage role, shows all checklists regardless of position (default: false)</param>
+    /// <returns>List of checklists for this event visible to the current user</returns>
     [HttpGet("event/{eventId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<List<ChecklistInstanceDto>>> GetChecklistsByEvent(
         Guid eventId,
-        [FromQuery] bool includeArchived = false)
+        [FromQuery] bool includeArchived = false,
+        [FromQuery] bool? showAll = null)
     {
-        var checklists = await _checklistService.GetChecklistsByEventAsync(eventId, includeArchived);
+        var userContext = GetUserContext();
+        var checklists = await _checklistService.GetChecklistsByEventAsync(eventId, userContext, includeArchived, showAll);
         return Ok(checklists);
     }
 

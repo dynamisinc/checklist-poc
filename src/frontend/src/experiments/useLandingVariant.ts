@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   type LandingPageVariant,
   type LandingVariantInfo,
@@ -32,6 +33,7 @@ export interface UseLandingVariantResult {
  * Hook for landing page variant management
  */
 export function useLandingVariant(): UseLandingVariantResult {
+  const [searchParams] = useSearchParams();
   const [variant, setVariantState] = useState<LandingPageVariant>(getCurrentLandingVariant);
 
   // Update variant and persist
@@ -67,13 +69,15 @@ export function useLandingVariant(): UseLandingVariantResult {
     };
   }, []);
 
-  // Re-check on mount (URL param might have changed)
+  // Re-check when URL search params change (e.g., navigating with ?landing=control)
   useEffect(() => {
     const current = getCurrentLandingVariant();
     if (current !== variant) {
       setVariantState(current);
+      // Dispatch event so ProfileMenu and other components can sync
+      window.dispatchEvent(new CustomEvent('landingVariantChanged', { detail: current }));
     }
-  }, []);
+  }, [searchParams]);
 
   return {
     variant,

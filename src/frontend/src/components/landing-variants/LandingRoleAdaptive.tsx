@@ -56,6 +56,7 @@ import { useChecklists } from '../../hooks/useChecklists';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useEvents } from '../../hooks/useEvents';
 import { TemplatePickerDialog } from '../TemplatePickerDialog';
+import { ChecklistVisibilityToggle, getStoredVisibilityPreference } from '../ChecklistVisibilityToggle';
 import { CobraNewButton } from '../../theme/styledComponents';
 import CobraStyles from '../../theme/CobraStyles';
 import { cobraTheme } from '../../theme/cobraTheme';
@@ -92,11 +93,12 @@ export const LandingRoleAdaptive: React.FC = () => {
   const { currentEvent } = useEvents();
   const [activeTab, setActiveTab] = useState(0);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [showAllChecklists, setShowAllChecklists] = useState(getStoredVisibilityPreference);
 
   // Helper function to fetch checklists
   const fetchChecklists = () => {
     if (currentEvent?.id) {
-      fetchChecklistsByEvent(currentEvent.id, false);
+      fetchChecklistsByEvent(currentEvent.id, false, showAllChecklists);
     } else {
       fetchMyChecklists(false);
     }
@@ -109,9 +111,9 @@ export const LandingRoleAdaptive: React.FC = () => {
   // Fetch data on mount and when event changes
   useEffect(() => {
     fetchChecklists();
-  }, [currentEvent?.id, permissions.canViewAllInstances]);
+  }, [currentEvent?.id, permissions.canViewAllInstances, showAllChecklists]);
 
-  // Listen for profile and event changes
+  // Listen for profile, event, and visibility preference changes
   useEffect(() => {
     const handleProfileChanged = () => {
       fetchChecklists();
@@ -120,7 +122,7 @@ export const LandingRoleAdaptive: React.FC = () => {
       const storedEvent = localStorage.getItem('currentEvent');
       if (storedEvent) {
         const event = JSON.parse(storedEvent);
-        fetchChecklistsByEvent(event.id, false);
+        fetchChecklistsByEvent(event.id, false, showAllChecklists);
       } else {
         fetchMyChecklists(false);
       }
@@ -128,13 +130,18 @@ export const LandingRoleAdaptive: React.FC = () => {
         fetchAllChecklists(false);
       }
     };
+    const handleVisibilityPreferenceChanged = (e: CustomEvent<boolean>) => {
+      setShowAllChecklists(e.detail);
+    };
     window.addEventListener('profileChanged', handleProfileChanged);
     window.addEventListener('eventChanged', handleEventChanged);
+    window.addEventListener('visibilityPreferenceChanged', handleVisibilityPreferenceChanged as EventListener);
     return () => {
       window.removeEventListener('profileChanged', handleProfileChanged);
       window.removeEventListener('eventChanged', handleEventChanged);
+      window.removeEventListener('visibilityPreferenceChanged', handleVisibilityPreferenceChanged as EventListener);
     };
-  }, [fetchMyChecklists, fetchAllChecklists, fetchChecklistsByEvent, permissions.canViewAllInstances]);
+  }, [fetchMyChecklists, fetchAllChecklists, fetchChecklistsByEvent, permissions.canViewAllInstances, showAllChecklists]);
 
   // Extract incomplete items from my checklists
   const incompleteItems = useMemo((): IncompleteItem[] => {
@@ -240,12 +247,8 @@ export const LandingRoleAdaptive: React.FC = () => {
       if (!response.ok) throw new Error('Failed to create checklist');
       const newChecklist = await response.json();
       toast.success(`Checklist "${checklistName}" created`);
-      // Refresh using event filter if available
-      if (currentEvent?.id) {
-        fetchChecklistsByEvent(currentEvent.id, false);
-      } else {
-        fetchMyChecklists(false);
-      }
+      // Navigate to the new checklist
+      navigate(`/checklists/${newChecklist.id}`);
       return newChecklist;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create checklist';
@@ -289,11 +292,19 @@ export const LandingRoleAdaptive: React.FC = () => {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h4">Dashboard</Typography>
-          {permissions.canCreateInstance && (
-            <CobraNewButton onClick={() => setTemplatePickerOpen(true)}>
-              Create Checklist
-            </CobraNewButton>
-          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            {/* Visibility Toggle - Only visible for Manage role */}
+            <ChecklistVisibilityToggle
+              showAll={showAllChecklists}
+              onChange={setShowAllChecklists}
+              disabled={loading}
+            />
+            {permissions.canCreateInstance && (
+              <CobraNewButton onClick={() => setTemplatePickerOpen(true)}>
+                Create Checklist
+              </CobraNewButton>
+            )}
+          </Box>
         </Box>
 
         {/* Tabs */}

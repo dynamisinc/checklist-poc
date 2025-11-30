@@ -39,6 +39,7 @@ import { useChecklists } from '../../hooks/useChecklists';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useEvents } from '../../hooks/useEvents';
 import { TemplatePickerDialog } from '../TemplatePickerDialog';
+import { ChecklistVisibilityToggle, getStoredVisibilityPreference } from '../ChecklistVisibilityToggle';
 import { CobraNewButton, CobraSecondaryButton } from '../../theme/styledComponents';
 import CobraStyles from '../../theme/CobraStyles';
 import { cobraTheme } from '../../theme/cobraTheme';
@@ -59,30 +60,38 @@ export const LandingTaskFirst: React.FC = () => {
   const permissions = usePermissions();
   const { currentEvent } = useEvents();
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [showAllChecklists, setShowAllChecklists] = useState(getStoredVisibilityPreference);
 
   // Fetch checklists filtered by current event
   useEffect(() => {
     if (currentEvent?.id) {
-      fetchChecklistsByEvent(currentEvent.id, false);
+      fetchChecklistsByEvent(currentEvent.id, false, showAllChecklists);
     } else {
       fetchMyChecklists(false);
     }
-  }, [currentEvent?.id, fetchChecklistsByEvent, fetchMyChecklists]);
+  }, [currentEvent?.id, fetchChecklistsByEvent, fetchMyChecklists, showAllChecklists]);
 
-  // Listen for event changes
+  // Listen for event changes and visibility preference changes
   useEffect(() => {
     const handleEventChanged = () => {
       const storedEvent = localStorage.getItem('currentEvent');
       if (storedEvent) {
         const event = JSON.parse(storedEvent);
-        fetchChecklistsByEvent(event.id, false);
+        fetchChecklistsByEvent(event.id, false, showAllChecklists);
       } else {
         fetchMyChecklists(false);
       }
     };
+    const handleVisibilityPreferenceChanged = (e: CustomEvent<boolean>) => {
+      setShowAllChecklists(e.detail);
+    };
     window.addEventListener('eventChanged', handleEventChanged);
-    return () => window.removeEventListener('eventChanged', handleEventChanged);
-  }, [fetchChecklistsByEvent, fetchMyChecklists]);
+    window.addEventListener('visibilityPreferenceChanged', handleVisibilityPreferenceChanged as EventListener);
+    return () => {
+      window.removeEventListener('eventChanged', handleEventChanged);
+      window.removeEventListener('visibilityPreferenceChanged', handleVisibilityPreferenceChanged as EventListener);
+    };
+  }, [fetchChecklistsByEvent, fetchMyChecklists, showAllChecklists]);
 
   // Extract all incomplete items across all checklists
   const incompleteItems = useMemo((): IncompleteItem[] => {
@@ -173,12 +182,8 @@ export const LandingTaskFirst: React.FC = () => {
 
       const newChecklist = await response.json();
       toast.success(`Checklist "${checklistName}" created`);
-      // Refresh using event filter if available
-      if (currentEvent?.id) {
-        fetchChecklistsByEvent(currentEvent.id, false);
-      } else {
-        fetchMyChecklists(false);
-      }
+      // Navigate to the new checklist
+      navigate(`/checklists/${newChecklist.id}`);
       return newChecklist;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create checklist';
@@ -267,15 +272,23 @@ export const LandingTaskFirst: React.FC = () => {
           )}
         </Box>
 
-        {/* Quick Stats */}
-        <Box sx={{ display: 'flex', gap: 3 }}>
-          <Typography variant="body2" color="text.secondary">
-            <strong>{checklists.length}</strong> active checklist
-            {checklists.length !== 1 ? 's' : ''}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            <strong>{completedToday}</strong> completed today
-          </Typography>
+        {/* Quick Stats with Visibility Toggle */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              <strong>{checklists.length}</strong> active checklist
+              {checklists.length !== 1 ? 's' : ''}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              <strong>{completedToday}</strong> completed today
+            </Typography>
+          </Box>
+          {/* Visibility Toggle - Only visible for Manage role */}
+          <ChecklistVisibilityToggle
+            showAll={showAllChecklists}
+            onChange={setShowAllChecklists}
+            disabled={loading}
+          />
         </Box>
 
         {/* Incomplete Items List */}

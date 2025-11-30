@@ -64,8 +64,9 @@ public class ChecklistService : IChecklistService
             : new List<string> { userContext.Position };
 
         _logger.LogInformation(
-            "Fetching checklists for positions: {Positions} (includeArchived: {IncludeArchived})",
+            "Fetching checklists for positions: {Positions}, role: {Role} (includeArchived: {IncludeArchived})",
             string.Join(", ", userPositions),
+            userContext.Role,
             includeArchived);
 
         var query = _context.ChecklistInstances
@@ -85,12 +86,33 @@ public class ChecklistService : IChecklistService
             .AsNoTracking()
             .ToListAsync();
 
-        // Filter for exact position match in comma-separated list
+        // Manage role sees all checklists (for oversight)
+        if (userContext.CanManage)
+        {
+            _logger.LogInformation(
+                "User {Email} has Manage role - returning all {Count} checklists without position filtering",
+                userContext.Email,
+                allChecklists.Count);
+            return allChecklists.Select(ChecklistMapper.MapToDto).ToList();
+        }
+
+        // Filter for position match or creator ownership
         // A checklist is visible if:
         // 1. AssignedPositions is null/empty (visible to all), OR
-        // 2. ANY of the user's positions matches ANY of the checklist's assigned positions
+        // 2. ANY of the user's positions matches ANY of the checklist's assigned positions, OR
+        // 3. The user created the checklist (creator always sees their own)
         var checklists = allChecklists.Where(c =>
         {
+            // Creator always sees their own checklists
+            if (!string.IsNullOrEmpty(userContext.Email) &&
+                c.CreatedBy.Equals(userContext.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogDebug(
+                    "Checklist {ChecklistId} visible to creator {Email}",
+                    c.Id, userContext.Email);
+                return true;
+            }
+
             if (string.IsNullOrEmpty(c.AssignedPositions))
                 return true; // Null/empty = visible to all
 
@@ -133,12 +155,21 @@ public class ChecklistService : IChecklistService
 
     public async Task<List<ChecklistInstanceDto>> GetChecklistsByEventAsync(
         Guid eventId,
-        bool includeArchived = false)
+        UserContext userContext,
+        bool includeArchived = false,
+        bool? showAll = null)
     {
+        var userPositions = userContext.Positions.Count > 0
+            ? userContext.Positions
+            : new List<string> { userContext.Position };
+
         _logger.LogInformation(
-            "Fetching checklists for event: {EventId} (includeArchived: {IncludeArchived})",
+            "Fetching checklists for event: {EventId}, positions: {Positions}, role: {Role} (includeArchived: {IncludeArchived}, showAll: {ShowAll})",
             eventId,
-            includeArchived);
+            string.Join(", ", userPositions),
+            userContext.Role,
+            includeArchived,
+            showAll);
 
         var query = _context.ChecklistInstances
             .Include(c => c.Items.OrderBy(i => i.DisplayOrder))
@@ -149,15 +180,49 @@ public class ChecklistService : IChecklistService
             query = query.Where(c => !c.IsArchived);
         }
 
-        var checklists = await query
+        var allChecklists = await query
             .OrderByDescending(c => c.CreatedAt)
             .AsNoTracking()
             .ToListAsync();
 
+        // Determine if we should bypass position filtering:
+        // - showAll=true: User explicitly requested all checklists (must have Manage role)
+        // - showAll=false: User explicitly requested position-filtered view
+        // - showAll=null: Use default behavior (Manage role sees all by default)
+        var bypassPositionFiltering = showAll == true && userContext.CanManage;
+
+        if (bypassPositionFiltering)
+        {
+            _logger.LogInformation(
+                "User {Email} requested all checklists - returning all {Count} checklists for event {EventId} without position filtering",
+                userContext.Email,
+                allChecklists.Count,
+                eventId);
+            return allChecklists.Select(ChecklistMapper.MapToDto).ToList();
+        }
+
+        // Filter for position match or creator ownership (same logic as GetMyChecklistsAsync)
+        var checklists = allChecklists.Where(c =>
+        {
+            // Creator always sees their own checklists
+            if (!string.IsNullOrEmpty(userContext.Email) &&
+                c.CreatedBy.Equals(userContext.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.IsNullOrEmpty(c.AssignedPositions))
+                return true; // Null/empty = visible to all
+
+            var checklistPositions = c.AssignedPositions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return userPositions.Any(up => checklistPositions.Contains(up));
+        }).ToList();
+
         _logger.LogInformation(
-            "Retrieved {Count} checklists for event {EventId}",
+            "Retrieved {Count} checklists for event {EventId} (filtered from {TotalCount})",
             checklists.Count,
-            eventId);
+            eventId,
+            allChecklists.Count);
 
         return checklists.Select(ChecklistMapper.MapToDto).ToList();
     }
