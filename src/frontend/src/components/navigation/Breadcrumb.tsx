@@ -20,7 +20,6 @@ import { useTheme } from "@mui/material/styles";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome } from "@fortawesome/free-solid-svg-icons";
 import { useEvents } from "../../hooks/useEvents";
-import CobraStyles from "../../theme/CobraStyles";
 
 export interface BreadcrumbItem {
   label: string;
@@ -82,9 +81,10 @@ const useAutoBreadcrumbs = (customLabel?: string): BreadcrumbItem[] => {
       return items;
     }
 
-    // Dashboard is the main checklist page
+    // Dashboard is the main checklist page - show Checklist > Dashboard
     if (pathParts[1] === "dashboard") {
-      items.push({ label: "Checklist" });
+      items.push({ label: "Checklist", path: "/checklists" });
+      items.push({ label: "Dashboard" });
       return items;
     }
 
@@ -184,8 +184,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items: providedItems, cu
     <Box
       sx={{
         backgroundColor: theme.palette.breadcrumb.background,
-        pl: `${CobraStyles.Padding.MainWindow}px`,
-        pr: 2,
+        px: 2,
         py: 1,
         borderBottom: `1px solid ${theme.palette.divider}`,
         minHeight: 40,
