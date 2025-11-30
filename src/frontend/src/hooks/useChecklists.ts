@@ -8,7 +8,7 @@
  * that can occur due to React StrictMode double-mounting effects.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import {
   checklistService,
@@ -16,6 +16,12 @@ import {
   type CreateFromTemplateRequest,
   type UpdateChecklistRequest,
 } from '../services/checklistService';
+
+// Module-level request deduplication to prevent duplicate API calls
+// across multiple hook instances (React StrictMode protection)
+let fetchMyChecklistsInFlight: Promise<ChecklistInstanceDto[]> | null = null;
+let fetchAllChecklistsInFlight: Promise<ChecklistInstanceDto[]> | null = null;
+let fetchByEventInFlight: { eventId: string; promise: Promise<ChecklistInstanceDto[]> } | null = null;
 
 /**
  * Checklist hook state
@@ -76,9 +82,6 @@ export const useChecklists = (): UseChecklistsReturn => {
     error: null,
   });
 
-  // Track in-flight requests to prevent duplicates (React StrictMode protection)
-  const fetchInFlightRef = useRef<Promise<void> | null>(null);
-  const fetchAllInFlightRef = useRef<Promise<void> | null>(null);
 
   /**
    * Fetch user's checklists (by position)
@@ -86,42 +89,49 @@ export const useChecklists = (): UseChecklistsReturn => {
    */
   const fetchMyChecklists = useCallback(
     async (includeArchived = false): Promise<void> => {
-      // If there's already a request in flight, return that promise
-      if (fetchInFlightRef.current) {
-        return fetchInFlightRef.current;
-      }
-
-      setState((prev) => ({ ...prev, loading: true, error: null }));
-
-      const fetchPromise = (async () => {
+      // If there's already a request in flight, reuse it
+      if (fetchMyChecklistsInFlight) {
         try {
-          const checklists = await checklistService.getMyChecklists(
-            includeArchived
-          );
+          const checklists = await fetchMyChecklistsInFlight;
           setState((prev) => ({
             ...prev,
             checklists,
             loading: false,
             error: null,
           }));
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to fetch checklists';
-          setState((prev) => ({
-            ...prev,
-            checklists: [],
-            loading: false,
-            error: errorMessage,
-          }));
-          toast.error(errorMessage);
-        } finally {
-          // Clear the in-flight reference when done
-          fetchInFlightRef.current = null;
+        } catch {
+          // Error already handled by the original request
         }
-      })();
+        return;
+      }
 
-      fetchInFlightRef.current = fetchPromise;
-      return fetchPromise;
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      try {
+        fetchMyChecklistsInFlight = checklistService.getMyChecklists(includeArchived);
+        const checklists = await fetchMyChecklistsInFlight;
+        setState((prev) => ({
+          ...prev,
+          checklists,
+          loading: false,
+          error: null,
+        }));
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to fetch checklists';
+        setState((prev) => ({
+          ...prev,
+          checklists: [],
+          loading: false,
+          error: errorMessage,
+        }));
+        toast.error(errorMessage);
+      } finally {
+        // Clear after a short delay to allow concurrent callers to receive the result
+        setTimeout(() => {
+          fetchMyChecklistsInFlight = null;
+        }, 100);
+      }
     },
     []
   );
@@ -132,42 +142,49 @@ export const useChecklists = (): UseChecklistsReturn => {
    */
   const fetchAllChecklists = useCallback(
     async (includeArchived = false): Promise<void> => {
-      // If there's already a request in flight, return that promise
-      if (fetchAllInFlightRef.current) {
-        return fetchAllInFlightRef.current;
-      }
-
-      setState((prev) => ({ ...prev, loading: true, error: null }));
-
-      const fetchPromise = (async () => {
+      // If there's already a request in flight, reuse it
+      if (fetchAllChecklistsInFlight) {
         try {
-          const checklists = await checklistService.getAllChecklists(
-            includeArchived
-          );
+          const checklists = await fetchAllChecklistsInFlight;
           setState((prev) => ({
             ...prev,
             allChecklists: checklists,
             loading: false,
             error: null,
           }));
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to fetch all checklists';
-          setState((prev) => ({
-            ...prev,
-            allChecklists: [],
-            loading: false,
-            error: errorMessage,
-          }));
-          // Don't toast for this - might be permission denied
-          console.warn('fetchAllChecklists error:', errorMessage);
-        } finally {
-          fetchAllInFlightRef.current = null;
+        } catch {
+          // Error already handled by the original request
         }
-      })();
+        return;
+      }
 
-      fetchAllInFlightRef.current = fetchPromise;
-      return fetchPromise;
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      try {
+        fetchAllChecklistsInFlight = checklistService.getAllChecklists(includeArchived);
+        const checklists = await fetchAllChecklistsInFlight;
+        setState((prev) => ({
+          ...prev,
+          allChecklists: checklists,
+          loading: false,
+          error: null,
+        }));
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to fetch all checklists';
+        setState((prev) => ({
+          ...prev,
+          allChecklists: [],
+          loading: false,
+          error: errorMessage,
+        }));
+        // Don't toast for this - might be permission denied
+        console.warn('fetchAllChecklists error:', errorMessage);
+      } finally {
+        setTimeout(() => {
+          fetchAllChecklistsInFlight = null;
+        }, 100);
+      }
     },
     []
   );
@@ -180,14 +197,28 @@ export const useChecklists = (): UseChecklistsReturn => {
    */
   const fetchChecklistsByEvent = useCallback(
     async (eventId: string, includeArchived = false, showAll?: boolean): Promise<void> => {
+      // If there's already a request in flight for the same event, reuse it
+      if (fetchByEventInFlight && fetchByEventInFlight.eventId === eventId) {
+        try {
+          const checklists = await fetchByEventInFlight.promise;
+          setState((prev) => ({
+            ...prev,
+            checklists,
+            loading: false,
+            error: null,
+          }));
+        } catch {
+          // Error already handled by the original request
+        }
+        return;
+      }
+
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        const checklists = await checklistService.getChecklistsByEvent(
-          eventId,
-          includeArchived,
-          showAll
-        );
+        const promise = checklistService.getChecklistsByEvent(eventId, includeArchived, showAll);
+        fetchByEventInFlight = { eventId, promise };
+        const checklists = await promise;
         setState((prev) => ({
           ...prev,
           checklists,
@@ -206,6 +237,10 @@ export const useChecklists = (): UseChecklistsReturn => {
           error: errorMessage,
         }));
         toast.error(errorMessage);
+      } finally {
+        setTimeout(() => {
+          fetchByEventInFlight = null;
+        }, 100);
       }
     },
     []
