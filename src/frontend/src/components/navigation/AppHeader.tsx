@@ -3,14 +3,14 @@
  *
  * Implements C5-style header with:
  * - App branding (left)
- * - Event context display (future)
+ * - Event selector (center)
  * - Profile menu (right)
  * - Mobile menu toggle
  *
  * Height: 54px (theme.cssStyling.headerHeight)
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -25,6 +25,8 @@ import {
   faBars,
 } from "@fortawesome/free-solid-svg-icons";
 import { ProfileMenu } from "../ProfileMenu";
+import { EventSelector } from "../EventSelector";
+import { CreateEventDialog } from "../CreateEventDialog";
 import { PermissionRole } from "../../types";
 
 interface AppHeaderProps {
@@ -37,79 +39,87 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onProfileChange,
 }) => {
   const theme = useTheme();
+  const [createEventOpen, setCreateEventOpen] = useState(false);
 
   return (
-    <AppBar
-      position="fixed"
-      sx={{
-        backgroundColor: theme.palette.buttonPrimary.main,
-        boxShadow: 2,
-        height: theme.cssStyling.headerHeight,
-        zIndex: theme.zIndex.drawer + 1,
-      }}
-    >
-      <Toolbar
+    <>
+      <AppBar
+        position="fixed"
         sx={{
-          minHeight: `${theme.cssStyling.headerHeight}px !important`,
+          backgroundColor: theme.palette.buttonPrimary.main,
+          boxShadow: 2,
           height: theme.cssStyling.headerHeight,
+          zIndex: theme.zIndex.drawer + 1,
         }}
       >
-        {/* Mobile Menu Toggle */}
-        <IconButton
-          color="inherit"
-          aria-label="open drawer"
-          edge="start"
-          onClick={onMobileMenuToggle}
+        <Toolbar
           sx={{
-            mr: 2,
-            display: { md: "none" },
-            color: "#FFFACD",
+            minHeight: `${theme.cssStyling.headerHeight}px !important`,
+            height: theme.cssStyling.headerHeight,
           }}
         >
-          <FontAwesomeIcon icon={faBars} />
-        </IconButton>
-
-        {/* App Logo/Name */}
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          <FontAwesomeIcon
-            icon={faClipboardList}
-            size="lg"
-            style={{ marginRight: 12, color: "#FFFACD" }}
-          />
-          <Typography
-            variant="h6"
-            noWrap
+          {/* Mobile Menu Toggle */}
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={onMobileMenuToggle}
             sx={{
-              fontWeight: "bold",
+              mr: 2,
+              display: { md: "none" },
               color: "#FFFACD",
-              display: { xs: "none", sm: "block" },
             }}
           >
-            COBRA Checklist
-          </Typography>
-        </Box>
+            <FontAwesomeIcon icon={faBars} />
+          </IconButton>
 
-        {/* Center: Event Context (future enhancement) */}
-        <Box
-          sx={{
-            flexGrow: 1,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          {/* Placeholder for event name badge like in C5 screenshot */}
-          {/* Example: <Chip label="Hurricane Response 2025" color="warning" /> */}
-        </Box>
+          {/* App Logo/Name */}
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <FontAwesomeIcon
+              icon={faClipboardList}
+              size="lg"
+              style={{ marginRight: 12, color: "#FFFACD" }}
+            />
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                fontWeight: "bold",
+                color: "#FFFACD",
+                display: { xs: "none", sm: "block" },
+              }}
+            >
+              COBRA Checklist
+            </Typography>
+          </Box>
 
-        {/* Right: Profile Menu */}
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          {onProfileChange && (
-            <ProfileMenu onProfileChange={onProfileChange} />
-          )}
-        </Box>
-      </Toolbar>
-    </AppBar>
+          {/* Center: Event Selector */}
+          <Box
+            sx={{
+              flexGrow: 1,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <EventSelector onCreateEventClick={() => setCreateEventOpen(true)} />
+          </Box>
+
+          {/* Right: Profile Menu */}
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            {onProfileChange && (
+              <ProfileMenu onProfileChange={onProfileChange} />
+            )}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* Create Event Dialog */}
+      <CreateEventDialog
+        open={createEventOpen}
+        onClose={() => setCreateEventOpen(false)}
+      />
+    </>
   );
 };
 
