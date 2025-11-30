@@ -43,7 +43,7 @@ export const EventsListPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth={false} disableGutters>
         <Stack
           spacing={2}
           padding={CobraStyles.Padding.MainWindow}
@@ -59,7 +59,7 @@ export const EventsListPage: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} disableGutters>
       <Stack spacing={3} padding={CobraStyles.Padding.MainWindow}>
         {/* Page Header */}
         <Box>

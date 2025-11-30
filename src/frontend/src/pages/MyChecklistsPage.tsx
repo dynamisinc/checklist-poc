@@ -262,7 +262,7 @@ export const MyChecklistsPage: React.FC = () => {
   // Loading state
   if (loading && checklists.length === 0) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth={false} disableGutters>
         <Stack
           spacing={2}
           padding={CobraStyles.Padding.MainWindow}
@@ -280,7 +280,7 @@ export const MyChecklistsPage: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth={false} disableGutters>
         <Stack spacing={2} padding={CobraStyles.Padding.MainWindow}>
           <Typography color="error" variant="h6">
             Error loading checklists
@@ -294,7 +294,7 @@ export const MyChecklistsPage: React.FC = () => {
   // Empty state
   if (checklists.length === 0) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth={false} disableGutters>
         <Stack spacing={3} padding={CobraStyles.Padding.MainWindow}>
           {/* Page Header with Create Button */}
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -388,7 +388,7 @@ export const MyChecklistsPage: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} disableGutters>
       <Stack spacing={3} padding={CobraStyles.Padding.MainWindow}>
         {/* Page Header */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>

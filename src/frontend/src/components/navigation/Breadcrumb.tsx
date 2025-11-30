@@ -75,18 +75,22 @@ const useAutoBreadcrumbs = (customLabel?: string): BreadcrumbItem[] => {
       items.push({ label: currentEvent.name, path: `/events/${currentEvent.id}` });
     }
 
-    // /checklists is the tool landing page
+    // /checklists redirects to dashboard, so treat as dashboard
     if (pathParts.length === 1) {
       items.push({ label: "Checklist" });
       return items;
     }
 
-    items.push({ label: "Checklist", path: "/checklists" });
+    // Dashboard is the main checklist page
+    if (pathParts[1] === "dashboard") {
+      items.push({ label: "Checklist" });
+      return items;
+    }
+
+    items.push({ label: "Checklist", path: "/checklists/dashboard" });
 
     // Checklist sub-routes
-    if (pathParts[1] === "dashboard") {
-      items.push({ label: "Dashboard" });
-    } else if (pathParts[1] === "manage") {
+    if (pathParts[1] === "manage") {
       if (pathParts.length === 2) {
         items.push({ label: "Manage" });
       } else {
@@ -123,7 +127,7 @@ const useAutoBreadcrumbs = (customLabel?: string): BreadcrumbItem[] => {
     if (currentEvent) {
       items.push({ label: currentEvent.name, path: `/events/${currentEvent.id}` });
     }
-    items.push({ label: "Checklist", path: "/checklists" });
+    items.push({ label: "Checklist", path: "/checklists/dashboard" });
     items.push({ label: "Item Library" });
     return items;
   }
@@ -134,7 +138,7 @@ const useAutoBreadcrumbs = (customLabel?: string): BreadcrumbItem[] => {
     if (currentEvent) {
       items.push({ label: currentEvent.name, path: `/events/${currentEvent.id}` });
     }
-    items.push({ label: "Checklist", path: "/checklists" });
+    items.push({ label: "Checklist", path: "/checklists/dashboard" });
     items.push({ label: "Manage Checklists" });
     return items;
   }

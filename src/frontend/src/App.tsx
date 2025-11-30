@@ -39,7 +39,6 @@ import { AppLayout } from "./components/navigation";
 // Pages
 import { EventsListPage } from "./pages/EventsListPage";
 import { EventLandingPage } from "./pages/EventLandingPage";
-import { ChecklistToolPage } from "./pages/ChecklistToolPage";
 import { LandingPage } from "./pages/LandingPage";
 import { ChecklistDetailPage } from "./pages/ChecklistDetailPage";
 import { ManagePage } from "./pages/ManagePage";
@@ -96,18 +95,6 @@ const EventLandingWrapper: React.FC = () => {
   return (
     <AppLayout>
       <EventLandingPage />
-    </AppLayout>
-  );
-};
-
-/**
- * Checklist Tool Page Wrapper
- * Tool-level navigation (Dashboard, Manage, Analytics)
- */
-const ChecklistToolWrapper: React.FC = () => {
-  return (
-    <AppLayout>
-      <ChecklistToolPage />
     </AppLayout>
   );
 };
@@ -260,8 +247,8 @@ function App() {
           <Route path="/events" element={<EventsListWrapper />} />
           <Route path="/events/:eventId" element={<EventLandingWrapper />} />
 
-          {/* Checklist Tool Landing (Dashboard, Manage, Analytics navigation) */}
-          <Route path="/checklists" element={<ChecklistToolWrapper />} />
+          {/* Checklist Tool - redirect to dashboard */}
+          <Route path="/checklists" element={<Navigate to="/checklists/dashboard" replace />} />
 
           {/* Checklist Dashboard (My Checklists) */}
           <Route path="/checklists/dashboard" element={<DashboardPage />} />

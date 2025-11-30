@@ -81,7 +81,7 @@ export const ManagePage: React.FC = () => {
   // Note: Permission check is handled by ProtectedRoute in App.tsx
 
   return (
-    <Container maxWidth="xl">
+    <Container maxWidth={false} disableGutters>
         <Stack spacing={0} padding={CobraStyles.Padding.MainWindow}>
           {/* Page Header */}
           <Box sx={{ mb: 2 }}>

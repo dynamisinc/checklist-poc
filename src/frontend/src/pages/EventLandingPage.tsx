@@ -120,7 +120,7 @@ export const EventLandingPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth={false} disableGutters>
         <Stack
           spacing={2}
           padding={CobraStyles.Padding.MainWindow}
@@ -137,7 +137,7 @@ export const EventLandingPage: React.FC = () => {
 
   if (!currentEvent) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth={false} disableGutters>
         <Stack spacing={3} padding={CobraStyles.Padding.MainWindow}>
           <Typography variant="h5" color="text.secondary">
             Event not found

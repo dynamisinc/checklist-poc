@@ -36,6 +36,7 @@ import {
   faFolder,
   faTimeline,
   faRobot,
+  faCalendarAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
@@ -70,13 +71,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ? theme.cssStyling.drawerOpenWidth
     : theme.cssStyling.drawerClosedWidth;
 
+  // Top-level navigation item
+  const topNavItem: NavItem = {
+    id: "events",
+    label: "Events",
+    icon: faCalendarAlt,
+    path: "/events",
+  };
+
   // Tools navigation items - matches C5 pattern
   const toolItems: NavItem[] = [
     {
       id: "checklist",
       label: "Checklist",
       icon: faClipboardList,
-      path: "/checklists",
+      path: "/checklists/dashboard",
     },
     {
       id: "chat",
@@ -132,10 +141,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isActive = (path: string) => {
-    if (path === "/checklists") {
+    if (path === "/events") {
+      // Events is active for /events routes
+      return location.pathname === "/events" ||
+        location.pathname.startsWith("/events/");
+    }
+    if (path === "/checklists/dashboard") {
       // Checklist tool is active for all /checklists/* routes
-      return location.pathname === "/checklists" ||
-        location.pathname.startsWith("/checklists/");
+      return location.pathname.startsWith("/checklists");
     }
     return location.pathname.startsWith(path);
   };
@@ -179,9 +192,68 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </IconButton>
       </Box>
 
-      {/* Tools Section */}
+      {/* Main Navigation */}
       <Box sx={{ flex: 1, pt: 1 }}>
-        {/* Section Label */}
+        {/* Events Navigation Item */}
+        <List sx={{ pt: 0, pb: 0 }}>
+          <ListItem disablePadding sx={{ display: "block" }}>
+            <Tooltip
+              title={!open ? topNavItem.label : ""}
+              placement="right"
+              arrow
+            >
+              <ListItemButton
+                onClick={() => handleNavClick(topNavItem)}
+                sx={{
+                  minHeight: 44,
+                  justifyContent: open ? "flex-start" : "center",
+                  px: 2,
+                  mx: open ? 1 : 0.5,
+                  my: 0.25,
+                  borderRadius: 1,
+                  backgroundColor: isActive(topNavItem.path)
+                    ? theme.palette.grid.main
+                    : "transparent",
+                  borderLeft: isActive(topNavItem.path) && open
+                    ? `3px solid ${theme.palette.buttonPrimary.main}`
+                    : open ? "3px solid transparent" : "none",
+                  "&:hover": {
+                    backgroundColor: isActive(topNavItem.path)
+                      ? theme.palette.grid.main
+                      : theme.palette.grid.light,
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 0,
+                    mr: open ? 2 : "auto",
+                    justifyContent: "center",
+                    color: isActive(topNavItem.path)
+                      ? theme.palette.buttonPrimary.main
+                      : theme.palette.text.primary,
+                  }}
+                >
+                  <FontAwesomeIcon icon={topNavItem.icon} fixedWidth />
+                </ListItemIcon>
+                {open && (
+                  <ListItemText
+                    primary={topNavItem.label}
+                    primaryTypographyProps={{
+                      fontSize: 14,
+                      fontWeight: isActive(topNavItem.path) ? 600 : 400,
+                      color: isActive(topNavItem.path)
+                        ? theme.palette.buttonPrimary.main
+                        : theme.palette.text.primary,
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </Tooltip>
+          </ListItem>
+        </List>
+
+        {/* Tools Section Label */}
         {open && (
           <Typography
             variant="overline"

@@ -167,7 +167,7 @@ export const ChecklistToolPage: React.FC = () => {
   ];
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} disableGutters>
       <Stack spacing={4} padding={CobraStyles.Padding.MainWindow}>
         {/* Page Header */}
         <Box>

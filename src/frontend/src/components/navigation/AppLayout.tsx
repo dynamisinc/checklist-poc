@@ -125,10 +125,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           }),
         }}
       >
-        {/* Breadcrumb Navigation */}
-        {!hideBreadcrumb && breadcrumbs.length > 0 && (
-          <Breadcrumb items={breadcrumbs} />
-        )}
+        {/* Breadcrumb Navigation - auto-generates based on route if no items provided */}
+        {!hideBreadcrumb && <Breadcrumb items={breadcrumbs.length > 0 ? breadcrumbs : undefined} />}
 
         {/* Page Content */}
         <Box
