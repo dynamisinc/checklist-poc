@@ -3,8 +3,8 @@
  *
  * Implements C5-style left sidebar with:
  * - Collapsible icon rail (64px closed, 288px open)
- * - Tool navigation items
- * - Role-based visibility
+ * - Tools section with navigation items
+ * - Placeholder tools for future implementation
  *
  * Based on C5 Logbook/Dashboard navigation pattern.
  */
@@ -22,7 +22,6 @@ import {
   IconButton,
   Typography,
   Tooltip,
-  Divider,
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -31,19 +30,22 @@ import {
   faClipboardList,
   faChevronLeft,
   faChevronRight,
-  faGear,
-  faChartLine,
-  faHome,
+  faComments,
+  faMap,
+  faTableCells,
+  faFolder,
+  faTimeline,
+  faRobot,
 } from "@fortawesome/free-solid-svg-icons";
-import { usePermissions } from "../../hooks/usePermissions";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 interface NavItem {
   id: string;
   label: string;
-  icon: typeof faClipboardList;
+  icon: IconDefinition;
   path: string;
-  requiredPermission?: "canViewTemplateLibrary" | "canAccessItemLibrary";
-  dividerAfter?: boolean;
+  disabled?: boolean;
+  badge?: string;
 }
 
 interface SidebarProps {
@@ -62,45 +64,68 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const permissions = usePermissions();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const drawerWidth = open
     ? theme.cssStyling.drawerOpenWidth
     : theme.cssStyling.drawerClosedWidth;
 
-  // Navigation items - currently just Checklist tool, expandable for future
-  const navItems: NavItem[] = [
+  // Tools navigation items - matches C5 pattern
+  const toolItems: NavItem[] = [
     {
-      id: "home",
-      label: "Home",
-      icon: faHome,
-      path: "/",
-      dividerAfter: true,
-    },
-    {
-      id: "checklist-dashboard",
-      label: "Dashboard",
+      id: "checklist",
+      label: "Checklist",
       icon: faClipboardList,
       path: "/checklists",
     },
     {
-      id: "checklist-manage",
-      label: "Manage",
-      icon: faGear,
-      path: "/checklists/manage",
-      requiredPermission: "canViewTemplateLibrary",
+      id: "chat",
+      label: "Chat",
+      icon: faComments,
+      path: "/chat",
+      badge: "Coming Soon",
+      disabled: true,
     },
     {
-      id: "checklist-analytics",
-      label: "Analytics",
-      icon: faChartLine,
-      path: "/checklists/analytics",
+      id: "map",
+      label: "Map",
+      icon: faMap,
+      path: "/map",
+      disabled: true,
+    },
+    {
+      id: "status-chart",
+      label: "Status Chart",
+      icon: faTableCells,
+      path: "/status-chart",
+      disabled: true,
+    },
+    {
+      id: "files",
+      label: "Files",
+      icon: faFolder,
+      path: "/files",
+      disabled: true,
+    },
+    {
+      id: "event-timeline",
+      label: "Event Timeline",
+      icon: faTimeline,
+      path: "/timeline",
+      disabled: true,
+    },
+    {
+      id: "cobra-ai",
+      label: "COBRA AI",
+      icon: faRobot,
+      path: "/ai",
+      disabled: true,
     },
   ];
 
-  const handleNavClick = (path: string) => {
-    navigate(path);
+  const handleNavClick = (item: NavItem) => {
+    if (item.disabled) return;
+    navigate(item.path);
     if (isMobile && onMobileClose) {
       onMobileClose();
     }
@@ -108,13 +133,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isActive = (path: string) => {
     if (path === "/checklists") {
-      // Dashboard is active for /checklists and /checklists/:id but not /checklists/manage
-      return (
-        location.pathname === "/checklists" ||
-        (location.pathname.startsWith("/checklists/") &&
-          !location.pathname.includes("/manage") &&
-          !location.pathname.includes("/analytics"))
-      );
+      // Checklist tool is active for all /checklists/* routes
+      return location.pathname === "/checklists" ||
+        location.pathname.startsWith("/checklists/");
     }
     return location.pathname.startsWith(path);
   };
@@ -128,33 +149,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         backgroundColor: theme.palette.background.paper,
       }}
     >
-      {/* Sidebar Header */}
+      {/* Sidebar Header with collapse toggle */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: open ? "space-between" : "center",
-          px: open ? 2 : 0,
-          py: 1.5,
+          justifyContent: open ? "flex-end" : "center",
+          px: open ? 1 : 0,
+          py: 1,
           minHeight: theme.cssStyling.headerHeight,
           borderBottom: `1px solid ${theme.palette.divider}`,
           backgroundColor: theme.palette.primary.main,
         }}
       >
-        {open && (
-          <Typography
-            variant="subtitle1"
-            sx={{
-              fontWeight: 600,
-              color: theme.palette.primary.dark,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            Checklist Tool
-          </Typography>
-        )}
         <IconButton
           onClick={onToggle}
           size="small"
@@ -172,61 +179,68 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </IconButton>
       </Box>
 
-      {/* Tools Section Label */}
-      {open && (
-        <Typography
-          variant="overline"
-          sx={{
-            px: 2,
-            pt: 2,
-            pb: 1,
-            color: theme.palette.text.secondary,
-            fontWeight: 600,
-            letterSpacing: 1,
-          }}
-        >
-          Tools
-        </Typography>
-      )}
+      {/* Tools Section */}
+      <Box sx={{ flex: 1, pt: 1 }}>
+        {/* Section Label */}
+        {open && (
+          <Typography
+            variant="overline"
+            sx={{
+              px: 2,
+              py: 1,
+              display: "block",
+              color: theme.palette.text.secondary,
+              fontWeight: 600,
+              letterSpacing: 1,
+              fontSize: 11,
+            }}
+          >
+            Tools
+          </Typography>
+        )}
 
-      {/* Navigation Items */}
-      <List sx={{ flex: 1, pt: open ? 0 : 2 }}>
-        {navItems.map((item) => {
-          // Check permission if required
-          if (
-            item.requiredPermission &&
-            !permissions[item.requiredPermission]
-          ) {
-            return null;
-          }
+        {/* Tool Navigation Items */}
+        <List sx={{ pt: 0 }}>
+          {toolItems.map((item) => {
+            const active = isActive(item.path);
 
-          const active = isActive(item.path);
-
-          return (
-            <React.Fragment key={item.id}>
-              <ListItem disablePadding sx={{ display: "block" }}>
+            return (
+              <ListItem
+                key={item.id}
+                disablePadding
+                sx={{ display: "block" }}
+              >
                 <Tooltip
-                  title={!open ? item.label : ""}
+                  title={!open ? (item.disabled ? `${item.label} (Coming Soon)` : item.label) : ""}
                   placement="right"
                   arrow
                 >
                   <ListItemButton
-                    onClick={() => handleNavClick(item.path)}
+                    onClick={() => handleNavClick(item)}
+                    disabled={item.disabled}
                     sx={{
-                      minHeight: 48,
-                      justifyContent: open ? "initial" : "center",
-                      px: 2.5,
+                      minHeight: 44,
+                      justifyContent: open ? "flex-start" : "center",
+                      px: 2,
                       mx: open ? 1 : 0.5,
-                      my: 0.5,
-                      borderRadius: open ? 1 : "50%",
+                      my: 0.25,
+                      borderRadius: 1,
                       backgroundColor: active
                         ? theme.palette.grid.main
                         : "transparent",
-                      borderLeft: active && open ? `3px solid ${theme.palette.buttonPrimary.main}` : "none",
+                      borderLeft: active && open
+                        ? `3px solid ${theme.palette.buttonPrimary.main}`
+                        : open ? "3px solid transparent" : "none",
+                      opacity: item.disabled ? 0.5 : 1,
                       "&:hover": {
-                        backgroundColor: active
-                          ? theme.palette.grid.main
-                          : theme.palette.grid.light,
+                        backgroundColor: item.disabled
+                          ? "transparent"
+                          : active
+                            ? theme.palette.grid.main
+                            : theme.palette.grid.light,
+                      },
+                      "&.Mui-disabled": {
+                        opacity: 0.5,
                       },
                     }}
                   >
@@ -240,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           : theme.palette.text.primary,
                       }}
                     >
-                      <FontAwesomeIcon icon={item.icon} />
+                      <FontAwesomeIcon icon={item.icon} fixedWidth />
                     </ListItemIcon>
                     {open && (
                       <ListItemText
@@ -257,15 +271,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </ListItemButton>
                 </Tooltip>
               </ListItem>
-              {item.dividerAfter && (
-                <Divider sx={{ my: 1, mx: open ? 2 : 1 }} />
-              )}
-            </React.Fragment>
-          );
-        })}
-      </List>
-
-      {/* Future: Additional sections can be added here */}
+            );
+          })}
+        </List>
+      </Box>
     </Box>
   );
 
@@ -277,7 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         open={mobileOpen}
         onClose={onMobileClose}
         ModalProps={{
-          keepMounted: true, // Better mobile performance
+          keepMounted: true,
         }}
         sx={{
           display: { xs: "block", md: "none" },
