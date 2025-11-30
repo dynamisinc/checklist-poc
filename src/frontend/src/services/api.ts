@@ -15,9 +15,13 @@ import { toast } from 'react-toastify';
 
 /**
  * Base API URL from environment variable
- * Default: https://localhost:5001 for local development
+ * - Production: empty string (relative URLs like /api/events)
+ * - Development: http://localhost:5000
+ * - Fallback: https://localhost:5001 (only if env var is undefined)
+ *
+ * IMPORTANT: Use ?? instead of || because empty string is valid for production
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:5001';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'https://localhost:5001';
 
 /**
  * Permission roles - matches backend PermissionRole enum

@@ -77,7 +77,8 @@
       "Bash(az sql db show-connection-string:*)",
       "Bash(./deploy.sh:*)",
       "Bash(git rm:*)",
-      "Bash(timeout /t 10 /nobreak)"
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(az account get-access-token:*)"
     ],
     "deny": [],
     "ask": []
