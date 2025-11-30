@@ -27,10 +27,10 @@ public record CreateEventRequest
     public string Name { get; init; } = string.Empty;
 
     /// <summary>
-    /// Event type: "PLANNED" or "UNPLANNED"
+    /// Event type: "Planned" or "Unplanned" (case-insensitive)
     /// </summary>
     [Required(ErrorMessage = "Event type is required")]
-    [RegularExpression("^(PLANNED|UNPLANNED)$", ErrorMessage = "Event type must be PLANNED or UNPLANNED")]
+    [RegularExpression("^(PLANNED|UNPLANNED|Planned|Unplanned|planned|unplanned)$", ErrorMessage = "Event type must be Planned or Unplanned")]
     public string EventType { get; init; } = string.Empty;
 
     /// <summary>
