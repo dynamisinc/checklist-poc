@@ -20,6 +20,7 @@ import { useTheme } from "@mui/material/styles";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome } from "@fortawesome/free-solid-svg-icons";
 import { useEvents } from "../../hooks/useEvents";
+import CobraStyles from "../../theme/CobraStyles";
 
 export interface BreadcrumbItem {
   label: string;
@@ -87,7 +88,7 @@ const useAutoBreadcrumbs = (customLabel?: string): BreadcrumbItem[] => {
       return items;
     }
 
-    items.push({ label: "Checklist", path: "/checklists/dashboard" });
+    items.push({ label: "Checklist", path: "/checklists" });
 
     // Checklist sub-routes
     if (pathParts[1] === "manage") {
@@ -127,7 +128,7 @@ const useAutoBreadcrumbs = (customLabel?: string): BreadcrumbItem[] => {
     if (currentEvent) {
       items.push({ label: currentEvent.name, path: `/events/${currentEvent.id}` });
     }
-    items.push({ label: "Checklist", path: "/checklists/dashboard" });
+    items.push({ label: "Checklist", path: "/checklists" });
     items.push({ label: "Item Library" });
     return items;
   }
@@ -138,7 +139,7 @@ const useAutoBreadcrumbs = (customLabel?: string): BreadcrumbItem[] => {
     if (currentEvent) {
       items.push({ label: currentEvent.name, path: `/events/${currentEvent.id}` });
     }
-    items.push({ label: "Checklist", path: "/checklists/dashboard" });
+    items.push({ label: "Checklist", path: "/checklists" });
     items.push({ label: "Manage Checklists" });
     return items;
   }
@@ -183,7 +184,8 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items: providedItems, cu
     <Box
       sx={{
         backgroundColor: theme.palette.breadcrumb.background,
-        px: 2,
+        pl: `${CobraStyles.Padding.MainWindow}px`,
+        pr: 2,
         py: 1,
         borderBottom: `1px solid ${theme.palette.divider}`,
         minHeight: 40,
