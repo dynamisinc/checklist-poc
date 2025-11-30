@@ -27,14 +27,15 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faClipboardList,
   faComments,
-  faMap,
   faTableCells,
-  faFolder,
   faTimeline,
   faRobot,
   faCalendarAlt,
   faMapMarkerAlt,
   faUser,
+  faListCheck,
+  faBrain,
+  faFileLines,
 } from "@fortawesome/free-solid-svg-icons";
 import { useEvents } from "../hooks/useEvents";
 import { getIconFromName, getEventTypeColor } from "../utils/iconMapping";
@@ -158,7 +159,7 @@ export const EventLandingPage: React.FC = () => {
       icon: faClipboardList,
       title: "Checklist",
       description: "Manage and track operational checklists",
-      path: "/checklists",
+      path: "/checklists/dashboard",
       disabled: false,
     },
     {
@@ -169,10 +170,24 @@ export const EventLandingPage: React.FC = () => {
       disabled: true,
     },
     {
-      icon: faMap,
-      title: "Map",
-      description: "Geographic visualization and tracking",
-      path: "/map",
+      icon: faListCheck,
+      title: "Tasking",
+      description: "Task assignment and tracking",
+      path: "/tasking",
+      disabled: true,
+    },
+    {
+      icon: faBrain,
+      title: "COBRA KAI",
+      description: "AI-powered general assistance",
+      path: "/cobra-kai",
+      disabled: true,
+    },
+    {
+      icon: faFileLines,
+      title: "Event Summary",
+      description: "Event overview and reports",
+      path: "/event-summary",
       disabled: true,
     },
     {
@@ -180,13 +195,6 @@ export const EventLandingPage: React.FC = () => {
       title: "Status Chart",
       description: "Resource and personnel status tracking",
       path: "/status-chart",
-      disabled: true,
-    },
-    {
-      icon: faFolder,
-      title: "Files",
-      description: "Document storage and sharing",
-      path: "/files",
       disabled: true,
     },
     {
@@ -206,7 +214,7 @@ export const EventLandingPage: React.FC = () => {
   ];
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false} disableGutters>
       <Stack spacing={4} padding={CobraStyles.Padding.MainWindow}>
         {/* Event Header */}
         <Card>

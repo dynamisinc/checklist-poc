@@ -9,6 +9,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -49,6 +50,8 @@ interface EventSelectorProps {
 export const EventSelector: React.FC<EventSelectorProps> = ({ onCreateEventClick }) => {
   const { events, currentEvent, loading, selectEvent, archiveEvent } = useEvents();
   const permissions = usePermissions();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [archiveConfirmEvent, setArchiveConfirmEvent] = useState<Event | null>(null);
 
@@ -65,6 +68,11 @@ export const EventSelector: React.FC<EventSelectorProps> = ({ onCreateEventClick
   const handleSelectEvent = (event: Event) => {
     selectEvent(event);
     handleClose();
+
+    // If we're on an event landing page, navigate to the new event's page
+    if (location.pathname.startsWith('/events/')) {
+      navigate(`/events/${event.id}`);
+    }
   };
 
   const handleCreateEvent = () => {

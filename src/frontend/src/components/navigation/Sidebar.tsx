@@ -31,12 +31,13 @@ import {
   faChevronLeft,
   faChevronRight,
   faComments,
-  faMap,
   faTableCells,
-  faFolder,
   faTimeline,
   faRobot,
   faCalendarAlt,
+  faListCheck,
+  faBrain,
+  faFileLines,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
@@ -96,10 +97,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
       disabled: true,
     },
     {
-      id: "map",
-      label: "Map",
-      icon: faMap,
-      path: "/map",
+      id: "tasking",
+      label: "Tasking",
+      icon: faListCheck,
+      path: "/tasking",
+      disabled: true,
+    },
+    {
+      id: "cobra-kai",
+      label: "COBRA KAI",
+      icon: faBrain,
+      path: "/cobra-kai",
+      disabled: true,
+    },
+    {
+      id: "event-summary",
+      label: "Event Summary",
+      icon: faFileLines,
+      path: "/event-summary",
       disabled: true,
     },
     {
@@ -107,13 +122,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: "Status Chart",
       icon: faTableCells,
       path: "/status-chart",
-      disabled: true,
-    },
-    {
-      id: "files",
-      label: "Files",
-      icon: faFolder,
-      path: "/files",
       disabled: true,
     },
     {
