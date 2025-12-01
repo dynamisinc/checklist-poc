@@ -200,11 +200,12 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        minHeight: 400,
-        maxHeight: 600,
+        minHeight: 500,
+        maxHeight: 'calc(100vh - 200px)',
         border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 2,
+        borderRadius: 1,
         overflow: 'hidden',
+        backgroundColor: '#fff',
       }}
     >
       {/* Header */}
@@ -317,13 +318,13 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
         </Box>
       </Box>
 
-      {/* Messages area */}
+      {/* Messages area - white background like COBRA 5 */}
       <Box
         sx={{
           flex: 1,
           overflowY: 'auto',
-          py: 1,
-          backgroundColor: theme.palette.background.paper,
+          py: 2,
+          backgroundColor: '#fff',
         }}
       >
         {messages.length === 0 ? (
@@ -356,22 +357,22 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
         )}
       </Box>
 
-      {/* Input area */}
+      {/* Input area - COBRA 5 style */}
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'flex-end',
+          alignItems: 'center',
           gap: 1,
-          p: 1.5,
+          p: 2,
           borderTop: `1px solid ${theme.palette.divider}`,
-          backgroundColor: theme.palette.background.default,
+          backgroundColor: '#fff',
         }}
       >
         <CobraTextField
           inputRef={inputRef}
           fullWidth
           size="small"
-          placeholder="Type a message..."
+          placeholder=""
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyPress={handleKeyPress}
@@ -379,24 +380,22 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
           multiline
           maxRows={3}
           sx={{
-            '& .MuiInputBase-root': {
-              borderRadius: 2,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 1,
+              backgroundColor: '#fff',
             },
           }}
         />
         <IconButton
-          color="primary"
           onClick={handleSendMessage}
           disabled={!newMessage.trim() || sending}
           sx={{
-            backgroundColor: theme.palette.primary.main,
-            color: 'white',
+            color: !newMessage.trim() || sending
+              ? theme.palette.grey[400]
+              : theme.palette.text.secondary,
             '&:hover': {
-              backgroundColor: theme.palette.primary.dark,
-            },
-            '&.Mui-disabled': {
-              backgroundColor: theme.palette.grey[300],
-              color: theme.palette.grey[500],
+              backgroundColor: 'transparent',
+              color: theme.palette.primary.main,
             },
           }}
         >
