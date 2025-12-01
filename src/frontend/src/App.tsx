@@ -51,6 +51,7 @@ import { TemplatePreviewPage } from "./pages/TemplatePreviewPage";
 import { ItemLibraryPage } from "./pages/ItemLibraryPage";
 import { ManageChecklistsPage } from "./pages/ManageChecklistsPage";
 import { AdminPage } from "./pages/AdminPage";
+import { ChatPage } from "./pages/ChatPage";
 import { usePermissions } from "./hooks/usePermissions";
 
 // Styles
@@ -238,6 +239,18 @@ const AdminPageWrapper: React.FC = () => {
 };
 
 /**
+ * Chat Page Wrapper
+ * Event chat with external platform integration
+ */
+const ChatPageWrapper: React.FC = () => {
+  return (
+    <AppLayout>
+      <ChatPage />
+    </AppLayout>
+  );
+};
+
+/**
  * Analytics Page (Placeholder)
  */
 const AnalyticsPage: React.FC = () => {
@@ -326,6 +339,9 @@ function App() {
 
           {/* Admin Page (central administration hub) */}
           <Route path="/admin" element={<AdminPageWrapper />} />
+
+          {/* Chat Page (event chat with external platform integration) */}
+          <Route path="/chat" element={<ChatPageWrapper />} />
 
           {/* Legacy routes - redirect to new structure */}
           <Route

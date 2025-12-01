@@ -19,6 +19,11 @@ public class ChecklistDbContext : DbContext
     public DbSet<Event> Events { get; set; }
     public DbSet<EventCategory> EventCategories { get; set; }
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides { get; set; }
+
+    // Chat entities
+    public DbSet<ChatThread> ChatThreads { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<ExternalChannelMapping> ExternalChannelMappings { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -198,6 +203,81 @@ public class ChecklistDbContext : DbContext
             entity.Property(e => e.FlagName).IsRequired().HasMaxLength(50);
             entity.Property(e => e.State).IsRequired().HasMaxLength(20);
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+        });
+
+        // ChatThread configuration
+        modelBuilder.Entity<ChatThread>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(200);
+
+            entity.HasOne(e => e.Event)
+                .WithMany()
+                .HasForeignKey(e => e.EventId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.EventId, e.IsDefaultEventThread });
+        });
+
+        // ChatMessage configuration
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Message).IsRequired();
+            entity.Property(e => e.SenderDisplayName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(200);
+
+            entity.HasOne(e => e.ChatThread)
+                .WithMany(t => t.Messages)
+                .HasForeignKey(e => e.ChatThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // External messaging fields
+            entity.Property(e => e.ExternalSource).HasConversion<int?>();
+            entity.Property(e => e.ExternalMessageId).HasMaxLength(100);
+            entity.Property(e => e.ExternalSenderName).HasMaxLength(100);
+            entity.Property(e => e.ExternalSenderId).HasMaxLength(100);
+            entity.Property(e => e.ExternalAttachmentUrl).HasMaxLength(1000);
+
+            entity.HasOne(e => e.ExternalChannelMapping)
+                .WithMany()
+                .HasForeignKey(e => e.ExternalChannelMappingId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Indexes
+            entity.HasIndex(e => e.ChatThreadId);
+            entity.HasIndex(e => e.CreatedAt);
+
+            // Unique index for deduplication of external messages
+            entity.HasIndex(e => e.ExternalMessageId)
+                .HasFilter("[ExternalMessageId] IS NOT NULL")
+                .IsUnique();
+
+            entity.HasIndex(e => e.ExternalChannelMappingId)
+                .HasFilter("[ExternalChannelMappingId] IS NOT NULL");
+        });
+
+        // ExternalChannelMapping configuration
+        modelBuilder.Entity<ExternalChannelMapping>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Platform).IsRequired().HasConversion<int>();
+            entity.Property(e => e.ExternalGroupId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ExternalGroupName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.BotId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.WebhookSecret).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ShareUrl).HasMaxLength(500);
+            entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(200);
+
+            entity.HasOne(e => e.Event)
+                .WithMany()
+                .HasForeignKey(e => e.EventId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.EventId);
+            entity.HasIndex(e => new { e.Platform, e.ExternalGroupId }).IsUnique();
+            entity.HasIndex(e => e.IsActive).HasFilter("[IsActive] = 1");
         });
     }
 }

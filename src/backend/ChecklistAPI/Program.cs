@@ -1,6 +1,7 @@
 ﻿using Azure.Identity;
 using ChecklistAPI.Data;
 using ChecklistAPI.Extensions;
+using ChecklistAPI.ExternalMessaging;
 using ChecklistAPI.Hubs;
 using ChecklistAPI.Models.Configuration;
 using ChecklistAPI.Services;
@@ -34,6 +35,18 @@ builder.Services.AddScoped<IItemLibraryService, ItemLibraryService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IEventCategoryService, EventCategoryService>();
 builder.Services.AddScoped<IEventService, EventService>();
+
+// Register chat services
+builder.Services.Configure<GroupMeSettings>(
+    builder.Configuration.GetSection(GroupMeSettings.SectionName));
+builder.Services.AddHttpClient<IGroupMeApiClient, GroupMeApiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<IChatHubService, ChatHubService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<ChatService>(); // Concrete type for internal use
+builder.Services.AddScoped<IExternalMessagingService, ExternalMessagingService>();
 
 // Add HTTP context accessor for service to access current user
 builder.Services.AddHttpContextAccessor();
@@ -136,6 +149,7 @@ app.UseDefaultFiles();
 // Map API controllers first (these take precedence)
 app.MapControllers();
 app.MapHub<ChecklistHub>("/hubs/checklist");
+app.MapHub<ChatHub>("/hubs/chat");
 
 // Fallback to index.html for client-side routing (SPA)
 // This catches all routes that don't match controllers/hubs above

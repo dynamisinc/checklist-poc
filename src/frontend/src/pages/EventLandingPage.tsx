@@ -38,19 +38,23 @@ import {
   faFileLines,
 } from "@fortawesome/free-solid-svg-icons";
 import { useEvents } from "../hooks/useEvents";
+import { useFeatureFlags } from "../contexts/FeatureFlagsContext";
 import { getIconFromName, getEventTypeColor } from "../utils/iconMapping";
 import CobraStyles from "../theme/CobraStyles";
 import { useTheme } from "@mui/material/styles";
+import type { FeatureFlags } from "../types/featureFlags";
 
 interface ToolCardProps {
   icon: typeof faClipboardList;
   title: string;
   description: string;
   path: string;
+  featureFlag?: keyof FeatureFlags;
   disabled?: boolean;
+  badge?: string;
 }
 
-const ToolCard: React.FC<ToolCardProps> = ({ icon, title, description, path, disabled }) => {
+const ToolCard: React.FC<ToolCardProps> = ({ icon, title, description, path, disabled, badge }) => {
   const navigate = useNavigate();
   const theme = useTheme();
 
@@ -88,8 +92,8 @@ const ToolCard: React.FC<ToolCardProps> = ({ icon, title, description, path, dis
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle1" fontWeight={600}>
               {title}
-              {disabled && (
-                <Chip label="Coming Soon" size="small" sx={{ ml: 1 }} />
+              {badge && (
+                <Chip label={badge} size="small" sx={{ ml: 1 }} />
               )}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -108,6 +112,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ icon, title, description, path, dis
 export const EventLandingPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const { events, currentEvent, loading, selectEvent } = useEvents();
+  const { isVisible, isActive, isComingSoon } = useFeatureFlags();
 
   // Select the event based on URL param if not already selected
   useEffect(() => {
@@ -154,64 +159,75 @@ export const EventLandingPage: React.FC = () => {
   const EventIcon = getIconFromName(currentEvent.primaryCategory?.iconName || "faCircle");
   const categoryColor = getEventTypeColor(currentEvent.primaryCategory?.name || "");
 
-  const tools = [
+  // All available tools with their feature flags
+  const allTools: ToolCardProps[] = [
     {
       icon: faClipboardList,
       title: "Checklist",
       description: "Manage and track operational checklists",
       path: "/checklists/dashboard",
-      disabled: false,
+      featureFlag: "checklist",
     },
     {
       icon: faComments,
       title: "Chat",
       description: "Team communication and messaging",
       path: "/chat",
-      disabled: true,
+      featureFlag: "chat",
     },
     {
       icon: faListCheck,
       title: "Tasking",
       description: "Task assignment and tracking",
       path: "/tasking",
-      disabled: true,
+      featureFlag: "tasking",
     },
     {
       icon: faBrain,
       title: "COBRA KAI",
       description: "AI-powered general assistance",
       path: "/cobra-kai",
-      disabled: true,
+      featureFlag: "cobraKai",
     },
     {
       icon: faFileLines,
       title: "Event Summary",
       description: "Event overview and reports",
       path: "/event-summary",
-      disabled: true,
+      featureFlag: "eventSummary",
     },
     {
       icon: faTableCells,
       title: "Status Chart",
       description: "Resource and personnel status tracking",
       path: "/status-chart",
-      disabled: true,
+      featureFlag: "statusChart",
     },
     {
       icon: faTimeline,
       title: "Event Timeline",
       description: "Chronological event history",
       path: "/timeline",
-      disabled: true,
+      featureFlag: "eventTimeline",
     },
     {
       icon: faRobot,
       title: "COBRA AI",
       description: "AI-powered assistance and insights",
       path: "/ai",
-      disabled: true,
+      featureFlag: "cobraAi",
     },
   ];
+
+  // Filter and enhance tools based on feature flags
+  const tools = allTools
+    .filter((tool) => !tool.featureFlag || isVisible(tool.featureFlag))
+    .map((tool) => {
+      if (tool.featureFlag && isComingSoon(tool.featureFlag)) {
+        return { ...tool, disabled: true, badge: "Coming Soon" };
+      }
+      return tool;
+    });
 
   return (
     <Container maxWidth={false} disableGutters>
