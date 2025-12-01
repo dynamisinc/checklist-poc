@@ -349,7 +349,7 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
               <ChatMessage
                 key={message.id}
                 message={message}
-                isOwnMessage={message.senderId === currentUser.email}
+                isOwnMessage={message.createdBy === currentUser.email}
               />
             ))}
             <div ref={messagesEndRef} />
