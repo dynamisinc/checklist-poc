@@ -2,6 +2,7 @@
 using ChecklistAPI.Data;
 using ChecklistAPI.Extensions;
 using ChecklistAPI.Hubs;
+using ChecklistAPI.Models.Configuration;
 using ChecklistAPI.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,10 @@ builder.Services.AddScoped<IEventService, EventService>();
 
 // Add HTTP context accessor for service to access current user
 builder.Services.AddHttpContextAccessor();
+
+// Configure Feature Flags from appsettings.json
+builder.Services.Configure<FeatureFlagsConfig>(
+    builder.Configuration.GetSection(FeatureFlagsConfig.SectionName));
 
 // CORS for frontend (allow localhost and Azure deployment)
 builder.Services.AddCors(options =>
