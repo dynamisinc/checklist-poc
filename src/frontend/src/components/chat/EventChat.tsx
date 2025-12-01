@@ -42,6 +42,7 @@ import type {
   ChatMessageDto,
   ChatThreadDto,
   ExternalChannelMappingDto,
+  CreateExternalChannelRequest,
 } from '../../types/chat';
 import { ExternalPlatform, PlatformInfo } from '../../types/chat';
 
@@ -86,8 +87,8 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
       setExternalChannels(channelsData);
 
       if (threadData?.id) {
-        const messagesData = await chatService.getMessages(threadData.id);
-        setMessages(messagesData);
+        const messagesData = await chatService.getMessages(eventId, threadData.id);
+        setMessages(messagesData || []);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load chat';
@@ -107,7 +108,7 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
     setSending(true);
 
     try {
-      const sentMessage = await chatService.sendMessage(thread.id, messageText);
+      const sentMessage = await chatService.sendMessage(eventId, thread.id, messageText);
       setMessages((prev) => [...prev, sentMessage]);
       scrollToBottom();
     } catch (err) {
@@ -132,11 +133,10 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
   const handleCreateGroupMeChannel = async () => {
     setChannelMenuAnchor(null);
     try {
-      const channel = await chatService.createExternalChannel(
-        eventId,
-        ExternalPlatform.GroupMe,
-        eventName || `Event ${eventId}`
-      );
+      const channel = await chatService.createExternalChannel(eventId, {
+        platform: ExternalPlatform.GroupMe,
+        customGroupName: eventName || `Event ${eventId}`,
+      });
       setExternalChannels((prev) => [...prev, channel]);
       toast.success('GroupMe channel created! Share the link with external team members.');
     } catch (err) {
@@ -148,7 +148,7 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName }) => {
   // Disconnect channel
   const handleDisconnectChannel = async (channelId: string) => {
     try {
-      await chatService.deactivateExternalChannel(channelId);
+      await chatService.deactivateExternalChannel(eventId, channelId);
       setExternalChannels((prev) => prev.filter((c) => c.id !== channelId));
       toast.success('External channel disconnected');
     } catch (err) {
