@@ -10,9 +10,12 @@
  * Future sections:
  * - Users: User management and permissions
  * - AI Providers: LLM configuration and management
+ *
+ * System Level (SysAdmin required):
+ * - Feature Flags: Customer-level tool visibility configuration
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -33,10 +36,16 @@ import {
   faBrain,
   faFileAlt,
   faToggleOn,
+  faShieldHalved,
+  faLock,
+  faRightFromBracket,
 } from "@fortawesome/free-solid-svg-icons";
 import { useTheme } from "@mui/material/styles";
 import CobraStyles from "../theme/CobraStyles";
 import { FeatureFlagsAdmin } from "../components/admin/FeatureFlagsAdmin";
+import { SysAdminLoginDialog } from "../components/admin/SysAdminLoginDialog";
+import { useSysAdmin } from "../contexts/SysAdminContext";
+import { CobraLinkButton, CobraPrimaryButton } from "../theme/styledComponents";
 
 interface AdminCardProps {
   icon: typeof faGear;
@@ -141,6 +150,8 @@ const AdminSection: React.FC<AdminSectionProps> = ({ title, icon, children }) =>
 
 export const AdminPage: React.FC = () => {
   const theme = useTheme();
+  const { isSysAdmin, logout } = useSysAdmin();
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   // Checklist admin items
   const checklistAdminItems = [
@@ -203,11 +214,6 @@ export const AdminPage: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* Feature Flags Section */}
-        <AdminSection title="Feature Flags" icon={faToggleOn}>
-          <FeatureFlagsAdmin />
-        </AdminSection>
-
         {/* Checklists Section */}
         <AdminSection title="Checklists" icon={faClipboardList}>
           <Grid container spacing={2}>
@@ -229,6 +235,107 @@ export const AdminPage: React.FC = () => {
             ))}
           </Grid>
         </AdminSection>
+
+        {/* Feature Flags Section - System Level Configuration */}
+        <Box sx={{ mt: 4, pt: 4, borderTop: 1, borderColor: "divider" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                color: theme.palette.text.primary,
+              }}
+            >
+              <FontAwesomeIcon icon={faToggleOn} />
+              Feature Flags (System Level)
+              {isSysAdmin && (
+                <Chip
+                  icon={<FontAwesomeIcon icon={faShieldHalved} style={{ fontSize: 12 }} />}
+                  label="SysAdmin"
+                  size="small"
+                  color="warning"
+                  sx={{ ml: 1 }}
+                />
+              )}
+            </Typography>
+            {isSysAdmin && (
+              <CobraLinkButton
+                onClick={logout}
+                startIcon={<FontAwesomeIcon icon={faRightFromBracket} />}
+                size="small"
+              >
+                Sign Out
+              </CobraLinkButton>
+            )}
+          </Box>
+
+          {isSysAdmin ? (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Control which POC tools are visible to users across this customer instance.
+              </Typography>
+              <FeatureFlagsAdmin />
+            </>
+          ) : (
+            <Card
+              sx={{
+                p: 4,
+                textAlign: "center",
+                backgroundColor: theme.palette.grey[50],
+                border: 1,
+                borderColor: "divider",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  backgroundColor: theme.palette.warning.light,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mx: "auto",
+                  mb: 2,
+                }}
+              >
+                <FontAwesomeIcon
+                  icon={faLock}
+                  size="xl"
+                  style={{ color: theme.palette.warning.dark }}
+                />
+              </Box>
+              <Typography variant="h6" gutterBottom>
+                System Administrator Access Required
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Feature flag management requires system administrator credentials.
+                This controls customer-level tool visibility settings.
+              </Typography>
+              <CobraPrimaryButton
+                onClick={() => setShowLoginDialog(true)}
+                startIcon={<FontAwesomeIcon icon={faShieldHalved} />}
+              >
+                Sign In as System Admin
+              </CobraPrimaryButton>
+            </Card>
+          )}
+        </Box>
+
+        {/* SysAdmin Login Dialog */}
+        <SysAdminLoginDialog
+          open={showLoginDialog}
+          onClose={() => setShowLoginDialog(false)}
+        />
       </Stack>
     </Container>
   );

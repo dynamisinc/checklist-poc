@@ -12,6 +12,7 @@
 
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { toast } from 'react-toastify';
+import { getSysAdminStatus } from '../contexts/SysAdminContext';
 
 /**
  * Base API URL from environment variable
@@ -137,9 +138,14 @@ apiClient.interceptors.request.use(
     const role = getCurrentRole();
     config.headers['X-User-Role'] = role;
 
+    // Send SysAdmin header if authenticated
+    const isSysAdmin = getSysAdminStatus();
+    config.headers['X-User-IsSysAdmin'] = isSysAdmin.toString();
+
     console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
       positions: positionsHeader,
       role: role,
+      isSysAdmin: isSysAdmin,
       data: config.data,
     });
 

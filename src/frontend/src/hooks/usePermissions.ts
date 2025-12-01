@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { PermissionRole } from '../types';
+import { useSysAdmin } from '../contexts/SysAdminContext';
 
 interface PermissionChecks {
   // Template permissions
@@ -32,11 +33,17 @@ interface PermissionChecks {
   canPermanentlyDeleteChecklists: boolean;
   canManageArchivedChecklists: boolean; // Access to archived checklists management page
 
+  // System Admin permissions (customer-level configuration)
+  canAccessSystemAdmin: boolean; // Access to system-level admin features
+  canManageFeatureFlags: boolean; // Modify feature flags
+  canManageSystemSettings: boolean; // Access system configuration
+
   // General
   canViewChecklists: boolean;
   isReadonly: boolean;
   isContributor: boolean;
   isManage: boolean;
+  isSysAdmin: boolean;
 
   // Current role
   currentRole: PermissionRole;
@@ -67,6 +74,7 @@ const getCurrentRole = (): PermissionRole => {
  */
 export const usePermissions = (): PermissionChecks => {
   const [currentRole, setCurrentRole] = useState<PermissionRole>(getCurrentRole());
+  const { isSysAdmin } = useSysAdmin();
 
   // Listen for profile changes
   useEffect(() => {
@@ -114,11 +122,17 @@ export const usePermissions = (): PermissionChecks => {
     canPermanentlyDeleteChecklists: isManage,
     canManageArchivedChecklists: isManage,
 
+    // System Admin permissions (requires SysAdmin authentication)
+    canAccessSystemAdmin: isSysAdmin,
+    canManageFeatureFlags: isSysAdmin,
+    canManageSystemSettings: isSysAdmin,
+
     // General
     canViewChecklists: isReadonly || isContributor || isManage,
     isReadonly,
     isContributor,
     isManage,
+    isSysAdmin,
 
     // Current role
     currentRole,

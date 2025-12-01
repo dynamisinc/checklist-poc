@@ -83,6 +83,13 @@ public class UserContext
     /// Returns true if user has Manage role permissions (can archive/restore/permanently delete)
     /// </summary>
     public bool CanManage => Role == PermissionRole.Manage;
+
+    /// <summary>
+    /// Indicates if user has System Admin privileges (customer-level configuration)
+    /// Separate from IsAdmin which is for normal admin operations
+    /// SysAdmin can access feature flags, system settings, etc.
+    /// </summary>
+    public bool IsSysAdmin { get; set; } = false;
 }
 
 /// <summary>
@@ -94,5 +101,6 @@ public enum PermissionRole
     None,
     Readonly,
     Contributor,
-    Manage
+    Manage,
+    SystemAdmin  // Customer-level system administration
 }

@@ -323,6 +323,7 @@ export enum PermissionRole {
   READONLY = 'Readonly',
   CONTRIBUTOR = 'Contributor',
   MANAGE = 'Manage',
+  SYSTEM_ADMIN = 'SystemAdmin', // Customer-level system administration
 }
 
 /**

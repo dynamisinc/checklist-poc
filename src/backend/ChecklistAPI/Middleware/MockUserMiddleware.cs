@@ -93,7 +93,7 @@ public class MockUserMiddleware
                 isAdmin = true; // POC: All mock users are admins by default
             }
 
-            // Parse permission role from header (Readonly, Contributor, Manage)
+            // Parse permission role from header (Readonly, Contributor, Manage, SystemAdmin)
             var roleStr = context.Request.Headers["X-User-Role"].FirstOrDefault();
             var role = PermissionRole.Contributor; // Default to Contributor
             if (!string.IsNullOrEmpty(roleStr))
@@ -108,6 +108,10 @@ public class MockUserMiddleware
                 }
             }
 
+            // Check for SysAdmin - requires explicit header OR session-based authentication
+            var isSysAdminStr = context.Request.Headers["X-User-IsSysAdmin"].FirstOrDefault();
+            var isSysAdmin = !string.IsNullOrEmpty(isSysAdminStr) && bool.Parse(isSysAdminStr);
+
             // Create mock user context
             var userContext = new UserContext
             {
@@ -116,6 +120,7 @@ public class MockUserMiddleware
                 Position = position,
                 Positions = positions,
                 IsAdmin = isAdmin,
+                IsSysAdmin = isSysAdmin,
                 Role = role,
                 CurrentEventId = null, // Could be set from query string in future
                 CurrentOperationalPeriod = null
@@ -126,10 +131,11 @@ public class MockUserMiddleware
 
             // Log for debugging
             _logger.LogInformation(
-                "Mock user context created: {Email} (Positions: {Positions}, Role: {Role})",
+                "Mock user context created: {Email} (Positions: {Positions}, Role: {Role}, SysAdmin: {IsSysAdmin})",
                 userContext.Email,
                 string.Join(", ", userContext.Positions),
-                userContext.Role
+                userContext.Role,
+                userContext.IsSysAdmin
             );
         }
         else

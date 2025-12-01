@@ -35,6 +35,7 @@ import { faChartLine } from "@fortawesome/free-solid-svg-icons";
 
 // Context providers
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
+import { SysAdminProvider } from "./contexts/SysAdminContext";
 
 // Navigation components
 import { AppLayout } from "./components/navigation";
@@ -285,9 +286,10 @@ const AnalyticsPage: React.FC = () => {
 function App() {
   return (
     <BrowserRouter>
-      <FeatureFlagsProvider>
-        <Box sx={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
-          <Routes>
+      <SysAdminProvider>
+        <FeatureFlagsProvider>
+          <Box sx={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
+            <Routes>
           {/* Root - redirect to events */}
           <Route path="/" element={<Navigate to="/events" replace />} />
 
@@ -375,11 +377,12 @@ function App() {
             }
           />
 
-          {/* Catch-all - redirect to events */}
-          <Route path="*" element={<Navigate to="/events" replace />} />
-          </Routes>
-        </Box>
-      </FeatureFlagsProvider>
+            {/* Catch-all - redirect to events */}
+            <Route path="*" element={<Navigate to="/events" replace />} />
+            </Routes>
+          </Box>
+        </FeatureFlagsProvider>
+      </SysAdminProvider>
     </BrowserRouter>
   );
 }

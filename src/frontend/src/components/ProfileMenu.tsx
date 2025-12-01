@@ -31,9 +31,10 @@ import {
   TextField,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faPalette, faUserPen } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faPalette, faUserPen, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
 import { useSearchParams } from 'react-router-dom';
 import { ICS_POSITIONS, PermissionRole } from '../types';
+import { useSysAdmin } from '../contexts/SysAdminContext';
 import { cobraTheme } from '../theme/cobraTheme';
 import {
   checklistVariants,
@@ -132,6 +133,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
   const storedProfile = getStoredProfile();
   const storedAccount = getStoredAccount();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isSysAdmin } = useSysAdmin();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPositions, setSelectedPositions] = useState<string[]>(storedProfile.positions);
@@ -564,6 +566,18 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
           <Typography variant="caption">
             <strong>Role:</strong> {selectedRole}
           </Typography>
+          {isSysAdmin && (
+            <>
+              <br />
+              <Chip
+                icon={<FontAwesomeIcon icon={faShieldHalved} style={{ fontSize: 10 }} />}
+                label="System Admin Active"
+                size="small"
+                color="warning"
+                sx={{ mt: 0.5, height: 20, fontSize: '0.7rem' }}
+              />
+            </>
+          )}
         </Box>
       </Menu>
 
