@@ -196,6 +196,7 @@ public class ChecklistDbContext : DbContext
         {
             entity.HasKey(e => e.FlagName);
             entity.Property(e => e.FlagName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.State).IsRequired().HasMaxLength(20);
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
         });
     }

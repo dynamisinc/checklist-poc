@@ -11,6 +11,8 @@ namespace ChecklistAPI.Controllers;
 /// API controller for managing feature flags.
 /// Returns merged flags from appsettings.json defaults and database overrides.
 /// Admin can update overrides which persist in the database for all users.
+///
+/// Flag states: "Hidden", "ComingSoon", "Active"
 /// </summary>
 [ApiController]
 [Route("api/config/[controller]")]
@@ -56,7 +58,7 @@ public class FeatureFlagsController : ControllerBase
             var now = DateTime.UtcNow;
 
             // Convert DTO to dictionary for easier processing
-            var flagValues = new Dictionary<string, bool>
+            var flagValues = new Dictionary<string, string>
             {
                 { "Checklist", flags.Checklist },
                 { "Chat", flags.Chat },
@@ -68,6 +70,15 @@ public class FeatureFlagsController : ControllerBase
                 { "CobraAi", flags.CobraAi }
             };
 
+            // Validate all states
+            foreach (var kvp in flagValues)
+            {
+                if (!FeatureFlagsDto.IsValidState(kvp.Value))
+                {
+                    return BadRequest(new { message = $"Invalid state '{kvp.Value}' for flag '{kvp.Key}'. Valid states: Hidden, ComingSoon, Active" });
+                }
+            }
+
             // Get existing overrides
             var existingOverrides = await _context.FeatureFlagOverrides.ToListAsync();
             var existingDict = existingOverrides.ToDictionary(o => o.FlagName);
@@ -77,7 +88,7 @@ public class FeatureFlagsController : ControllerBase
                 if (existingDict.TryGetValue(kvp.Key, out var existing))
                 {
                     // Update existing
-                    existing.IsEnabled = kvp.Value;
+                    existing.State = kvp.Value;
                     existing.ModifiedAt = now;
                     existing.ModifiedBy = currentUser;
                 }
@@ -87,7 +98,7 @@ public class FeatureFlagsController : ControllerBase
                     _context.FeatureFlagOverrides.Add(new FeatureFlagOverride
                     {
                         FlagName = kvp.Key,
-                        IsEnabled = kvp.Value,
+                        State = kvp.Value,
                         ModifiedAt = now,
                         ModifiedBy = currentUser
                     });
@@ -151,7 +162,7 @@ public class FeatureFlagsController : ControllerBase
 
         if (overrides.Count > 0)
         {
-            var overrideDict = overrides.ToDictionary(o => o.FlagName, o => o.IsEnabled);
+            var overrideDict = overrides.ToDictionary(o => o.FlagName, o => o.State);
 
             // Apply overrides
             if (overrideDict.TryGetValue("Checklist", out var checklist))

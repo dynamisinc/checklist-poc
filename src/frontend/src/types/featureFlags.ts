@@ -3,25 +3,38 @@
  *
  * Controls which POC tools are enabled/visible in the application.
  * Flags are loaded from the API (appsettings.json defaults + database overrides).
+ *
+ * States:
+ * - "Hidden": Tool is not visible in sidebar
+ * - "ComingSoon": Tool is visible but disabled with badge
+ * - "Active": Tool is fully functional
  */
 
+/**
+ * Valid feature flag states
+ */
+export type FeatureFlagState = 'Hidden' | 'ComingSoon' | 'Active';
+
+/**
+ * Feature flags interface - each flag is a state string
+ */
 export interface FeatureFlags {
   /** Checklist tool - create and manage operational checklists */
-  checklist: boolean;
+  checklist: FeatureFlagState;
   /** External Chat integration - GroupMe/messaging platform integration */
-  chat: boolean;
+  chat: FeatureFlagState;
   /** Tasking tool - task assignment and tracking */
-  tasking: boolean;
+  tasking: FeatureFlagState;
   /** COBRA KAI - knowledge and intelligence assistant */
-  cobraKai: boolean;
+  cobraKai: FeatureFlagState;
   /** Event Summary - event overview and reporting */
-  eventSummary: boolean;
+  eventSummary: FeatureFlagState;
   /** Status Chart - visual status tracking */
-  statusChart: boolean;
+  statusChart: FeatureFlagState;
   /** Event Timeline - chronological event view */
-  eventTimeline: boolean;
+  eventTimeline: FeatureFlagState;
   /** COBRA AI - AI-powered assistance */
-  cobraAi: boolean;
+  cobraAi: FeatureFlagState;
 }
 
 /**
@@ -89,15 +102,39 @@ export const featureFlagInfo: FeatureFlagInfo[] = [
 ];
 
 /**
+ * All valid states for display in admin UI
+ */
+export const featureFlagStates: { value: FeatureFlagState; label: string; description: string }[] = [
+  { value: 'Active', label: 'Active', description: 'Tool is fully functional' },
+  { value: 'ComingSoon', label: 'Coming Soon', description: 'Visible but disabled' },
+  { value: 'Hidden', label: 'Hidden', description: 'Not visible in sidebar' },
+];
+
+/**
  * Default feature flags (used when API is unavailable)
  */
 export const defaultFeatureFlags: FeatureFlags = {
-  checklist: true,
-  chat: false,
-  tasking: false,
-  cobraKai: false,
-  eventSummary: false,
-  statusChart: false,
-  eventTimeline: false,
-  cobraAi: false,
+  checklist: 'Active',
+  chat: 'ComingSoon',
+  tasking: 'ComingSoon',
+  cobraKai: 'ComingSoon',
+  eventSummary: 'ComingSoon',
+  statusChart: 'ComingSoon',
+  eventTimeline: 'ComingSoon',
+  cobraAi: 'ComingSoon',
 };
+
+/**
+ * Helper to check if a flag is active
+ */
+export const isActive = (state: FeatureFlagState): boolean => state === 'Active';
+
+/**
+ * Helper to check if a flag should be visible (Active or ComingSoon)
+ */
+export const isVisible = (state: FeatureFlagState): boolean => state !== 'Hidden';
+
+/**
+ * Helper to check if a flag is coming soon
+ */
+export const isComingSoon = (state: FeatureFlagState): boolean => state === 'ComingSoon';

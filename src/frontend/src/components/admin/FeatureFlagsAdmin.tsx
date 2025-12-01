@@ -2,7 +2,7 @@
  * Feature Flags Admin Component
  *
  * Admin UI for managing feature flags.
- * Allows toggling which POC tools are enabled/visible.
+ * Supports three states: Hidden, Coming Soon, Active
  */
 
 import React, { useState } from 'react';
@@ -13,10 +13,11 @@ import {
   CardContent,
   Grid,
   Chip,
-  IconButton,
   Tooltip,
   CircularProgress,
   Alert,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -30,12 +31,14 @@ import {
   faTableCells,
   faTimeline,
   faRobot,
+  faEyeSlash,
+  faClock,
+  faCheck,
 } from '@fortawesome/free-solid-svg-icons';
 import type { IconDefinition } from '@fortawesome/free-solid-svg-icons';
-import { CobraSwitch, CobraSecondaryButton } from '../../theme/styledComponents';
-import CobraStyles from '../../theme/CobraStyles';
+import { CobraSecondaryButton } from '../../theme/styledComponents';
 import { useFeatureFlags } from '../../contexts/FeatureFlagsContext';
-import { FeatureFlags, featureFlagInfo } from '../../types/featureFlags';
+import { FeatureFlags, FeatureFlagState, featureFlagInfo, featureFlagStates } from '../../types/featureFlags';
 
 // Map flag keys to icons
 const flagIcons: Record<keyof FeatureFlags, IconDefinition> = {
@@ -57,12 +60,11 @@ const categoryLabels: Record<string, string> = {
   ai: 'AI & Intelligence',
 };
 
-// Map categories to colors
-const categoryColors: Record<string, 'primary' | 'secondary' | 'success' | 'info'> = {
-  core: 'primary',
-  communication: 'info',
-  visualization: 'success',
-  ai: 'secondary',
+// State icons and colors
+const stateConfig: Record<FeatureFlagState, { icon: IconDefinition; color: string; chipColor: 'success' | 'warning' | 'default' }> = {
+  Active: { icon: faCheck, color: 'success.main', chipColor: 'success' },
+  ComingSoon: { icon: faClock, color: 'warning.main', chipColor: 'warning' },
+  Hidden: { icon: faEyeSlash, color: 'grey.500', chipColor: 'default' },
 };
 
 export const FeatureFlagsAdmin: React.FC = () => {
@@ -70,10 +72,11 @@ export const FeatureFlagsAdmin: React.FC = () => {
   const { flags, loading, error, updateFlags, resetFlags } = useFeatureFlags();
   const [saving, setSaving] = useState(false);
 
-  const handleToggle = async (flagKey: keyof FeatureFlags) => {
+  const handleStateChange = async (flagKey: keyof FeatureFlags, newState: FeatureFlagState | null) => {
+    if (!newState) return; // Don't allow deselection
     try {
       setSaving(true);
-      const newFlags = { ...flags, [flagKey]: !flags[flagKey] };
+      const newFlags = { ...flags, [flagKey]: newState };
       await updateFlags(newFlags);
     } catch (err) {
       // Error is handled by context
@@ -123,8 +126,8 @@ export const FeatureFlagsAdmin: React.FC = () => {
       {/* Header with reset button */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Toggle tools on/off to control what users see during POC evaluation.
-          Changes are saved immediately and apply to all users.
+          Set tool visibility: <strong>Active</strong> (fully functional), <strong>Coming Soon</strong> (visible but disabled), or <strong>Hidden</strong> (not visible).
+          Changes apply to all users immediately.
         </Typography>
         <Tooltip title="Reset all flags to appsettings.json defaults">
           <span>
@@ -151,16 +154,17 @@ export const FeatureFlagsAdmin: React.FC = () => {
           </Typography>
           <Grid container spacing={2}>
             {categoryFlags.map((info) => {
-              const isEnabled = flags[info.key];
+              const currentState = flags[info.key] as FeatureFlagState;
+              const config = stateConfig[currentState] || stateConfig.Hidden;
+
               return (
                 <Grid item xs={12} sm={6} md={4} key={info.key}>
                   <Card
                     sx={{
                       height: '100%',
-                      opacity: isEnabled ? 1 : 0.7,
-                      borderLeft: isEnabled
-                        ? `4px solid ${theme.palette.success.main}`
-                        : `4px solid ${theme.palette.grey[300]}`,
+                      opacity: currentState === 'Hidden' ? 0.6 : 1,
+                      borderLeft: `4px solid`,
+                      borderLeftColor: config.color,
                       transition: 'all 0.2s ease',
                     }}
                   >
@@ -172,9 +176,11 @@ export const FeatureFlagsAdmin: React.FC = () => {
                             width: 36,
                             height: 36,
                             borderRadius: 1,
-                            backgroundColor: isEnabled
+                            backgroundColor: currentState === 'Active'
                               ? theme.palette.buttonPrimary.light
-                              : theme.palette.grey[100],
+                              : currentState === 'ComingSoon'
+                                ? theme.palette.warning.light
+                                : theme.palette.grey[100],
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -184,9 +190,11 @@ export const FeatureFlagsAdmin: React.FC = () => {
                           <FontAwesomeIcon
                             icon={flagIcons[info.key]}
                             style={{
-                              color: isEnabled
+                              color: currentState === 'Active'
                                 ? theme.palette.buttonPrimary.main
-                                : theme.palette.grey[400],
+                                : currentState === 'ComingSoon'
+                                  ? theme.palette.warning.dark
+                                  : theme.palette.grey[400],
                             }}
                           />
                         </Box>
@@ -198,10 +206,11 @@ export const FeatureFlagsAdmin: React.FC = () => {
                               {info.name}
                             </Typography>
                             <Chip
-                              label={isEnabled ? 'On' : 'Off'}
+                              icon={<FontAwesomeIcon icon={config.icon} style={{ fontSize: 10 }} />}
+                              label={featureFlagStates.find(s => s.value === currentState)?.label || currentState}
                               size="small"
-                              color={isEnabled ? 'success' : 'default'}
-                              sx={{ height: 20, fontSize: 11 }}
+                              color={config.chipColor}
+                              sx={{ height: 20, fontSize: 10, '& .MuiChip-icon': { fontSize: 10 } }}
                             />
                           </Box>
                           <Typography
@@ -217,14 +226,38 @@ export const FeatureFlagsAdmin: React.FC = () => {
                             {info.description}
                           </Typography>
                         </Box>
+                      </Box>
 
-                        {/* Toggle */}
-                        <CobraSwitch
-                          checked={isEnabled}
-                          onChange={() => handleToggle(info.key)}
+                      {/* State selector */}
+                      <Box sx={{ mt: 1.5 }}>
+                        <ToggleButtonGroup
+                          value={currentState}
+                          exclusive
+                          onChange={(_, value) => handleStateChange(info.key, value)}
                           disabled={saving}
                           size="small"
-                        />
+                          fullWidth
+                          sx={{
+                            '& .MuiToggleButton-root': {
+                              py: 0.5,
+                              fontSize: 11,
+                              textTransform: 'none',
+                            },
+                          }}
+                        >
+                          <ToggleButton value="Hidden" sx={{ flex: 1 }}>
+                            <FontAwesomeIcon icon={faEyeSlash} style={{ marginRight: 4, fontSize: 10 }} />
+                            Hidden
+                          </ToggleButton>
+                          <ToggleButton value="ComingSoon" sx={{ flex: 1 }}>
+                            <FontAwesomeIcon icon={faClock} style={{ marginRight: 4, fontSize: 10 }} />
+                            Soon
+                          </ToggleButton>
+                          <ToggleButton value="Active" sx={{ flex: 1 }}>
+                            <FontAwesomeIcon icon={faCheck} style={{ marginRight: 4, fontSize: 10 }} />
+                            Active
+                          </ToggleButton>
+                        </ToggleButtonGroup>
                       </Box>
                     </CardContent>
                   </Card>

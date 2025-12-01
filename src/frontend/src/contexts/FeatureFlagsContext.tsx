@@ -4,12 +4,21 @@
  * Provides feature flag state to the entire application.
  * Fetches flags from API on mount and caches them.
  * Admin can update flags via the useFeatureFlags hook.
+ *
+ * Flag states: "Hidden", "ComingSoon", "Active"
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { featureFlagsService } from '../services/featureFlagsService';
-import { FeatureFlags, defaultFeatureFlags } from '../types/featureFlags';
+import {
+  FeatureFlags,
+  FeatureFlagState,
+  defaultFeatureFlags,
+  isActive as checkActive,
+  isVisible as checkVisible,
+  isComingSoon as checkComingSoon,
+} from '../types/featureFlags';
 
 interface FeatureFlagsContextType {
   /** Current feature flags */
@@ -26,8 +35,14 @@ interface FeatureFlagsContextType {
   resetFlags: () => Promise<void>;
   /** Refresh flags from server */
   refreshFlags: () => Promise<void>;
-  /** Check if a specific flag is enabled */
-  isEnabled: (flag: keyof FeatureFlags) => boolean;
+  /** Get the state of a specific flag */
+  getState: (flag: keyof FeatureFlags) => FeatureFlagState;
+  /** Check if a specific flag is Active */
+  isActive: (flag: keyof FeatureFlags) => boolean;
+  /** Check if a specific flag is visible (Active or ComingSoon) */
+  isVisible: (flag: keyof FeatureFlags) => boolean;
+  /** Check if a specific flag is ComingSoon */
+  isComingSoon: (flag: keyof FeatureFlags) => boolean;
 }
 
 const FeatureFlagsContext = createContext<FeatureFlagsContextType | undefined>(undefined);
@@ -97,9 +112,24 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({ chil
     }
   }, []);
 
-  // Check if a specific flag is enabled
-  const isEnabled = useCallback((flag: keyof FeatureFlags): boolean => {
-    return flags[flag] ?? false;
+  // Get the state of a specific flag
+  const getState = useCallback((flag: keyof FeatureFlags): FeatureFlagState => {
+    return flags[flag] ?? 'Hidden';
+  }, [flags]);
+
+  // Check if a specific flag is Active
+  const isActive = useCallback((flag: keyof FeatureFlags): boolean => {
+    return checkActive(flags[flag]);
+  }, [flags]);
+
+  // Check if a specific flag is visible (Active or ComingSoon)
+  const isVisible = useCallback((flag: keyof FeatureFlags): boolean => {
+    return checkVisible(flags[flag]);
+  }, [flags]);
+
+  // Check if a specific flag is ComingSoon
+  const isComingSoon = useCallback((flag: keyof FeatureFlags): boolean => {
+    return checkComingSoon(flags[flag]);
   }, [flags]);
 
   const value = useMemo<FeatureFlagsContextType>(() => ({
@@ -110,8 +140,11 @@ export const FeatureFlagsProvider: React.FC<FeatureFlagsProviderProps> = ({ chil
     updateFlags,
     resetFlags,
     refreshFlags,
-    isEnabled,
-  }), [flags, loading, error, initialized, updateFlags, resetFlags, refreshFlags, isEnabled]);
+    getState,
+    isActive,
+    isVisible,
+    isComingSoon,
+  }), [flags, loading, error, initialized, updateFlags, resetFlags, refreshFlags, getState, isActive, isVisible, isComingSoon]);
 
   return (
     <FeatureFlagsContext.Provider value={value}>
@@ -132,12 +165,12 @@ export const useFeatureFlags = (): FeatureFlagsContextType => {
 };
 
 /**
- * Hook to check a single feature flag
+ * Hook to get a single feature flag state
  * Convenience hook for components that only need to check one flag
  */
-export const useFeatureFlag = (flag: keyof FeatureFlags): boolean => {
-  const { isEnabled } = useFeatureFlags();
-  return isEnabled(flag);
+export const useFeatureFlagState = (flag: keyof FeatureFlags): FeatureFlagState => {
+  const { getState } = useFeatureFlags();
+  return getState(flag);
 };
 
 export default FeatureFlagsContext;

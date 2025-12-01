@@ -12,9 +12,9 @@ public class FeatureFlagOverride
     public required string FlagName { get; set; }
 
     /// <summary>
-    /// Whether the feature is enabled
+    /// Feature state: "Hidden", "ComingSoon", or "Active"
     /// </summary>
-    public bool IsEnabled { get; set; }
+    public required string State { get; set; }
 
     /// <summary>
     /// When this override was last modified

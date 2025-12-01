@@ -42,12 +42,15 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 import { usePermissions } from "../../hooks/usePermissions";
+import { useFeatureFlags } from "../../contexts/FeatureFlagsContext";
+import type { FeatureFlags, FeatureFlagState } from "../../types/featureFlags";
 
 interface NavItem {
   id: string;
   label: string;
   icon: IconDefinition;
   path: string;
+  featureFlag?: keyof FeatureFlags; // Maps to feature flag key
   disabled?: boolean;
   badge?: string;
 }
@@ -70,6 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const permissions = usePermissions();
+  const { flags, isVisible, isActive: isFlagActive, isComingSoon } = useFeatureFlags();
 
   const drawerWidth = open
     ? theme.cssStyling.drawerOpenWidth
@@ -84,64 +88,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // Tools navigation items - matches C5 pattern
-  const toolItems: NavItem[] = [
+  // Feature flags control visibility and enabled state
+  const allToolItems: NavItem[] = [
     {
       id: "checklist",
       label: "Checklist",
       icon: faClipboardList,
       path: "/checklists/dashboard",
+      featureFlag: "checklist",
     },
     {
       id: "chat",
       label: "Chat",
       icon: faComments,
       path: "/chat",
-      badge: "Coming Soon",
-      disabled: true,
+      featureFlag: "chat",
     },
     {
       id: "tasking",
       label: "Tasking",
       icon: faListCheck,
       path: "/tasking",
-      disabled: true,
+      featureFlag: "tasking",
     },
     {
       id: "cobra-kai",
       label: "COBRA KAI",
       icon: faBrain,
       path: "/cobra-kai",
-      disabled: true,
+      featureFlag: "cobraKai",
     },
     {
       id: "event-summary",
       label: "Event Summary",
       icon: faFileLines,
       path: "/event-summary",
-      disabled: true,
+      featureFlag: "eventSummary",
     },
     {
       id: "status-chart",
       label: "Status Chart",
       icon: faTableCells,
       path: "/status-chart",
-      disabled: true,
+      featureFlag: "statusChart",
     },
     {
       id: "event-timeline",
       label: "Event Timeline",
       icon: faTimeline,
       path: "/timeline",
-      disabled: true,
+      featureFlag: "eventTimeline",
     },
     {
       id: "cobra-ai",
       label: "COBRA AI",
       icon: faRobot,
       path: "/ai",
-      disabled: true,
+      featureFlag: "cobraAi",
     },
   ];
+
+  // Filter and enhance tools based on feature flags
+  const toolItems = allToolItems
+    .filter((item) => !item.featureFlag || isVisible(item.featureFlag))
+    .map((item) => {
+      if (item.featureFlag && isComingSoon(item.featureFlag)) {
+        return { ...item, disabled: true, badge: "Coming Soon" };
+      }
+      return item;
+    });
 
   // Admin navigation item - only visible for Manage role
   const adminNavItem: NavItem = {
