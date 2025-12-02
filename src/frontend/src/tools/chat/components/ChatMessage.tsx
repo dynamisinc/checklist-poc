@@ -4,13 +4,61 @@
  * Displays a single chat message matching COBRA 5 design.
  * - Other users: Avatar + name/timestamp + message (left-aligned)
  * - Own messages: Timestamp + message (right-aligned, cyan color)
+ * - External messages: Platform icon badge on avatar
  */
 
 import React from 'react';
-import { Box, Typography, Avatar, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, Typography, Avatar, Tooltip, Badge } from '@mui/material';
+import { useTheme, styled } from '@mui/material/styles';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faCommentDots,
+  faCommentSms,
+} from '@fortawesome/free-solid-svg-icons';
+import { faSlack, faMicrosoft } from '@fortawesome/free-brands-svg-icons';
 import type { ChatMessageDto } from '../types/chat';
 import { PlatformInfo, ExternalPlatform } from '../types/chat';
+
+/**
+ * Gets the FontAwesome icon for a platform.
+ */
+const getPlatformIcon = (platform: ExternalPlatform) => {
+  switch (platform) {
+    case ExternalPlatform.GroupMe:
+      return faCommentDots;
+    case ExternalPlatform.Signal:
+      return faCommentSms;
+    case ExternalPlatform.Teams:
+      return faMicrosoft;
+    case ExternalPlatform.Slack:
+      return faSlack;
+    default:
+      return faCommentDots;
+  }
+};
+
+/**
+ * Styled badge for platform icon overlay on avatar.
+ */
+const PlatformBadge = styled(Badge)<{ platformcolor: string }>(
+  ({ platformcolor }) => ({
+    '& .MuiBadge-badge': {
+      backgroundColor: platformcolor,
+      color: '#fff',
+      width: 18,
+      height: 18,
+      minWidth: 18,
+      borderRadius: '50%',
+      border: '2px solid #fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '0.6rem',
+      right: -2,
+      bottom: -2,
+    },
+  })
+);
 
 interface ChatMessageProps {
   message: ChatMessageDto;
@@ -106,6 +154,53 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       ? ` (via ${message.externalSource})`
       : '';
 
+  // Get platform info for external messages
+  const externalPlatform = message.isExternalMessage && message.externalSource
+    ? ExternalPlatform[message.externalSource as keyof typeof ExternalPlatform]
+    : null;
+  const platformInfo = externalPlatform ? PlatformInfo[externalPlatform] : null;
+
+  /**
+   * Renders the avatar, with platform badge overlay for external messages.
+   */
+  const renderAvatar = () => {
+    const avatar = (
+      <Avatar
+        sx={{
+          width: 36,
+          height: 36,
+          bgcolor: getAvatarColor(message),
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          flexShrink: 0,
+        }}
+      >
+        {getInitials(displayName)}
+      </Avatar>
+    );
+
+    // Wrap with platform badge for external messages
+    if (message.isExternalMessage && externalPlatform && platformInfo) {
+      return (
+        <PlatformBadge
+          platformcolor={platformInfo.color}
+          overlap="circular"
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          badgeContent={
+            <FontAwesomeIcon
+              icon={getPlatformIcon(externalPlatform)}
+              style={{ fontSize: '0.5rem' }}
+            />
+          }
+        >
+          {avatar}
+        </PlatformBadge>
+      );
+    }
+
+    return avatar;
+  };
+
   // Own message - right aligned, cyan colored
   if (isOwnMessage) {
     return (
@@ -158,7 +253,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         px: 2,
       }}
     >
-      {/* Avatar */}
+      {/* Avatar with platform badge for external messages */}
       <Tooltip
         title={
           message.isExternalMessage
@@ -166,18 +261,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             : 'COBRA user'
         }
       >
-        <Avatar
-          sx={{
-            width: 36,
-            height: 36,
-            bgcolor: getAvatarColor(message),
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            flexShrink: 0,
-          }}
-        >
-          {getInitials(displayName)}
-        </Avatar>
+        <Box sx={{ flexShrink: 0 }}>{renderAvatar()}</Box>
       </Tooltip>
 
       {/* Message Content */}

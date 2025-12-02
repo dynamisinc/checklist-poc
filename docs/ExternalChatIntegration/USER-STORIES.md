@@ -658,6 +658,7 @@
 | UC-011 | Real-Time Updates | SignalR ChatHub provides real-time message delivery for both COBRA and external messages. |
 | UC-012 | Channel Accordion Sidebar | **Partial** - Sidebar infrastructure complete (toggle, resize, persist). Full accordion channel list pending UC-001. |
 | UC-014 | Full-Page Chat View | **Partial** - Resizable sidebar with EventChat. Tabbed channels pending UC-001. |
+| UC-016 | External Message Visual Indicators | Platform icon badge on avatar, "(via Platform)" suffix, platform-colored avatars. Sidebar/tab icons pending UC-001. |
 | UC-022 | Configure API Credentials | GroupMe Access Token configurable via Admin Settings UI and database. |
 | UC-023 | Webhook Health Check | GET /api/webhooks/health returns 200 OK with timestamp. |
 | UC-024 | Webhook Performance | Webhook returns 200 immediately; processes asynchronously in background task with proper DI scoping. |
@@ -691,6 +692,24 @@
 - Duplicate channel prevention: Returns existing active channel or reactivates deactivated channel
 - SignalR uses event-specific groups (`event-{eventId}`) for scoped real-time updates
 - React Strict Mode handling: Reset connection refs on cleanup for proper remount behavior
+
+#### External Message Visual Indicators (UC-016)
+
+**Files Modified:**
+- `src/frontend/src/tools/chat/types/chat.ts` - Extended `PlatformInfo` with icons, added `ChannelType` enum and `ChannelDisplayInfo` interface for future extensibility
+- `src/frontend/src/tools/chat/components/ChatMessage.tsx` - Added platform icon badge overlay on avatar for external messages
+
+**Features Implemented:**
+- Platform icon badge on avatar (colored circle with icon in bottom-right corner)
+- Platform-specific icons: GroupMe (comment-dots), Signal (comment-sms), Teams (Microsoft brand), Slack (Slack brand)
+- Platform-colored avatars for external messages
+- "(via Platform)" text suffix in message header
+- Tooltip distinguishing "External user via {Platform}" vs "COBRA user"
+- `ChannelType` enum for future channel types (Internal, Announcements, External, Position, Custom)
+- `ChannelDisplayInfo` interface for sidebar/tabs (ready for UC-001)
+
+**Dependencies Added:**
+- `@fortawesome/free-brands-svg-icons` - For Slack and Microsoft brand icons
 
 #### Chat Sidebar (UC-012, UC-014)
 
