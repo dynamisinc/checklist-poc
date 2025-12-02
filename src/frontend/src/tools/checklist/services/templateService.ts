@@ -10,7 +10,7 @@
  * - Archiving/restoring templates
  */
 
-import { apiClient, getErrorMessage } from '../../../services/api';
+import { apiClient, getErrorMessage } from '../../../core/services/api';
 import type { Template } from '../../../types';
 
 /**

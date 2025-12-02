@@ -6,7 +6,7 @@
  * (checklists, operational periods, etc.) are associated with.
  */
 
-import { apiClient } from '../../../services/api';
+import { apiClient } from '../../../core/services/api';
 import type {
   Event,
   EventCategory,

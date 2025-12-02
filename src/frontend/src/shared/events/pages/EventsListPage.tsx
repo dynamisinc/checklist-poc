@@ -25,7 +25,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalendarAlt, faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
 import { useEvents } from "../hooks/useEvents";
-import { getIconFromName, getEventTypeColor } from "../../../utils/iconMapping";
+import { getIconFromName, getEventTypeColor } from "../utils/iconMapping";
 import CobraStyles from "../../../theme/CobraStyles";
 import type { Event } from "../types";
 

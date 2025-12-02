@@ -46,7 +46,7 @@ import {
   getCurrentLandingVariant,
   setLandingVariant as setStoredLandingVariant,
 } from '../../tools/checklist/experiments';
-import { setMockUser, getCurrentUser } from '../../services/api';
+import { setMockUser, getCurrentUser } from '../services/api';
 
 interface ProfileMenuProps {
   onProfileChange: (positions: string[], role: PermissionRole) => void;

@@ -5,7 +5,7 @@
  * Handles message sending/receiving and external channel management.
  */
 
-import { apiClient } from '../../../services/api';
+import { apiClient } from '../../../core/services/api';
 import type {
   ChatMessageDto,
   ChatThreadDto,

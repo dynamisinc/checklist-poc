@@ -11,7 +11,7 @@
  * - Filtering by event/operational period
  */
 
-import { apiClient, getErrorMessage } from '../../../services/api';
+import { apiClient, getErrorMessage } from '../../../core/services/api';
 
 /**
  * Checklist Instance DTO (matches backend)

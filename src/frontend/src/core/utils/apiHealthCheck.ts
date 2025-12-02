@@ -5,7 +5,7 @@
  * Can be run from browser console or used in automated tests.
  *
  * Usage from browser console:
- *   import('/src/utils/apiHealthCheck.ts').then(m => m.runHealthCheck())
+ *   import('/src/core/utils/apiHealthCheck.ts').then(m => m.runHealthCheck())
  *
  * Or access via window object (exposed in development):
  *   window.apiHealthCheck.run()

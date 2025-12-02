@@ -1,4 +1,4 @@
-import { apiClient } from '../../../services/api';
+import { apiClient } from '../../../core/services/api';
 import type {
   ItemLibraryEntry,
   CreateItemLibraryEntryRequest,

@@ -7,7 +7,7 @@
  * - System overview metrics
  */
 
-import { apiClient, getErrorMessage } from '../../../services/api';
+import { apiClient, getErrorMessage } from '../../../core/services/api';
 import type { AnalyticsDashboard } from '../../../types';
 
 /**

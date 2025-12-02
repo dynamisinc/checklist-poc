@@ -38,7 +38,7 @@ import { useChecklistHub } from '../hooks/useChecklistHub';
 import { useChecklistVariant } from '../experiments';
 import { useEvents } from '../../../shared/events';
 import { usePermissions } from '../../../shared/hooks/usePermissions';
-import { getCurrentUser } from '../../../services/api';
+import { getCurrentUser } from '../../../core/services/api';
 import { Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import { CobraDeleteButton, CobraLinkButton } from '../../../theme/styledComponents';
 import { c5Colors } from '../../../theme/c5Theme';

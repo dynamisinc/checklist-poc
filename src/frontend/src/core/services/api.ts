@@ -12,7 +12,7 @@
 
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { toast } from 'react-toastify';
-import { getSysAdminStatus } from '../admin/contexts/SysAdminContext';
+import { getSysAdminStatus } from '../../admin/contexts/SysAdminContext';
 
 /**
  * Base API URL from environment variable

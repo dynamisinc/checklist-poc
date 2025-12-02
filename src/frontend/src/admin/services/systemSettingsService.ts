@@ -4,7 +4,7 @@
  * API client for managing customer-level configuration settings.
  */
 
-import { apiClient } from '../../services/api';
+import { apiClient } from '../../core/services/api';
 import type {
   SystemSettingDto,
   CreateSystemSettingRequest,

@@ -39,7 +39,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useEvents } from "../hooks/useEvents";
 import { useFeatureFlags } from "../../../admin/contexts/FeatureFlagsContext";
-import { getIconFromName, getEventTypeColor } from "../../../utils/iconMapping";
+import { getIconFromName, getEventTypeColor } from "../utils/iconMapping";
 import CobraStyles from "../../../theme/CobraStyles";
 import { useTheme } from "@mui/material/styles";
 import type { FeatureFlags } from "../../../admin/types/featureFlags";

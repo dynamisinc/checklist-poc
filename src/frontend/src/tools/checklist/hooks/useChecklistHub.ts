@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { toast } from 'react-toastify';
-import { getCurrentUser } from '../../../services/api';
+import { getCurrentUser } from '../../../core/services/api';
 
 /**
  * Event handlers for real-time checklist updates

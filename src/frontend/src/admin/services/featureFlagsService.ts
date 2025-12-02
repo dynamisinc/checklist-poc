@@ -5,7 +5,7 @@
  * Flags control which POC tools are visible in the application.
  */
 
-import { apiClient } from '../../services/api';
+import { apiClient } from '../../core/services/api';
 import type { FeatureFlags } from '../types/featureFlags';
 
 const BASE_URL = '/api/config/featureflags';

@@ -37,7 +37,7 @@ import { toast } from 'react-toastify';
 import { CobraTextField } from '../../../theme/styledComponents';
 import { ChatMessage } from './ChatMessage';
 import { chatService } from '../services/chatService';
-import { getCurrentUser } from '../../../services/api';
+import { getCurrentUser } from '../../../core/services/api';
 import type {
   ChatMessageDto,
   ChatThreadDto,

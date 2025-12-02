@@ -19,3 +19,13 @@ export { ErrorBoundary } from './components/ErrorBoundary';
 
 // Profile
 export { ProfileMenu } from './components/ProfileMenu';
+
+// API Services
+export {
+  apiClient,
+  setMockUser,
+  getCurrentUser,
+  getErrorMessage,
+  isApiError,
+} from './services/api';
+export type { MockUserContext, PermissionRoleType } from './services/api';

@@ -37,7 +37,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useEvents } from '../hooks/useEvents';
 import { usePermissions } from '../../hooks/usePermissions';
-import { getIconFromName, getEventTypeColor } from '../../../utils/iconMapping';
+import { getIconFromName, getEventTypeColor } from '../utils/iconMapping';
 import type { Event } from '../types';
 
 interface EventSelectorProps {
