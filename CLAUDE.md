@@ -116,11 +116,15 @@ checklist-poc/
 │   │   │   ├── GlobalUsings.cs          # C# 10+ global imports
 │   │   │   └── Program.cs
 │   │   │
-│   │   └── CobraAPI.Tests/              # Test project
-│   │       ├── Services/
-│   │       ├── Controllers/
-│   │       ├── Helpers/
-│   │       └── GlobalUsings.cs
+│   │   ├── CobraAPI.Tests.Core/         # Shared test infrastructure
+│   │   │   └── Helpers/                 # TestDbContextFactory, TestUserContextFactory
+│   │   │
+│   │   ├── CobraAPI.Tests.Checklist/    # Checklist tool tests (lift-and-shift ready)
+│   │   │   ├── Services/
+│   │   │   └── Controllers/
+│   │   │
+│   │   └── CobraAPI.Tests.Chat/         # Chat tool tests (lift-and-shift ready)
+│   │       └── Services/
 │   │
 │   └── frontend/
 │       ├── src/
@@ -295,8 +299,14 @@ npm run dev
 # Run with hot reload
 dotnet watch run
 
-# Run tests
+# Run all tests
 dotnet test
+
+# Run checklist tests only
+dotnet test CobraAPI.Tests.Checklist
+
+# Run chat tests only
+dotnet test CobraAPI.Tests.Chat
 
 # Create new migration
 dotnet ef migrations add MigrationName
@@ -1198,7 +1208,7 @@ export const useChecklistHub = (checklistId: string) => {
 
 #### Unit Tests (Services)
 ```csharp
-// src/backend/CobraAPI.Tests/Services/ChecklistServiceTests.cs
+// src/backend/CobraAPI.Tests.Checklist/Services/ChecklistServiceTests.cs
 using Xunit;
 using Moq;
 
