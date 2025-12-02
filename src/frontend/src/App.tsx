@@ -33,26 +33,28 @@ import { Box, Typography, Container, Stack } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartLine } from "@fortawesome/free-solid-svg-icons";
 
-// Context providers
-import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
-import { SysAdminProvider } from "./contexts/SysAdminContext";
+// Context providers - from admin module
+import { FeatureFlagsProvider, SysAdminProvider } from "./admin";
 
-// Navigation components
-import { AppLayout } from "./components/navigation";
+// Navigation components - from core module
+import { AppLayout } from "./core";
 
-// Pages
-import { EventsListPage } from "./pages/EventsListPage";
-import { EventLandingPage } from "./pages/EventLandingPage";
-import { ChecklistToolPage } from "./pages/ChecklistToolPage";
-import { LandingPage } from "./pages/LandingPage";
-import { ChecklistDetailPage } from "./pages/ChecklistDetailPage";
-import { ManagePage } from "./pages/ManagePage";
-import { TemplateEditorPage } from "./pages/TemplateEditorPage";
-import { TemplatePreviewPage } from "./pages/TemplatePreviewPage";
-import { ItemLibraryPage } from "./pages/ItemLibraryPage";
-import { ManageChecklistsPage } from "./pages/ManageChecklistsPage";
-import { AdminPage } from "./pages/AdminPage";
-import { ChatPage } from "./pages/ChatPage";
+// Pages - from shared/tools modules
+import { EventsListPage, EventLandingPage } from "./shared/events";
+import { ChatPage } from "./tools/chat";
+import { AdminPage } from "./admin/pages/AdminPage";
+
+// Pages - checklist tool
+import {
+  ChecklistToolPage,
+  LandingPage,
+  ChecklistDetailPage,
+  ManagePage,
+  TemplateEditorPage,
+  TemplatePreviewPage,
+  ItemLibraryPage,
+  ManageChecklistsPage,
+} from "./tools/checklist";
 import { usePermissions } from "./hooks/usePermissions";
 
 // Styles

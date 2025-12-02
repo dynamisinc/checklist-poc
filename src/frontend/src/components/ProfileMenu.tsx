@@ -34,7 +34,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faPalette, faUserPen, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
 import { useSearchParams } from 'react-router-dom';
 import { ICS_POSITIONS, PermissionRole } from '../types';
-import { useSysAdmin } from '../contexts/SysAdminContext';
+import { useSysAdmin } from '../admin/contexts/SysAdminContext';
 import { cobraTheme } from '../theme/cobraTheme';
 import {
   checklistVariants,

@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { PermissionRole } from '../types';
-import { useSysAdmin } from '../contexts/SysAdminContext';
+import { useSysAdmin } from '../admin/contexts/SysAdminContext';
 
 interface PermissionChecks {
   // Template permissions
