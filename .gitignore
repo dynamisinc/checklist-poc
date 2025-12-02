@@ -38,7 +38,8 @@ logs/
 *.sw?
 
 # Environment variables
-.env
+# Note: .env and .env.production ARE committed for this POC (no secrets, just localhost URLs)
+# Only .local variants are ignored for personal overrides
 .env.local
 .env.development.local
 .env.test.local
