@@ -100,7 +100,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         sx={{
           display: "flex",
           flexDirection: "column",
-          minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
           // Account for header height
           pt: `${theme.cssStyling.headerHeight}px`,
@@ -113,16 +112,28 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
           }),
+          // Make this the scroll container for sticky elements
+          overflow: "auto",
+          height: "100vh",
         }}
       >
-        {/* Breadcrumb Navigation - auto-generates based on route if no items provided */}
-        {!hideBreadcrumb && <Breadcrumb items={breadcrumbs.length > 0 ? breadcrumbs : undefined} />}
+        {/* Breadcrumb Navigation - sticky at top of scroll area */}
+        {!hideBreadcrumb && (
+          <Box
+            sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 20,
+            }}
+          >
+            <Breadcrumb items={breadcrumbs.length > 0 ? breadcrumbs : undefined} />
+          </Box>
+        )}
 
         {/* Page Content */}
         <Box
           sx={{
             flexGrow: 1,
-            overflow: "auto",
           }}
         >
           {children}
