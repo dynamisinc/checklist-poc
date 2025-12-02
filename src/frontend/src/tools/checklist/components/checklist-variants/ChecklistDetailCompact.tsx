@@ -47,7 +47,7 @@ import {
   faCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import { ItemNotesDialog } from '../ItemNotesDialog';
-import { ChecklistProgressBarCompact } from '../ChecklistProgressBar';
+import { ChecklistProgressBar } from '../ChecklistProgressBar';
 import { usePermissions } from '../../../../shared/hooks/usePermissions';
 import type { ChecklistInstanceDto, ChecklistItemDto } from '../../services/checklistService';
 import type { StatusOption } from '../../../../types';
@@ -340,13 +340,16 @@ export const ChecklistDetailCompact: React.FC<ChecklistDetailCompactProps> = ({
         )}
       </Stack>
 
-      {/* Compact Progress */}
-      <Box sx={{ mb: 2 }}>
-        <ChecklistProgressBarCompact value={progressPercentage} width="100%" />
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textAlign: 'right' }}>
-          {checklist.completedItems}/{checklist.totalItems} items
-        </Typography>
-      </Box>
+      {/* Sticky Progress Bar */}
+      <ChecklistProgressBar
+        value={progressPercentage}
+        height={16}
+        showPercentage={true}
+        showCount={true}
+        completedItems={checklist.completedItems}
+        totalItems={checklist.totalItems}
+        sticky
+      />
 
       {/* Readonly Mode Banner */}
       {isReadonly && (

@@ -376,27 +376,23 @@ export const ChecklistDetailProgressive: React.FC<ChecklistDetailProgressiveProp
         )}
       </Stack>
 
-      {/* Progress */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-          <Typography variant="body2" color="text.secondary">
-            Progress
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {checklist.completedItems}/{checklist.totalItems} items
-          </Typography>
-        </Box>
-        <ChecklistProgressBar
-          value={progressPercentage}
-          height={24}
-          showPercentage={true}
-        />
-        {checklist.requiredItems > 0 && (
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-            Required: {checklist.requiredItemsCompleted}/{checklist.requiredItems}
-          </Typography>
-        )}
-      </Box>
+      {/* Sticky Progress Bar */}
+      <ChecklistProgressBar
+        value={progressPercentage}
+        height={24}
+        showPercentage={true}
+        showCount={true}
+        completedItems={checklist.completedItems}
+        totalItems={checklist.totalItems}
+        sticky
+      />
+
+      {/* Required items indicator */}
+      {checklist.requiredItems > 0 && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2, ml: 2 }}>
+          Required: {checklist.requiredItemsCompleted}/{checklist.requiredItems} complete
+        </Typography>
+      )}
 
       {/* Readonly Mode Banner */}
       {isReadonly && (
