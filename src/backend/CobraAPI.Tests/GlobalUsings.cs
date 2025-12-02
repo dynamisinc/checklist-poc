@@ -24,7 +24,10 @@ global using CobraAPI.Tools.Checklist.Hubs;
 
 // Chat tool
 global using CobraAPI.Tools.Chat.Models.Entities;
+global using CobraAPI.Tools.Chat.Models.DTOs;
 global using CobraAPI.Tools.Chat.Services;
+global using CobraAPI.Tools.Chat.Hubs;
+global using CobraAPI.Tools.Chat.ExternalPlatforms;
 
 // Analytics tool
 global using CobraAPI.Tools.Analytics.Services;
