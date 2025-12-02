@@ -41,7 +41,7 @@ import {
   faGear,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
-import { usePermissions } from "../../../hooks/usePermissions";
+import { usePermissions } from "../../../shared/hooks/usePermissions";
 import { useFeatureFlags } from "../../../admin/contexts/FeatureFlagsContext";
 import type { FeatureFlags } from "../../../admin/types/featureFlags";
 

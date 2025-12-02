@@ -27,7 +27,7 @@ import { faChevronDown, faChevronUp, faBell } from '@fortawesome/free-solid-svg-
 import { useNavigate } from 'react-router-dom';
 import { useChecklists } from '../hooks/useChecklists';
 import { useOperationalPeriodGrouping } from '../hooks/useOperationalPeriodGrouping';
-import { usePermissions } from '../../../hooks/usePermissions';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { useChecklistHub, type ChecklistCreatedEvent } from '../hooks/useChecklistHub';
 import { useEvents } from '../../../shared/events';
 import { ChecklistCard } from '../components/ChecklistCard';

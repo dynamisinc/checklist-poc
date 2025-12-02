@@ -41,7 +41,7 @@ import {
   faWarning,
 } from '@fortawesome/free-solid-svg-icons';
 import { useEvents } from '../../../shared/events';
-import { usePermissions } from '../../../hooks/usePermissions';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { checklistService, type ChecklistInstanceDto } from '../services/checklistService';
 import { CobraDeleteButton, CobraLinkButton } from '../../../theme/styledComponents';
 import CobraStyles from '../../../theme/CobraStyles';

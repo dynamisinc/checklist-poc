@@ -36,7 +36,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { useChecklists } from '../../hooks/useChecklists';
-import { usePermissions } from '../../../../hooks/usePermissions';
+import { usePermissions } from '../../../../shared/hooks/usePermissions';
 import { useEvents } from '../../../../shared/events';
 import { TemplatePickerDialog } from '../TemplatePickerDialog';
 import { ChecklistVisibilityToggle, getStoredVisibilityPreference } from '../ChecklistVisibilityToggle';

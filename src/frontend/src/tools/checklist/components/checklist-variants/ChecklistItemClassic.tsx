@@ -32,7 +32,7 @@ import {
   faCircleInfo,
   faCheck,
 } from '@fortawesome/free-solid-svg-icons';
-import { usePermissions } from '../../../../hooks/usePermissions';
+import { usePermissions } from '../../../../shared/hooks/usePermissions';
 import type { ChecklistItemDto } from '../../services/checklistService';
 import type { StatusOption } from '../../../../types';
 import { c5Colors } from '../../../../theme/c5Theme';

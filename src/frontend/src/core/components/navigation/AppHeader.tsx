@@ -21,7 +21,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars } from "@fortawesome/free-solid-svg-icons";
-import { ProfileMenu } from "../../../components/ProfileMenu";
+import { ProfileMenu } from "../ProfileMenu";
 import { EventSelector, CreateEventDialog } from "../../../shared/events";
 import { PermissionRole } from "../../../types";
 

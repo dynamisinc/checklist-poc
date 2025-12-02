@@ -15,7 +15,7 @@ import { Box, ToggleButtonGroup, ToggleButton, Tooltip } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faUsers } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '@mui/material/styles';
-import { usePermissions } from '../../../hooks/usePermissions';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 
 const STORAGE_KEY = 'checklistVisibilityShowAll';
 

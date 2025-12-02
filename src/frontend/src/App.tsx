@@ -55,7 +55,7 @@ import {
   ItemLibraryPage,
   ManageChecklistsPage,
 } from "./tools/checklist";
-import { usePermissions } from "./hooks/usePermissions";
+import { usePermissions } from "./shared/hooks/usePermissions";
 
 // Styles
 import CobraStyles from "./theme/CobraStyles";

@@ -40,7 +40,7 @@ import {
   faSave,
 } from '@fortawesome/free-solid-svg-icons';
 import { ChecklistProgressBar } from '../ChecklistProgressBar';
-import { usePermissions } from '../../../../hooks/usePermissions';
+import { usePermissions } from '../../../../shared/hooks/usePermissions';
 import type { ChecklistInstanceDto, ChecklistItemDto } from '../../services/checklistService';
 import type { StatusOption } from '../../../../types';
 import { c5Colors } from '../../../../theme/c5Theme';

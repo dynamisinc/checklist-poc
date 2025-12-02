@@ -16,3 +16,6 @@ export type { BreadcrumbItem } from './components/navigation/Breadcrumb';
 
 // Error handling
 export { ErrorBoundary } from './components/ErrorBoundary';
+
+// Profile
+export { ProfileMenu } from './components/ProfileMenu';

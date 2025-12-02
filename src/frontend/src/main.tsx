@@ -6,7 +6,7 @@ import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import './styles/global.css'
 import { cobraTheme } from './theme/cobraTheme'
-import { ErrorBoundary } from './components/ErrorBoundary'
+import { ErrorBoundary } from './core/components/ErrorBoundary'
 import App from './App'
 
 // Initialize API health check utility (exposes window.apiHealthCheck in dev)

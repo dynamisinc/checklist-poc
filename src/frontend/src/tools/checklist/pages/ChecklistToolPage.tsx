@@ -32,7 +32,7 @@ import {
   faBoxArchive,
   faArrowRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { usePermissions } from "../../../hooks/usePermissions";
+import { usePermissions } from "../../../shared/hooks/usePermissions";
 import { useEvents } from "../../../shared/events";
 import CobraStyles from "../../../theme/CobraStyles";
 import { useTheme } from "@mui/material/styles";

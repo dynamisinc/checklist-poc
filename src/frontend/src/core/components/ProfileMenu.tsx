@@ -33,9 +33,9 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faPalette, faUserPen, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
 import { useSearchParams } from 'react-router-dom';
-import { ICS_POSITIONS, PermissionRole } from '../types';
-import { useSysAdmin } from '../admin/contexts/SysAdminContext';
-import { cobraTheme } from '../theme/cobraTheme';
+import { ICS_POSITIONS, PermissionRole } from '../../types';
+import { useSysAdmin } from '../../admin/contexts/SysAdminContext';
+import { cobraTheme } from '../../theme/cobraTheme';
 import {
   checklistVariants,
   type ChecklistVariant,
@@ -45,8 +45,8 @@ import {
   type LandingPageVariant,
   getCurrentLandingVariant,
   setLandingVariant as setStoredLandingVariant,
-} from '../experiments';
-import { setMockUser, getCurrentUser } from '../services/api';
+} from '../../experiments';
+import { setMockUser, getCurrentUser } from '../../services/api';
 
 interface ProfileMenuProps {
   onProfileChange: (positions: string[], role: PermissionRole) => void;
