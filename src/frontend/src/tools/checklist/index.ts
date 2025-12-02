@@ -48,3 +48,22 @@ export type {
   CreateTemplateItemRequest,
   UpdateTemplateRequest,
 } from './services/templateService';
+
+// Experiments (A/B testing for checklist UX variants)
+export {
+  type ChecklistVariant,
+  type VariantInfo,
+  checklistVariants,
+  getCurrentVariant,
+  setVariant,
+  isValidVariant,
+  getVariantInfo,
+  useChecklistVariant,
+  type LandingPageVariant,
+  type LandingVariantInfo,
+  landingPageVariants,
+  getCurrentLandingVariant,
+  setLandingVariant,
+  getLandingVariantInfo,
+  useLandingVariant,
+} from './experiments';

@@ -15,7 +15,7 @@
  */
 
 import React from 'react';
-import { useLandingVariant } from '../../../experiments';
+import { useLandingVariant } from '../experiments';
 import { MyChecklistsPage } from './MyChecklistsPage';
 import {
   LandingTaskFirst,

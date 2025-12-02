@@ -35,7 +35,7 @@ import { AppLayout, BreadcrumbItem } from '../../../core';
 import { useChecklistDetail } from '../hooks/useChecklistDetail';
 import { useItemActions } from '../hooks/useItemActions';
 import { useChecklistHub } from '../hooks/useChecklistHub';
-import { useChecklistVariant } from '../../../experiments';
+import { useChecklistVariant } from '../experiments';
 import { useEvents } from '../../../shared/events';
 import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { getCurrentUser } from '../../../services/api';

@@ -45,7 +45,7 @@ import {
   type LandingPageVariant,
   getCurrentLandingVariant,
   setLandingVariant as setStoredLandingVariant,
-} from '../../experiments';
+} from '../../tools/checklist/experiments';
 import { setMockUser, getCurrentUser } from '../../services/api';
 
 interface ProfileMenuProps {
