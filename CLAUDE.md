@@ -72,35 +72,63 @@ checklist-poc/
 │   ├── backend/
 │   │   └── ChecklistAPI/
 │   │       ├── Controllers/        # API endpoints
-│   │       ├── Hubs/              # SignalR hubs (planned)
+│   │       ├── Hubs/              # SignalR hubs
 │   │       ├── Models/
-│   │       │   ├── Entities/      # EF Core entities (Template, ChecklistInstance, etc.)
-│   │       │   └── DTOs/          # Data transfer objects (planned)
-│   │       ├── Services/          # Business logic layer (planned)
+│   │       │   ├── Entities/      # EF Core entities
+│   │       │   └── DTOs/          # Data transfer objects
+│   │       ├── Services/          # Business logic layer
 │   │       ├── Data/
 │   │       │   ├── ChecklistDbContext.cs
 │   │       │   └── Migrations/
-│   │       ├── Middleware/        # User context, exception handling (planned)
+│   │       ├── Middleware/        # User context, exception handling
+│   │       ├── Extensions/        # DI registration helpers
 │   │       ├── Program.cs         # App configuration
 │   │       └── appsettings.json
 │   │
 │   └── frontend/
 │       ├── src/
-│       │   ├── components/        # Reusable UI components (planned)
-│       │   │   ├── common/
-│       │   │   ├── templates/
-│       │   │   ├── checklists/
-│       │   │   └── items/
-│       │   ├── pages/             # Page components (planned)
-│       │   ├── hooks/             # Custom React hooks (planned)
-│       │   ├── services/          # API service layer (planned)
-│       │   ├── types/             # TypeScript interfaces
-│       │   ├── theme/
-│       │   │   ├── cobraTheme.ts         # COBRA standardized theme
-│       │   │   ├── CobraStyles.ts        # Spacing/padding constants
-│       │   │   ├── c5Theme.ts           # Legacy theme (deprecated)
-│       │   │   └── styledComponents/    # COBRA styled components
-│       │   ├── utils/             # Helper functions (planned)
+│       │   ├── core/              # App-wide infrastructure
+│       │   │   ├── components/    # ErrorBoundary, ProfileMenu
+│       │   │   ├── services/      # api.ts (axios client)
+│       │   │   ├── styles/        # global.css
+│       │   │   └── utils/         # apiHealthCheck
+│       │   │
+│       │   ├── shared/            # Shared across tools
+│       │   │   ├── events/        # Event management
+│       │   │   │   ├── components/
+│       │   │   │   ├── contexts/
+│       │   │   │   ├── hooks/
+│       │   │   │   ├── pages/
+│       │   │   │   ├── services/
+│       │   │   │   ├── types/
+│       │   │   │   └── utils/
+│       │   │   └── hooks/         # usePermissions
+│       │   │
+│       │   ├── tools/             # Tool-specific modules
+│       │   │   ├── checklist/     # Checklist tool
+│       │   │   │   ├── components/
+│       │   │   │   ├── contexts/
+│       │   │   │   ├── experiments/
+│       │   │   │   ├── hooks/
+│       │   │   │   ├── pages/
+│       │   │   │   ├── services/
+│       │   │   │   └── types/
+│       │   │   └── chat/          # Chat tool
+│       │   │       ├── components/
+│       │   │       └── services/
+│       │   │
+│       │   ├── admin/             # Admin features
+│       │   │   ├── contexts/
+│       │   │   ├── pages/
+│       │   │   ├── services/
+│       │   │   └── types/
+│       │   │
+│       │   ├── theme/             # MUI theme configuration
+│       │   │   ├── cobraTheme.ts
+│       │   │   ├── CobraStyles.ts
+│       │   │   └── styledComponents/
+│       │   │
+│       │   ├── types/             # Shared TypeScript types
 │       │   ├── App.tsx
 │       │   └── main.tsx
 │       ├── package.json
@@ -111,6 +139,8 @@ checklist-poc/
 │   └── schema.sql                 # SQL Server schema with seed data
 ├── docs/
 │   ├── COBRA_STYLING_INTEGRATION.md  # COBRA styling guide
+│   ├── CODING_STANDARDS.md        # Code conventions
+│   ├── FRONTEND_ARCHITECTURE.md   # Frontend module structure
 │   ├── UI_PATTERNS.md             # UX patterns and guidelines
 │   └── USER-STORIES.md            # User stories and requirements
 ├── .gitignore
@@ -453,9 +483,9 @@ const checklists: any = await checklistService.getMyChecklists();
 > The `.env` `VITE_API_URL` should be the base URL without `/api` (e.g., `http://localhost:5000`).
 
 ```typescript
-// services/checklistService.ts
-import { apiClient } from './api';
-import type { ChecklistDto, CreateChecklistRequest } from '../types';
+// tools/checklist/services/checklistService.ts
+import { apiClient } from '../../../core/services/api';
+import type { ChecklistDto, CreateChecklistRequest } from '../../../types';
 
 export const checklistService = {
   /**
@@ -474,7 +504,7 @@ export const checklistService = {
 
 #### Error Handling Pattern
 ```typescript
-// hooks/useChecklists.ts
+// tools/checklist/hooks/useChecklists.ts
 export const useChecklists = () => {
   const [checklists, setChecklists] = useState<ChecklistDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1471,13 +1501,17 @@ VITE_ENABLE_MOCK_AUTH=true
 |------|---------|
 | `main.tsx` | App entry point |
 | `App.tsx` | Root component with routing |
+| `core/services/api.ts` | Axios API client (base for all services) |
+| `core/components/*.tsx` | App-wide components (ErrorBoundary, ProfileMenu) |
+| `core/utils/apiHealthCheck.ts` | API connectivity debugging utility |
+| `shared/events/**` | Event management (shared by all tools) |
+| `tools/checklist/**` | Checklist tool (components, hooks, services, types) |
+| `tools/chat/**` | Chat tool |
+| `admin/**` | Admin features (feature flags, system settings) |
 | `theme/cobraTheme.ts` | COBRA standardized Material-UI theme |
 | `theme/CobraStyles.ts` | Spacing and padding constants |
 | `theme/styledComponents/*.tsx` | COBRA styled components |
-| `theme/c5Theme.ts` | Legacy theme (deprecated) |
-| `types/index.ts` | TypeScript type definitions |
-| `services/*.ts` | API client services |
-| `hooks/*.ts` | Custom React hooks |
+| `types/index.ts` | Shared TypeScript types (re-exports tool types) |
 | `vite.config.ts` | Vite build configuration |
 
 ### Documentation
@@ -1485,6 +1519,8 @@ VITE_ENABLE_MOCK_AUTH=true
 |------|---------|
 | `README.md` | Project overview, quick start, architecture |
 | `CLAUDE.md` | **This file** - AI assistant guide |
+| `docs/CODING_STANDARDS.md` | **Code conventions and patterns** |
+| `docs/FRONTEND_ARCHITECTURE.md` | **Frontend module structure guide** |
 | `docs/COBRA_STYLING_INTEGRATION.md` | **COBRA styling system reference** |
 | `docs/UI_PATTERNS.md` | UX patterns and design guidelines |
 | `docs/USER-STORIES.md` | User stories and requirements |

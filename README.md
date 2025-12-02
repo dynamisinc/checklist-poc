@@ -16,87 +16,78 @@ This POC validates:
 ```
 checklist-poc/
 ├── src/
-│   ├── frontend/                 # React + TypeScript + Material-UI 7
+│   ├── frontend/                     # React + TypeScript + Material-UI 6
 │   │   ├── src/
-│   │   │   ├── components/       # Reusable UI components
-│   │   │   │   ├── common/       # Buttons, dialogs, cards
-│   │   │   │   ├── templates/    # Template management components
-│   │   │   │   ├── checklists/   # Checklist instance components
-│   │   │   │   └── items/        # Checklist item components
-│   │   │   ├── pages/            # Page-level components
-│   │   │   │   ├── TemplateLibrary.tsx
-│   │   │   │   ├── TemplateEditor.tsx
-│   │   │   │   ├── MyChecklists.tsx
-│   │   │   │   └── ChecklistDetail.tsx
-│   │   │   ├── hooks/            # Custom React hooks
-│   │   │   │   ├── useChecklistHub.ts    # SignalR connection
-│   │   │   │   ├── useTemplates.ts
-│   │   │   │   └── useChecklists.ts
-│   │   │   ├── services/         # API service layer
-│   │   │   │   ├── api.ts        # Axios instance with auth
-│   │   │   │   ├── templateService.ts
-│   │   │   │   └── checklistService.ts
-│   │   │   ├── types/            # TypeScript interfaces
-│   │   │   │   ├── Template.ts
-│   │   │   │   ├── Checklist.ts
-│   │   │   │   └── ChecklistItem.ts
-│   │   │   ├── theme/            # C5 Material-UI theme
-│   │   │   │   └── c5Theme.ts    # Cobalt Blue, Roboto, etc.
-│   │   │   ├── utils/            # Helper functions
-│   │   │   │   ├── dateFormat.ts
-│   │   │   │   └── progressCalculator.ts
+│   │   │   ├── core/                 # App-wide infrastructure
+│   │   │   │   ├── components/       # ErrorBoundary, ProfileMenu
+│   │   │   │   ├── services/         # api.ts (axios client)
+│   │   │   │   ├── styles/           # global.css
+│   │   │   │   └── utils/            # apiHealthCheck
+│   │   │   │
+│   │   │   ├── shared/               # Shared across tools
+│   │   │   │   ├── events/           # Event management
+│   │   │   │   │   ├── components/   # EventSelector
+│   │   │   │   │   ├── contexts/     # EventContext
+│   │   │   │   │   ├── hooks/        # useEvents
+│   │   │   │   │   ├── pages/        # EventLandingPage
+│   │   │   │   │   ├── services/     # eventService
+│   │   │   │   │   └── types/        # Event types
+│   │   │   │   └── hooks/            # usePermissions
+│   │   │   │
+│   │   │   ├── tools/                # Tool-specific modules
+│   │   │   │   ├── checklist/        # Checklist tool
+│   │   │   │   │   ├── components/   # ChecklistCard, ItemRow
+│   │   │   │   │   ├── contexts/     # ChecklistContext
+│   │   │   │   │   ├── hooks/        # useChecklists, useChecklistHub
+│   │   │   │   │   ├── pages/        # ChecklistDetailPage
+│   │   │   │   │   ├── services/     # checklistService, templateService
+│   │   │   │   │   └── types/        # Checklist-specific types
+│   │   │   │   └── chat/             # Chat tool
+│   │   │   │       ├── components/   # EventChat
+│   │   │   │       └── services/     # chatService
+│   │   │   │
+│   │   │   ├── admin/                # Admin features
+│   │   │   │   ├── contexts/         # FeatureFlagsContext
+│   │   │   │   ├── pages/            # AdminPage
+│   │   │   │   └── services/         # featureFlagsService
+│   │   │   │
+│   │   │   ├── theme/                # COBRA MUI theme
+│   │   │   │   ├── cobraTheme.ts     # COBRA standardized theme
+│   │   │   │   ├── CobraStyles.ts    # Spacing constants
+│   │   │   │   └── styledComponents/ # COBRA styled components
+│   │   │   │
+│   │   │   ├── types/                # Shared TypeScript types
 │   │   │   ├── App.tsx
 │   │   │   └── main.tsx
 │   │   ├── package.json
 │   │   ├── vite.config.ts
 │   │   └── tsconfig.json
 │   │
-│   └── backend/                  # ASP.NET Core Web API
+│   └── backend/                      # ASP.NET Core Web API (.NET 10)
 │       ├── ChecklistAPI/
-│       │   ├── Controllers/
-│       │   │   ├── TemplatesController.cs
-│       │   │   ├── ChecklistsController.cs
-│       │   │   └── ItemsController.cs
-│       │   ├── Hubs/
-│       │   │   └── ChecklistHub.cs       # SignalR hub
+│       │   ├── Controllers/          # API endpoints
+│       │   ├── Hubs/                 # SignalR hubs
 │       │   ├── Models/
-│       │   │   ├── Entities/             # EF Core entities
-│       │   │   │   ├── Template.cs
-│       │   │   │   ├── ChecklistInstance.cs
-│       │   │   │   ├── ChecklistItem.cs
-│       │   │   │   └── ItemStatusHistory.cs
-│       │   │   └── DTOs/                 # Data transfer objects
-│       │   │       ├── TemplateDto.cs
-│       │   │       ├── ChecklistDto.cs
-│       │   │       └── ItemDto.cs
-│       │   ├── Services/
-│       │   │   ├── ITemplateService.cs
-│       │   │   ├── TemplateService.cs
-│       │   │   ├── IChecklistService.cs
-│       │   │   └── ChecklistService.cs
-│       │   ├── Data/
-│       │   │   ├── ChecklistDbContext.cs
-│       │   │   └── Migrations/
-│       │   ├── Middleware/
-│       │   │   ├── UserContextMiddleware.cs  # Mock user/position for POC
-│       │   │   └── ExceptionHandlingMiddleware.cs
-│       │   ├── Program.cs
-│       │   ├── appsettings.json
-│       │   └── ChecklistAPI.csproj
+│       │   │   ├── Entities/         # EF Core entities
+│       │   │   └── DTOs/             # Data transfer objects
+│       │   ├── Services/             # Business logic layer
+│       │   ├── Data/                 # EF Core DbContext
+│       │   ├── Middleware/           # Mock auth, exception handling
+│       │   ├── Extensions/           # DI registration helpers
+│       │   └── Program.cs
 │       │
-│       └── ChecklistAPI.Tests/   # Unit tests
-│           ├── Controllers/
-│           ├── Services/
-│           └── ChecklistAPI.Tests.csproj
+│       └── ChecklistAPI.Tests/       # Unit tests
 │
 ├── database/
-│   ├── schema.sql                # Initial database schema
-│   └── seed-data.sql             # Sample templates and mock data
+│   ├── schema.sql                    # SQL Server schema
+│   └── seed-templates.sql            # Sample data
 │
 ├── docs/
-│   ├── API.md                    # API documentation
-│   ├── UI_PATTERNS.md            # UX patterns and guidelines
-│   └── DEPLOYMENT.md             # Deployment instructions
+│   ├── CODING_STANDARDS.md           # Code conventions
+│   ├── FRONTEND_ARCHITECTURE.md      # Frontend module structure
+│   ├── COBRA_STYLING_INTEGRATION.md  # COBRA styling guide
+│   ├── UI_PATTERNS.md                # UX patterns and guidelines
+│   └── USER-STORIES.md               # Requirements
 │
 ├── .github/
 │   └── workflows/
