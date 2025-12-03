@@ -132,7 +132,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         <Box
           sx={{
             flexGrow: 1,
-            overflow: "auto",
+            overflowY: "auto",
+            overflowX: "hidden",
+            pr: 2,
           }}
         >
           {children}
