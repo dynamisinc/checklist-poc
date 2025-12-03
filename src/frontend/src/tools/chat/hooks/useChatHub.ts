@@ -27,18 +27,51 @@ export interface ChatHubHandlers {
  * - Auto-reconnect on connection loss
  * - Clean disconnect on unmount
  * - Event handlers for messages and channel updates
+ * - Browser offline/online detection for faster UX feedback
  */
 export const useChatHub = (handlers: ChatHubHandlers = {}) => {
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const handlersRef = useRef(handlers);
   const hasConnectedOnceRef = useRef(false);
   const isConnectingRef = useRef(false);
+
+  // UI connection state - this is what we show to users
+  // It can be set by: SignalR callbacks, browser offline events, or API failures
   const [connectionState, setConnectionState] = useState<ChatConnectionState>('disconnected');
+
+  // Track if we've manually detected offline (browser event or API failure)
+  // This prevents SignalR's "still connected" state from overriding our offline UI
+  const isManuallyOfflineRef = useRef(false);
 
   // Update handlers ref when they change
   useEffect(() => {
     handlersRef.current = handlers;
   }, [handlers]);
+
+  /**
+   * Attempt to restart the SignalR connection
+   * Called when browser comes back online or when we want to retry
+   */
+  const restartConnection = useCallback(async () => {
+    const connection = connectionRef.current;
+    if (!connection) return;
+
+    // Only restart if disconnected
+    if (connection.state === signalR.HubConnectionState.Disconnected) {
+      console.log('[ChatHub] Attempting to restart connection...');
+      setConnectionState('connecting');
+      try {
+        await connection.start();
+        console.log('[ChatHub] Connection restarted successfully');
+        setConnectionState('connected');
+        isManuallyOfflineRef.current = false;
+        handlersRef.current.onReconnected?.();
+      } catch (error) {
+        console.error('[ChatHub] Failed to restart connection:', error);
+        setConnectionState('disconnected');
+      }
+    }
+  }, []);
 
   // Initialize SignalR connection
   useEffect(() => {
@@ -57,10 +90,13 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
       })
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: (retryContext) => {
+          // Quick first retry, then back off
           if (retryContext.previousRetryCount === 0) return 0;
           if (retryContext.previousRetryCount === 1) return 2000;
-          if (retryContext.previousRetryCount === 2) return 10000;
-          return 30000;
+          if (retryContext.previousRetryCount === 2) return 5000;
+          if (retryContext.previousRetryCount < 10) return 10000;
+          // After 10 retries, give up and let manual reconnect handle it
+          return null;
         },
       })
       .configureLogging(signalR.LogLevel.Warning)
@@ -82,52 +118,34 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
       handlersRef.current.onExternalChannelDisconnected?.(channelId);
     });
 
-    // Connection lifecycle events
+    // Connection lifecycle events from SignalR
     connection.onreconnecting((error) => {
-      console.warn('[ChatHub] Reconnecting... Setting state to reconnecting', error);
-      setConnectionState('reconnecting');
+      console.warn('[ChatHub] SignalR reconnecting...', error);
+      // Only show reconnecting if we haven't manually detected offline
+      if (!isManuallyOfflineRef.current) {
+        setConnectionState('reconnecting');
+      }
     });
 
     connection.onreconnected((connectionId) => {
-      console.log('[ChatHub] Reconnected:', connectionId);
+      console.log('[ChatHub] SignalR reconnected:', connectionId);
       setConnectionState('connected');
-      // Notify handlers so they can refresh data
+      isManuallyOfflineRef.current = false;
       handlersRef.current.onReconnected?.();
     });
 
     connection.onclose((error) => {
-      // onclose fires when connection is fully terminated
-      // If withAutomaticReconnect is configured and retries haven't exhausted,
-      // onreconnecting should fire before this. But if reconnect fails during
-      // negotiation (e.g., network offline), onclose may fire without onreconnecting.
-      console.warn('[ChatHub] Connection closed. Setting state to disconnected', error);
+      console.warn('[ChatHub] SignalR connection closed', error);
       setConnectionState('disconnected');
       if (hasConnectedOnceRef.current && error) {
         console.error('[ChatHub] Connection closed with error:', error);
       }
     });
 
-    // Also listen for the internal reconnecting state via connection state
-    // This handles edge cases where onreconnecting doesn't fire
-    const checkConnectionState = () => {
-      const state = connection.state;
-      if (state === signalR.HubConnectionState.Reconnecting) {
-        setConnectionState('reconnecting');
-      } else if (state === signalR.HubConnectionState.Connected) {
-        setConnectionState('connected');
-      } else if (state === signalR.HubConnectionState.Disconnected) {
-        setConnectionState('disconnected');
-      } else if (state === signalR.HubConnectionState.Connecting) {
-        setConnectionState('connecting');
-      }
-    };
+    connectionRef.current = connection;
 
-    // Poll connection state as a fallback (SignalR callbacks can be unreliable)
-    const stateCheckInterval = setInterval(checkConnectionState, 1000);
-
+    // Start initial connection
     setConnectionState('connecting');
-
-    // Start connection
     connection
       .start()
       .then(() => {
@@ -144,12 +162,62 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
         console.error('[ChatHub] Connection failed:', error);
       });
 
-    connectionRef.current = connection;
+    // Browser online/offline event handlers
+    const attemptReconnect = () => {
+      const conn = connectionRef.current;
+      if (conn && conn.state === signalR.HubConnectionState.Disconnected) {
+        console.log('[ChatHub] Attempting to reconnect...');
+        setConnectionState('connecting');
+        conn.start()
+          .then(() => {
+            console.log('[ChatHub] Reconnected successfully');
+            setConnectionState('connected');
+            isManuallyOfflineRef.current = false;
+            handlersRef.current.onReconnected?.();
+          })
+          .catch((err) => {
+            console.error('[ChatHub] Failed to reconnect:', err);
+            setConnectionState('disconnected');
+          });
+      }
+    };
+
+    const handleOnline = () => {
+      console.log('[ChatHub] Browser reports online');
+      isManuallyOfflineRef.current = false;
+      // Small delay to let network stabilize
+      setTimeout(attemptReconnect, 500);
+    };
+
+    const handleOffline = () => {
+      console.log('[ChatHub] Browser reports offline');
+      isManuallyOfflineRef.current = true;
+      setConnectionState('disconnected');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Periodic connectivity check when we're in disconnected state
+    // This catches cases where the browser 'online' event doesn't fire (e.g., DevTools toggle)
+    const connectivityCheckInterval = setInterval(() => {
+      const conn = connectionRef.current;
+      // Only check if we think we're offline and the connection is disconnected
+      if (isManuallyOfflineRef.current && conn?.state === signalR.HubConnectionState.Disconnected) {
+        // Check if browser thinks we're online
+        if (navigator.onLine) {
+          console.log('[ChatHub] Connectivity check: browser is online, attempting reconnect');
+          isManuallyOfflineRef.current = false;
+          attemptReconnect();
+        }
+      }
+    }, 3000); // Check every 3 seconds
 
     // Cleanup on unmount
     return () => {
-      // Clear the state polling interval
-      clearInterval(stateCheckInterval);
+      clearInterval(connectivityCheckInterval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
 
       // Reset refs so React Strict Mode remount can create a new connection
       isConnectingRef.current = false;
@@ -218,10 +286,24 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
     }
   }, []);
 
+  /**
+   * Report that an API call failed due to network issues.
+   * This immediately sets the connection state to disconnected.
+   */
+  const reportConnectionFailure = useCallback(() => {
+    console.warn('[ChatHub] API failure reported, setting state to disconnected');
+    isManuallyOfflineRef.current = true;
+    setConnectionState('disconnected');
+  }, []);
+
   return {
     /** Current connection state for UI display */
     connectionState,
     joinEventChat,
     leaveEventChat,
+    /** Call this when an API request fails due to network issues */
+    reportConnectionFailure,
+    /** Manually attempt to reconnect */
+    restartConnection,
   };
 };

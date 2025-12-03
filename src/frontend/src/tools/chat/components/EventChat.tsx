@@ -102,7 +102,7 @@ export const EventChat: React.FC<EventChatProps> = ({
   }, [eventId, thread?.id]);
 
   // SignalR connection
-  const { connectionState, joinEventChat, leaveEventChat } = useChatHub({
+  const { connectionState, joinEventChat, leaveEventChat, reportConnectionFailure } = useChatHub({
     onReceiveChatMessage: handleReceiveChatMessage,
     onReconnected: handleReconnected,
   });
@@ -175,6 +175,16 @@ export const EventChat: React.FC<EventChatProps> = ({
       const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
       toast.error(errorMsg);
       setNewMessage(messageText); // Restore message on error
+
+      // If the error indicates a network failure, report it to update connection state
+      const isNetworkError =
+        errorMsg.toLowerCase().includes('network') ||
+        errorMsg.toLowerCase().includes('connect') ||
+        errorMsg.toLowerCase().includes('failed to fetch') ||
+        (err instanceof Error && err.name === 'TypeError'); // fetch network errors
+      if (isNetworkError) {
+        reportConnectionFailure();
+      }
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -356,11 +366,11 @@ export const EventChat: React.FC<EventChatProps> = ({
               inputRef={inputRef}
               fullWidth
               size="small"
-              placeholder=""
+              placeholder={connectionState === 'disconnected' ? 'Offline - cannot send messages' : ''}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              disabled={sending}
+              disabled={sending || connectionState === 'disconnected'}
               multiline
               maxRows={3}
               sx={{
@@ -370,26 +380,33 @@ export const EventChat: React.FC<EventChatProps> = ({
                 },
               }}
             />
-            <IconButton
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || sending}
-              sx={{
-                color:
-                  !newMessage.trim() || sending
-                    ? theme.palette.grey[400]
-                    : theme.palette.text.secondary,
-                '&:hover': {
-                  backgroundColor: 'transparent',
-                  color: theme.palette.primary.main,
-                },
-              }}
+            <Tooltip
+              title={connectionState === 'disconnected' ? 'Cannot send - offline' : ''}
+              disableHoverListener={connectionState !== 'disconnected'}
             >
-              {sending ? (
-                <CircularProgress size={20} color="inherit" />
-              ) : (
-                <FontAwesomeIcon icon={faPaperPlane} />
-              )}
-            </IconButton>
+              <span>
+                <IconButton
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sending || connectionState === 'disconnected'}
+                  sx={{
+                    color:
+                      !newMessage.trim() || sending || connectionState === 'disconnected'
+                        ? theme.palette.grey[400]
+                        : theme.palette.text.secondary,
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      color: theme.palette.primary.main,
+                    },
+                  }}
+                >
+                  {sending ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    <FontAwesomeIcon icon={faPaperPlane} />
+                  )}
+                </IconButton>
+              </span>
+            </Tooltip>
           </>
         ) : (
           <Typography

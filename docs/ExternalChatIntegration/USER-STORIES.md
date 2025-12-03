@@ -386,6 +386,43 @@
 
 ---
 
+### UC-023: Connection Status Indicator and Offline Handling
+
+**Title:** Connection status indicator and offline handling for chat
+
+**As a** user viewing the chat interface
+**I want to** see a clear indicator when my connection is lost or reconnecting
+**So that** I understand why messages may be delayed and know when I can send messages again
+
+**GitHub Issue:** #33
+
+**Acceptance Criteria:**
+- [x] Visual indicator when connection is lost (red warning icon + "Offline" text)
+- [x] Visual indicator when reconnecting (yellow wifi icon + "Reconnecting..." text)
+- [x] Tooltip with descriptive message for each connection state
+- [x] Input field disabled when offline with placeholder "Offline - cannot send messages"
+- [x] Send button disabled when offline with tooltip
+- [x] Browser `offline` event detection for immediate offline state
+- [x] API failure detection triggers offline state (network errors on message send)
+- [x] SignalR lifecycle callbacks update connection state
+- [x] Message refresh on reconnect to catch missed messages during disconnect
+- [x] 500ms fallback for sent messages if SignalR doesn't deliver
+- [ ] Reliable detection when browser comes back online (DevTools limitation)
+- [ ] Automatic reconnection without page refresh after extended offline
+- [ ] Manual "Retry Connection" button when offline
+
+**Known Limitations:**
+- Chrome DevTools' offline toggle doesn't reliably fire the browser's `online` event when toggling back to online. Real-world offline scenarios (network disconnection) should work better.
+- SignalR connection may not auto-reconnect after extended offline period - requires page refresh
+
+**Implementation Notes:**
+- useChatHub.ts: SignalR connection management with connection state
+- EventChat.tsx: Status indicator in header, disabled input when offline
+- ChatSidebar.tsx: Status indicator (icon only due to space constraints)
+- Detection methods: Browser events, SignalR callbacks, API failure detection, navigator.onLine polling
+
+---
+
 ## Feature: Message Management
 
 ### UC-017: Edit Own Messages

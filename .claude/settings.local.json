@@ -88,7 +88,9 @@
       "Bash(gh issue view:*)",
       "Bash(gh issue comment:*)",
       "Bash(gh issue close:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(Select-String -Pattern \"(error|warning)\")",
+      "Bash(Select-Object -First 20)"
     ],
     "deny": [],
     "ask": []
