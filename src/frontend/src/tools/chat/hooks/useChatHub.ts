@@ -1,6 +1,11 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
 import type { ChatMessageDto, ExternalChannelMappingDto } from '../types/chat';
+
+/**
+ * Connection state for UI display
+ */
+export type ChatConnectionState = 'connected' | 'connecting' | 'reconnecting' | 'disconnected';
 
 /**
  * Event handlers for real-time chat updates
@@ -9,6 +14,8 @@ export interface ChatHubHandlers {
   onReceiveChatMessage?: (message: ChatMessageDto) => void;
   onExternalChannelConnected?: (channel: ExternalChannelMappingDto) => void;
   onExternalChannelDisconnected?: (channelId: string) => void;
+  /** Called when connection is restored after being lost - use to refresh data */
+  onReconnected?: () => void;
 }
 
 /**
@@ -26,6 +33,7 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
   const handlersRef = useRef(handlers);
   const hasConnectedOnceRef = useRef(false);
   const isConnectingRef = useRef(false);
+  const [connectionState, setConnectionState] = useState<ChatConnectionState>('disconnected');
 
   // Update handlers ref when they change
   useEffect(() => {
@@ -77,17 +85,24 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
     // Connection lifecycle events
     connection.onreconnecting((error) => {
       console.warn('[ChatHub] Reconnecting...', error);
+      setConnectionState('reconnecting');
     });
 
     connection.onreconnected((connectionId) => {
       console.log('[ChatHub] Reconnected:', connectionId);
+      setConnectionState('connected');
+      // Notify handlers so they can refresh data
+      handlersRef.current.onReconnected?.();
     });
 
     connection.onclose((error) => {
+      setConnectionState('disconnected');
       if (hasConnectedOnceRef.current && error) {
         console.error('[ChatHub] Connection closed:', error);
       }
     });
+
+    setConnectionState('connecting');
 
     // Start connection
     connection
@@ -95,8 +110,10 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
       .then(() => {
         console.log('[ChatHub] Connected');
         hasConnectedOnceRef.current = true;
+        setConnectionState('connected');
       })
       .catch((error) => {
+        setConnectionState('disconnected');
         const isStrictModeError = error?.message?.includes('stopped during negotiation');
         if (!hasConnectedOnceRef.current && isStrictModeError) {
           return;
@@ -176,7 +193,8 @@ export const useChatHub = (handlers: ChatHubHandlers = {}) => {
   }, []);
 
   return {
-    connectionState: connectionRef.current?.state ?? signalR.HubConnectionState.Disconnected,
+    /** Current connection state for UI display */
+    connectionState,
     joinEventChat,
     leaveEventChat,
   };

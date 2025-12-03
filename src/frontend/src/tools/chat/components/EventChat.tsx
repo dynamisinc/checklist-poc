@@ -16,10 +16,11 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faWifi, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
 import { CobraTextField } from '../../../theme/styledComponents';
 import { ChatMessage } from './ChatMessage';
@@ -88,9 +89,22 @@ export const EventChat: React.FC<EventChatProps> = ({
     [thread?.id]
   );
 
+  // Handle SignalR reconnection - refresh messages to catch any missed during disconnect
+  const handleReconnected = useCallback(() => {
+    if (thread?.id) {
+      console.log('[EventChat] SignalR reconnected, refreshing messages');
+      chatService.getMessages(eventId, thread.id).then((messagesData) => {
+        setMessages(messagesData || []);
+      }).catch((err) => {
+        console.error('Failed to refresh messages on reconnect:', err);
+      });
+    }
+  }, [eventId, thread?.id]);
+
   // SignalR connection
-  const { joinEventChat, leaveEventChat } = useChatHub({
+  const { connectionState, joinEventChat, leaveEventChat } = useChatHub({
     onReceiveChatMessage: handleReceiveChatMessage,
+    onReconnected: handleReconnected,
   });
 
   // Scroll to bottom of messages
@@ -127,7 +141,7 @@ export const EventChat: React.FC<EventChatProps> = ({
     }
   }, [eventId, channelId]);
 
-  // Send message
+  // Send message with SignalR fallback
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !thread?.id || sending || !canSendMessages) return;
 
@@ -136,9 +150,21 @@ export const EventChat: React.FC<EventChatProps> = ({
     setSending(true);
 
     try {
-      // Send the message - don't add to state here since SignalR will broadcast it back
-      // This prevents double-messages when both API response and SignalR arrive
-      await chatService.sendMessage(eventId, thread.id, messageText);
+      // Send the message - SignalR should broadcast it back
+      const sentMessage = await chatService.sendMessage(eventId, thread.id, messageText);
+
+      // Fallback: If SignalR doesn't deliver within 500ms, add locally
+      // This handles cases where SignalR connection is lost or delayed
+      setTimeout(() => {
+        setMessages((prev) => {
+          // Only add if not already present (SignalR didn't deliver it)
+          if (prev.some((m) => m.id === sentMessage.id)) {
+            return prev;
+          }
+          return [...prev, sentMessage];
+        });
+      }, 500);
+
       scrollToBottom();
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
@@ -227,9 +253,47 @@ export const EventChat: React.FC<EventChatProps> = ({
             backgroundColor: theme.palette.background.default,
           }}
         >
-          <Typography variant="subtitle1" fontWeight={600}>
-            {channelName || 'Event Chat'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              {channelName || 'Event Chat'}
+            </Typography>
+            {/* Connection status indicator */}
+            {connectionState !== 'connected' && (
+              <Tooltip
+                title={
+                  connectionState === 'reconnecting'
+                    ? 'Reconnecting to real-time updates...'
+                    : connectionState === 'connecting'
+                      ? 'Connecting...'
+                      : 'Disconnected - messages may be delayed'
+                }
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    color:
+                      connectionState === 'reconnecting'
+                        ? theme.palette.warning.main
+                        : theme.palette.error.main,
+                  }}
+                >
+                  <FontAwesomeIcon
+                    icon={connectionState === 'reconnecting' ? faWifi : faExclamationTriangle}
+                    style={{ fontSize: 12 }}
+                  />
+                  <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                    {connectionState === 'reconnecting'
+                      ? 'Reconnecting...'
+                      : connectionState === 'connecting'
+                        ? 'Connecting...'
+                        : 'Offline'}
+                  </Typography>
+                </Box>
+              </Tooltip>
+            )}
+          </Box>
         </Box>
       )}
 
