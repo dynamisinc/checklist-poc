@@ -87,7 +87,8 @@
       "Bash(gh label:*)",
       "Bash(gh issue view:*)",
       "Bash(gh issue comment:*)",
-      "Bash(gh issue close:*)"
+      "Bash(gh issue close:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []
