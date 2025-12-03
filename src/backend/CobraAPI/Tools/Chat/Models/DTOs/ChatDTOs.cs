@@ -8,6 +8,7 @@ namespace CobraAPI.Tools.Chat.Models.DTOs;
 public class ChatMessageDto
 {
     public Guid Id { get; set; }
+    public Guid ChatThreadId { get; set; }
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
     public string SenderDisplayName { get; set; } = string.Empty;

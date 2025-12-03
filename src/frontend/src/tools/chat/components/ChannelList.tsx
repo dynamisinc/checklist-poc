@@ -334,7 +334,7 @@ export const ChannelList: React.FC<ChannelListProps> = ({
   return (
     <Box sx={{ py: 1 }}>
       {renderSection('Channels', 'internal', internalChannels)}
-      {renderSection('External', 'external', externalChannels, true)}
+      {renderSection('External', 'external', externalChannels)}
       {renderSection('Groups', 'custom', otherChannels, true)}
 
       {channels.length === 0 && (

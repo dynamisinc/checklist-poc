@@ -13,6 +13,9 @@ export interface ChatMessageDto {
   /** Unique identifier for the message */
   id: string;
 
+  /** ID of the chat thread/channel this message belongs to */
+  chatThreadId: string;
+
   /** Timestamp when the message was created in COBRA */
   createdAt: string;
 

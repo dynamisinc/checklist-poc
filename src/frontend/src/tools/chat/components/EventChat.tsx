@@ -72,19 +72,20 @@ export const EventChat: React.FC<EventChatProps> = ({
   // SignalR handlers for real-time updates
   const handleReceiveChatMessage = useCallback(
     (message: ChatMessageDto) => {
-      // Skip if message is from current user (we already added it optimistically)
-      if (message.createdBy === currentUser.email && !message.isExternalMessage) {
+      // Only handle messages for this specific thread/channel
+      if (message.chatThreadId !== thread?.id) {
         return;
       }
+
       setMessages((prev) => {
-        // Avoid duplicates
+        // Avoid duplicates (message already added locally or via previous SignalR)
         if (prev.some((m) => m.id === message.id)) {
           return prev;
         }
         return [...prev, message];
       });
     },
-    [currentUser.email]
+    [thread?.id]
   );
 
   // SignalR connection

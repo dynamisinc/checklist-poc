@@ -111,6 +111,7 @@ public class ChatService : IChatService
             .Select(cm => new ChatMessageDto
             {
                 Id = cm.Id,
+                ChatThreadId = cm.ChatThreadId,
                 CreatedAt = cm.CreatedAt,
                 CreatedBy = cm.CreatedBy,
                 SenderDisplayName = cm.SenderDisplayName,
@@ -151,6 +152,7 @@ public class ChatService : IChatService
         var messageDto = new ChatMessageDto
         {
             Id = chatMessage.Id,
+            ChatThreadId = chatMessage.ChatThreadId,
             CreatedAt = chatMessage.CreatedAt,
             CreatedBy = chatMessage.CreatedBy,
             SenderDisplayName = chatMessage.SenderDisplayName,
@@ -231,6 +233,7 @@ public class ChatService : IChatService
         var messageDto = new ChatMessageDto
         {
             Id = chatMessage.Id,
+            ChatThreadId = chatMessage.ChatThreadId,
             CreatedAt = chatMessage.CreatedAt,
             CreatedBy = chatMessage.CreatedBy,
             SenderDisplayName = senderName,
