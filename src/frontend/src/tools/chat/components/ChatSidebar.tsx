@@ -20,6 +20,12 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -28,13 +34,20 @@ import {
   faExpand,
   faGripLinesVertical,
   faChevronLeft,
+  faEllipsisV,
+  faLink,
+  faLinkSlash,
+  faExternalLinkAlt,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useChatSidebar } from '../contexts/ChatSidebarContext';
 import { useEvents } from '../../../shared/events';
 import { EventChat } from './EventChat';
 import { ChannelList } from './ChannelList';
-import type { ChatThreadDto } from '../types/chat';
+import { chatService } from '../services/chatService';
+import type { ChatThreadDto, ExternalChannelMappingDto } from '../types/chat';
+import { ExternalPlatform, PlatformInfo } from '../types/chat';
 
 export const ChatSidebar: React.FC = () => {
   const theme = useTheme();
@@ -51,6 +64,10 @@ export const ChatSidebar: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<ChatThreadDto | null>(null);
   const [showChannelList, setShowChannelList] = useState(true);
 
+  // External channels state
+  const [externalChannels, setExternalChannels] = useState<ExternalChannelMappingDto[]>([]);
+  const [channelMenuAnchor, setChannelMenuAnchor] = useState<null | HTMLElement>(null);
+
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -60,6 +77,62 @@ export const ChatSidebar: React.FC = () => {
     setSelectedChannel(null);
     setShowChannelList(true);
   }, [currentEvent?.id]);
+
+  // Load external channels when event changes
+  useEffect(() => {
+    const loadExternalChannels = async () => {
+      if (!currentEvent) return;
+      try {
+        const data = await chatService.getExternalChannels(currentEvent.id);
+        setExternalChannels(data);
+      } catch (err) {
+        console.error('Failed to load external channels:', err);
+      }
+    };
+    loadExternalChannels();
+  }, [currentEvent?.id]);
+
+  // Get active external channels
+  const activeChannels = externalChannels.filter((c) => c.isActive);
+  const hasGroupMeChannel = activeChannels.some(
+    (c) => c.platform === ExternalPlatform.GroupMe
+  );
+
+  // Create GroupMe channel
+  const handleCreateGroupMeChannel = async () => {
+    if (!currentEvent) return;
+    setChannelMenuAnchor(null);
+    try {
+      const channel = await chatService.createExternalChannel(currentEvent.id, {
+        platform: ExternalPlatform.GroupMe,
+        customGroupName: currentEvent.name,
+      });
+      setExternalChannels((prev) => {
+        if (prev.some((c) => c.id === channel.id)) {
+          return prev;
+        }
+        return [...prev, channel];
+      });
+      toast.success('GroupMe channel connected! Share the link with external team members.');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create GroupMe channel';
+      toast.error(errorMsg);
+    }
+  };
+
+  // Disconnect external channel
+  const handleDisconnectChannel = async (channelId: string) => {
+    if (!currentEvent) return;
+    setChannelMenuAnchor(null);
+    try {
+      await chatService.deactivateExternalChannel(currentEvent.id, channelId);
+      setExternalChannels((prev) => prev.filter((c) => c.id !== channelId));
+      toast.success('External channel disconnected');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to disconnect channel';
+      toast.error(errorMsg);
+    }
+  };
 
   // Handle channel selection
   const handleChannelSelect = useCallback((channel: ChatThreadDto) => {
@@ -198,6 +271,88 @@ export const ChatSidebar: React.FC = () => {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {/* Connected channel chips */}
+          {activeChannels.map((channel) => {
+            const platformKey = channel.platform as ExternalPlatform;
+            const platformInfo = PlatformInfo[platformKey] || null;
+
+            return (
+              <Chip
+                key={channel.id}
+                size="small"
+                label={platformInfo?.name || channel.platform}
+                sx={{
+                  height: 20,
+                  fontSize: 10,
+                  backgroundColor: `${platformInfo?.color || '#666'}20`,
+                  color: platformInfo?.color || '#666',
+                }}
+                onClick={() => {
+                  if (channel.shareUrl) {
+                    window.open(channel.shareUrl, '_blank');
+                  }
+                }}
+                icon={
+                  channel.shareUrl ? (
+                    <FontAwesomeIcon icon={faExternalLinkAlt} style={{ fontSize: 8 }} />
+                  ) : undefined
+                }
+              />
+            );
+          })}
+
+          {/* External channel menu */}
+          <Tooltip title="External channels">
+            <IconButton
+              size="small"
+              onClick={(e) => setChannelMenuAnchor(e.currentTarget)}
+            >
+              <FontAwesomeIcon icon={faEllipsisV} style={{ fontSize: 12 }} />
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={channelMenuAnchor}
+            open={Boolean(channelMenuAnchor)}
+            onClose={() => setChannelMenuAnchor(null)}
+          >
+            {!hasGroupMeChannel && (
+              <MenuItem onClick={handleCreateGroupMeChannel}>
+                <ListItemIcon>
+                  <FontAwesomeIcon icon={faLink} />
+                </ListItemIcon>
+                <ListItemText>Connect GroupMe</ListItemText>
+              </MenuItem>
+            )}
+            {activeChannels.length > 0 && (
+              <>
+                <Divider />
+                <MenuItem disabled>
+                  <Typography variant="caption" color="text.secondary">
+                    Connected Channels
+                  </Typography>
+                </MenuItem>
+                {activeChannels.map((channel) => (
+                  <MenuItem
+                    key={channel.id}
+                    onClick={() => handleDisconnectChannel(channel.id)}
+                  >
+                    <ListItemIcon>
+                      <FontAwesomeIcon icon={faLinkSlash} />
+                    </ListItemIcon>
+                    <ListItemText>Disconnect {channel.externalGroupName}</ListItemText>
+                  </MenuItem>
+                ))}
+              </>
+            )}
+            {!hasGroupMeChannel && activeChannels.length === 0 && (
+              <MenuItem disabled>
+                <Typography variant="caption" color="text.secondary">
+                  No external channels
+                </Typography>
+              </MenuItem>
+            )}
+          </Menu>
+
           <Tooltip title="Open full chat page">
             <IconButton size="small" onClick={handleExpandToFullPage}>
               <FontAwesomeIcon icon={faExpand} style={{ fontSize: 14 }} />

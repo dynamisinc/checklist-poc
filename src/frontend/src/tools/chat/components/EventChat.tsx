@@ -1,8 +1,10 @@
 /**
  * EventChat Component
  *
- * Main chat container for event-level communication.
- * Supports bi-directional messaging with external platforms (GroupMe, etc.)
+ * Message display and compose component for a specific channel.
+ * Focused on viewing messages and sending - external channel management
+ * is handled at the page/sidebar level (ChatPage, ChatSidebar).
+ *
  * Uses SignalR for real-time updates.
  */
 
@@ -14,25 +16,10 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  Tooltip,
-  Chip,
-  Badge,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faPaperPlane,
-  faLink,
-  faLinkSlash,
-  faExternalLinkAlt,
-  faEllipsisV,
-  faUsers,
-} from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
 import { CobraTextField } from '../../../theme/styledComponents';
 import { ChatMessage } from './ChatMessage';
@@ -40,12 +27,8 @@ import { chatService } from '../services/chatService';
 import { getCurrentUser } from '../../../core/services/api';
 import { useChatHub } from '../hooks/useChatHub';
 import { usePermissions } from '../../../shared/hooks';
-import type {
-  ChatMessageDto,
-  ChatThreadDto,
-  ExternalChannelMappingDto,
-} from '../types/chat';
-import { ExternalPlatform, PlatformInfo, ChannelType } from '../types/chat';
+import type { ChatMessageDto, ChatThreadDto } from '../types/chat';
+import { ChannelType } from '../types/chat';
 
 interface EventChatProps {
   eventId: string;
@@ -62,7 +45,6 @@ interface EventChatProps {
 
 export const EventChat: React.FC<EventChatProps> = ({
   eventId,
-  eventName,
   channelId,
   channelName,
   channelType,
@@ -82,46 +64,32 @@ export const EventChat: React.FC<EventChatProps> = ({
   // State
   const [thread, setThread] = useState<ChatThreadDto | null>(null);
   const [messages, setMessages] = useState<ChatMessageDto[]>([]);
-  const [externalChannels, setExternalChannels] = useState<ExternalChannelMappingDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [channelMenuAnchor, setChannelMenuAnchor] = useState<null | HTMLElement>(null);
 
   // SignalR handlers for real-time updates
-  const handleReceiveChatMessage = useCallback((message: ChatMessageDto) => {
-    // Skip if message is from current user (we already added it optimistically)
-    if (message.createdBy === currentUser.email && !message.isExternalMessage) {
-      return;
-    }
-    setMessages((prev) => {
-      // Avoid duplicates
-      if (prev.some((m) => m.id === message.id)) {
-        return prev;
+  const handleReceiveChatMessage = useCallback(
+    (message: ChatMessageDto) => {
+      // Skip if message is from current user (we already added it optimistically)
+      if (message.createdBy === currentUser.email && !message.isExternalMessage) {
+        return;
       }
-      return [...prev, message];
-    });
-  }, [currentUser.email]);
-
-  const handleExternalChannelConnected = useCallback((channel: ExternalChannelMappingDto) => {
-    setExternalChannels((prev) => {
-      if (prev.some((c) => c.id === channel.id)) {
-        return prev;
-      }
-      return [...prev, channel];
-    });
-  }, []);
-
-  const handleExternalChannelDisconnected = useCallback((channelId: string) => {
-    setExternalChannels((prev) => prev.filter((c) => c.id !== channelId));
-  }, []);
+      setMessages((prev) => {
+        // Avoid duplicates
+        if (prev.some((m) => m.id === message.id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
+    },
+    [currentUser.email]
+  );
 
   // SignalR connection
   const { joinEventChat, leaveEventChat } = useChatHub({
     onReceiveChatMessage: handleReceiveChatMessage,
-    onExternalChannelConnected: handleExternalChannelConnected,
-    onExternalChannelDisconnected: handleExternalChannelDisconnected,
   });
 
   // Scroll to bottom of messages
@@ -143,10 +111,7 @@ export const EventChat: React.FC<EventChatProps> = ({
         threadData = await chatService.getEventChatThread(eventId);
       }
 
-      const channelsData = await chatService.getExternalChannels(eventId);
-
       setThread(threadData);
-      setExternalChannels(channelsData);
 
       if (threadData?.id) {
         const messagesData = await chatService.getMessages(eventId, threadData.id);
@@ -191,40 +156,6 @@ export const EventChat: React.FC<EventChatProps> = ({
     }
   };
 
-  // Create GroupMe channel
-  const handleCreateGroupMeChannel = async () => {
-    setChannelMenuAnchor(null);
-    try {
-      const channel = await chatService.createExternalChannel(eventId, {
-        platform: ExternalPlatform.GroupMe,
-        customGroupName: eventName || `Event ${eventId}`,
-      });
-      // Only add if not already in the list (backend returns existing if one exists)
-      setExternalChannels((prev) => {
-        if (prev.some((c) => c.id === channel.id)) {
-          return prev;
-        }
-        return [...prev, channel];
-      });
-      toast.success('GroupMe channel connected! Share the link with external team members.');
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to create GroupMe channel';
-      toast.error(errorMsg);
-    }
-  };
-
-  // Disconnect channel
-  const handleDisconnectChannel = async (channelId: string) => {
-    try {
-      await chatService.deactivateExternalChannel(eventId, channelId);
-      setExternalChannels((prev) => prev.filter((c) => c.id !== channelId));
-      toast.success('External channel disconnected');
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to disconnect channel';
-      toast.error(errorMsg);
-    }
-  };
-
   // Initial load
   useEffect(() => {
     loadChatData();
@@ -242,14 +173,6 @@ export const EventChat: React.FC<EventChatProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
-
-  // Get active channels
-  const activeChannels = externalChannels.filter((c) => c.isActive);
-
-  // Check if GroupMe is already connected (only one GroupMe channel per event)
-  const hasGroupMeChannel = activeChannels.some(
-    (c) => c.platform === ExternalPlatform.GroupMe
-  );
 
   if (loading) {
     return (
@@ -302,105 +225,9 @@ export const EventChat: React.FC<EventChatProps> = ({
             backgroundColor: theme.palette.background.default,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle1" fontWeight={600}>
-              {channelName || 'Event Chat'}
-            </Typography>
-            {activeChannels.length > 0 && (
-              <Tooltip title={`${activeChannels.length} external channel(s) connected`}>
-                <Badge badgeContent={activeChannels.length} color="primary">
-                  <FontAwesomeIcon icon={faUsers} style={{ opacity: 0.7 }} />
-                </Badge>
-              </Tooltip>
-            )}
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* External channel chips */}
-            {activeChannels.map((channel) => {
-              const platformKey = channel.platform as ExternalPlatform;
-              const platformInfo = PlatformInfo[platformKey] || null;
-
-              return (
-                <Chip
-                  key={channel.id}
-                  size="small"
-                  label={platformInfo?.name || channel.platform}
-                  onDelete={() => handleDisconnectChannel(channel.id)}
-                  deleteIcon={
-                    <Tooltip title="Disconnect channel">
-                      <span>
-                        <FontAwesomeIcon icon={faLinkSlash} style={{ fontSize: 10 }} />
-                      </span>
-                    </Tooltip>
-                  }
-                  sx={{
-                    backgroundColor: `${platformInfo?.color || '#666'}20`,
-                    color: platformInfo?.color || '#666',
-                    '& .MuiChip-deleteIcon': {
-                      color: 'inherit',
-                      opacity: 0.7,
-                      '&:hover': { opacity: 1 },
-                    },
-                  }}
-                  onClick={() => {
-                    if (channel.shareUrl) {
-                      window.open(channel.shareUrl, '_blank');
-                    }
-                  }}
-                  icon={
-                    channel.shareUrl ? (
-                      <FontAwesomeIcon icon={faExternalLinkAlt} style={{ fontSize: 10 }} />
-                    ) : undefined
-                  }
-                />
-              );
-            })}
-
-            {/* Channel menu */}
-            <IconButton
-              size="small"
-              onClick={(e) => setChannelMenuAnchor(e.currentTarget)}
-            >
-              <FontAwesomeIcon icon={faEllipsisV} />
-            </IconButton>
-            <Menu
-              anchorEl={channelMenuAnchor}
-              open={Boolean(channelMenuAnchor)}
-              onClose={() => setChannelMenuAnchor(null)}
-            >
-              {/* Only show Connect GroupMe if not already connected */}
-              {!hasGroupMeChannel && (
-                <MenuItem onClick={handleCreateGroupMeChannel}>
-                  <ListItemIcon>
-                    <FontAwesomeIcon icon={faLink} />
-                  </ListItemIcon>
-                  <ListItemText>Connect GroupMe</ListItemText>
-                </MenuItem>
-              )}
-              {activeChannels.length > 0 && (
-                <>
-                  <Divider />
-                  <MenuItem disabled>
-                    <Typography variant="caption" color="text.secondary">
-                      Connected Channels
-                    </Typography>
-                  </MenuItem>
-                  {activeChannels.map((channel) => (
-                    <MenuItem
-                      key={channel.id}
-                      onClick={() => handleDisconnectChannel(channel.id)}
-                    >
-                      <ListItemIcon>
-                        <FontAwesomeIcon icon={faLinkSlash} />
-                      </ListItemIcon>
-                      <ListItemText>Disconnect {channel.externalGroupName}</ListItemText>
-                    </MenuItem>
-                  ))}
-                </>
-              )}
-            </Menu>
-          </Box>
+          <Typography variant="subtitle1" fontWeight={600}>
+            {channelName || 'Event Chat'}
+          </Typography>
         </Box>
       )}
 
@@ -425,9 +252,7 @@ export const EventChat: React.FC<EventChatProps> = ({
             }}
           >
             <Typography variant="body2">No messages yet</Typography>
-            <Typography variant="caption">
-              Start the conversation or connect an external channel
-            </Typography>
+            <Typography variant="caption">Start the conversation</Typography>
           </Box>
         ) : (
           <>
@@ -478,9 +303,10 @@ export const EventChat: React.FC<EventChatProps> = ({
               onClick={handleSendMessage}
               disabled={!newMessage.trim() || sending}
               sx={{
-                color: !newMessage.trim() || sending
-                  ? theme.palette.grey[400]
-                  : theme.palette.text.secondary,
+                color:
+                  !newMessage.trim() || sending
+                    ? theme.palette.grey[400]
+                    : theme.palette.text.secondary,
                 '&:hover': {
                   backgroundColor: 'transparent',
                   color: theme.palette.primary.main,
