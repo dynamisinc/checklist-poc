@@ -52,6 +52,9 @@ global using CobraAPI.Core.Services;
 global using CobraAPI.Shared.Events.Models.Entities;
 global using CobraAPI.Shared.Events.Models.DTOs;
 global using CobraAPI.Shared.Events.Services;
+global using CobraAPI.Shared.Positions.Models.Entities;
+global using CobraAPI.Shared.Positions.Models.DTOs;
+global using CobraAPI.Shared.Positions.Services;
 
 // Admin module
 global using CobraAPI.Admin.Models.Entities;

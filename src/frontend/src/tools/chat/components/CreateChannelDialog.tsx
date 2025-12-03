@@ -2,6 +2,8 @@
  * CreateChannelDialog Component
  *
  * Dialog for creating new internal channels within an event.
+ * Supports optional position restriction - when a position is selected,
+ * only users assigned to that position can see the channel.
  *
  * Related User Stories:
  * - UC-004: Manually Create Internal Channel
@@ -16,6 +18,9 @@ import {
   Stack,
   Typography,
   FormHelperText,
+  Box,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import {
@@ -27,6 +32,7 @@ import CobraStyles from '../../../theme/CobraStyles';
 import { chatService } from '../services/chatService';
 import { ChannelType } from '../types/chat';
 import type { ChatThreadDto } from '../types/chat';
+import { usePositions } from '../../../shared/positions';
 
 interface CreateChannelDialogProps {
   open: boolean;
@@ -43,13 +49,17 @@ export const CreateChannelDialog: React.FC<CreateChannelDialogProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedPositionId, setSelectedPositionId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { positions, loading: positionsLoading } = usePositions();
 
   const handleClose = () => {
     if (!saving) {
       setName('');
       setDescription('');
+      setSelectedPositionId(null);
       setError(null);
       onClose();
     }
@@ -75,10 +85,14 @@ export const CreateChannelDialog: React.FC<CreateChannelDialogProps> = ({
       const channel = await chatService.createChannel(eventId, {
         name: trimmedName,
         description: description.trim() || undefined,
-        channelType: ChannelType.Custom,
+        channelType: selectedPositionId ? ChannelType.Position : ChannelType.Custom,
+        positionId: selectedPositionId || undefined,
       });
 
-      toast.success(`Channel "${channel.name}" created`);
+      const successMessage = selectedPositionId
+        ? `Channel "${channel.name}" created (restricted to ${positions.find((p) => p.id === selectedPositionId)?.name || 'selected position'})`
+        : `Channel "${channel.name}" created`;
+      toast.success(successMessage);
       onChannelCreated(channel);
       handleClose();
     } catch (err) {
@@ -96,6 +110,9 @@ export const CreateChannelDialog: React.FC<CreateChannelDialogProps> = ({
       handleCreate();
     }
   };
+
+  // Find selected position for display
+  const selectedPosition = positions.find((p) => p.id === selectedPositionId) || null;
 
   return (
     <Dialog
@@ -145,6 +162,65 @@ export const CreateChannelDialog: React.FC<CreateChannelDialogProps> = ({
             inputProps={{ maxLength: 200 }}
           />
 
+          {/* Position Restriction - Autocomplete allows free text entry */}
+          <Autocomplete
+            options={positions}
+            getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+            value={selectedPosition}
+            onChange={(_, newValue) => {
+              if (newValue && typeof newValue !== 'string') {
+                setSelectedPositionId(newValue.id);
+              } else {
+                setSelectedPositionId(null);
+              }
+            }}
+            loading={positionsLoading}
+            renderInput={(params) => (
+              <CobraTextField
+                {...params}
+                label="Restrict to Position (optional)"
+                placeholder="Select a position or leave empty for all users"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {positionsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <Box component="li" {...props} key={option.id}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {option.color && (
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        backgroundColor: option.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  <Typography variant="body2">{option.name}</Typography>
+                </Box>
+              </Box>
+            )}
+            isOptionEqualToValue={(option, value) => option.id === value?.id}
+            clearOnEscape
+            blurOnSelect
+          />
+
+          {selectedPositionId && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+              Only users assigned to this position will see this channel. Users with Manage role
+              can see all channels.
+            </Typography>
+          )}
+
           {error && (
             <FormHelperText error sx={{ mx: 0 }}>
               {error}
@@ -157,11 +233,7 @@ export const CreateChannelDialog: React.FC<CreateChannelDialogProps> = ({
         <CobraLinkButton onClick={handleClose} disabled={saving}>
           Cancel
         </CobraLinkButton>
-        <CobraSaveButton
-          onClick={handleCreate}
-          isSaving={saving}
-          disabled={!name.trim()}
-        >
+        <CobraSaveButton onClick={handleCreate} isSaving={saving} disabled={!name.trim()}>
           Create Channel
         </CobraSaveButton>
       </DialogActions>

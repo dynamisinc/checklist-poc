@@ -36,6 +36,17 @@ public class ChatThreadDto
     public int DisplayOrder { get; set; }
     public string? IconName { get; set; }
     public string? Color { get; set; }
+
+    /// <summary>
+    /// For Position channels, the ID of the associated Position.
+    /// </summary>
+    public Guid? PositionId { get; set; }
+
+    /// <summary>
+    /// For Position channels, the position details.
+    /// </summary>
+    public PositionChannelDto? Position { get; set; }
+
     public int MessageCount { get; set; }
     public DateTime CreatedAt { get; set; }
 
@@ -71,6 +82,13 @@ public class CreateChannelRequest
     public ChannelType ChannelType { get; set; } = ChannelType.Custom;
     public string? IconName { get; set; }
     public string? Color { get; set; }
+
+    /// <summary>
+    /// Optional position ID for Position channels.
+    /// When set, only users assigned to this position can see the channel.
+    /// If ChannelType is Position, this should be set.
+    /// </summary>
+    public Guid? PositionId { get; set; }
 }
 
 /// <summary>
@@ -116,4 +134,16 @@ public class UpdateChannelRequest
 public class SendMessageRequest
 {
     public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Embedded position info for Position channels.
+/// </summary>
+public class PositionChannelDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? IconName { get; set; }
+    public string? Color { get; set; }
 }

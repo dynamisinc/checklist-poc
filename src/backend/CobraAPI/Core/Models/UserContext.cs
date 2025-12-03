@@ -47,9 +47,22 @@ public class UserContext
     public List<string> Positions { get; set; } = new();
 
     /// <summary>
+    /// IDs of the positions the user is assigned to.
+    /// Resolved from position names during authentication.
+    /// Used for filtering position-based channels.
+    /// </summary>
+    public List<Guid> PositionIds { get; set; } = new();
+
+    /// <summary>
     /// Indicates if user has admin privileges (for template management)
     /// </summary>
     public bool IsAdmin { get; set; } = false;
+
+    /// <summary>
+    /// The organization the user belongs to.
+    /// Positions and other org-scoped data are filtered by this.
+    /// </summary>
+    public Guid OrganizationId { get; set; }
 
     /// <summary>
     /// Current event ID user is working in (optional)

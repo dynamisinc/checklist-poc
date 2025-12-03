@@ -171,6 +171,30 @@ export const chatService = {
     return response.data.archivedCount;
   },
 
+  /**
+   * Creates position-based channels for an event.
+   * Creates one channel for each ICS position (Command, Operations, Planning, etc.).
+   * @returns List of created position channels.
+   */
+  createPositionChannels: async (eventId: string): Promise<ChatThreadDto[]> => {
+    const response = await apiClient.post<ChatThreadDto[]>(
+      `/api/events/${eventId}/chat/channels/position`
+    );
+    return response.data;
+  },
+
+  /**
+   * Gets channels visible to the current user based on their positions.
+   * Position channels are only visible to users assigned to that position.
+   * Other channel types are visible to all users.
+   */
+  getUserVisibleChannels: async (eventId: string): Promise<ChatThreadDto[]> => {
+    const response = await apiClient.get<ChatThreadDto[]>(
+      `/api/events/${eventId}/chat/channels/visible`
+    );
+    return response.data;
+  },
+
   // ===== Legacy Thread API =====
 
   /**

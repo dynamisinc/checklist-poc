@@ -29,11 +29,13 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  CircularProgress,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faPalette, faUserPen, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
 import { useSearchParams } from 'react-router-dom';
-import { ICS_POSITIONS, PermissionRole } from '../../types';
+import { PermissionRole } from '../../types';
+import { usePositions } from '../../shared/positions';
 import { useSysAdmin } from '../../admin/contexts/SysAdminContext';
 import { cobraTheme } from '../../theme/cobraTheme';
 import {
@@ -134,6 +136,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
   const storedAccount = getStoredAccount();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isSysAdmin } = useSysAdmin();
+  const { positionNames, loading: positionsLoading } = usePositions();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPositions, setSelectedPositions] = useState<string[]>(storedProfile.positions);
@@ -398,27 +401,33 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
             Select one or more ICS positions
           </Typography>
           <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
-            {ICS_POSITIONS.map((position) => (
-              <FormControlLabel
-                key={position}
-                control={
-                  <Checkbox
-                    checked={selectedPositions.includes(position)}
-                    onChange={() => handlePositionToggle(position)}
-                    size="small"
-                  />
-                }
-                label={
-                  <Typography variant="body2">
-                    {position}
-                    {position === primaryPosition && (
-                      <Chip label="Primary" size="small" sx={{ ml: 1, height: 18, fontSize: '0.7rem' }} />
-                    )}
-                  </Typography>
-                }
-                sx={{ display: 'flex', width: '100%', mx: 0 }}
-              />
-            ))}
+            {positionsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : (
+              positionNames.map((position) => (
+                <FormControlLabel
+                  key={position}
+                  control={
+                    <Checkbox
+                      checked={selectedPositions.includes(position)}
+                      onChange={() => handlePositionToggle(position)}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      {position}
+                      {position === primaryPosition && (
+                        <Chip label="Primary" size="small" sx={{ ml: 1, height: 18, fontSize: '0.7rem' }} />
+                      )}
+                    </Typography>
+                  }
+                  sx={{ display: 'flex', width: '100%', mx: 0 }}
+                />
+              ))
+            )}
           </Box>
         </Box>
 
@@ -438,7 +447,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
                 value={PermissionRole.READONLY}
                 control={<Radio size="small" />}
                 label={
-                  <Box>
+                  <Box component="span" sx={{ display: 'block' }}>
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Readonly
                     </Typography>
@@ -452,7 +461,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
                 value={PermissionRole.CONTRIBUTOR}
                 control={<Radio size="small" />}
                 label={
-                  <Box>
+                  <Box component="span" sx={{ display: 'block' }}>
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Contributor
                     </Typography>
@@ -466,7 +475,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
                 value={PermissionRole.MANAGE}
                 control={<Radio size="small" />}
                 label={
-                  <Box>
+                  <Box component="span" sx={{ display: 'block' }}>
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Manage
                     </Typography>
@@ -499,7 +508,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
                   value={variant.id}
                   control={<Radio size="small" />}
                   label={
-                    <Box>
+                    <Box component="span" sx={{ display: 'block' }}>
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                         {variant.name}
                       </Typography>
@@ -533,7 +542,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ onProfileChange }) => 
                   value={variant.id}
                   control={<Radio size="small" />}
                   label={
-                    <Box>
+                    <Box component="span" sx={{ display: 'block' }}>
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                         {variant.name}
                       </Typography>

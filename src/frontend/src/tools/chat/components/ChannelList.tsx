@@ -38,6 +38,13 @@ import {
   faUserGroup,
   faEllipsisVertical,
   faBoxArchive,
+  faStar,
+  faCogs,
+  faClipboardList,
+  faTruck,
+  faDollarSign,
+  faShieldHalved,
+  faHandshake,
 } from '@fortawesome/free-solid-svg-icons';
 import { chatService } from '../services/chatService';
 import { useExternalMessagingConfig } from '../hooks/useExternalMessagingConfig';
@@ -54,23 +61,32 @@ interface ChannelListProps {
 }
 
 /**
+ * Map icon name string to FontAwesome icon definition
+ */
+const iconNameToIcon = (iconName: string) => {
+  const iconMap: Record<string, typeof faComments> = {
+    comments: faComments,
+    bullhorn: faBullhorn,
+    hashtag: faHashtag,
+    'user-group': faUserGroup,
+    star: faStar,
+    cogs: faCogs,
+    'clipboard-list': faClipboardList,
+    truck: faTruck,
+    'dollar-sign': faDollarSign,
+    'shield-halved': faShieldHalved,
+    handshake: faHandshake,
+  };
+  return iconMap[iconName] ?? faHashtag;
+};
+
+/**
  * Get icon for channel based on type and metadata
  */
 const getChannelIcon = (channel: ChatThreadDto) => {
   // Use custom icon if provided
   if (channel.iconName) {
-    switch (channel.iconName) {
-      case 'comments':
-        return faComments;
-      case 'bullhorn':
-        return faBullhorn;
-      case 'hashtag':
-        return faHashtag;
-      case 'user-group':
-        return faUserGroup;
-      default:
-        return faHashtag;
-    }
+    return iconNameToIcon(channel.iconName);
   }
 
   // Default icons by type
@@ -134,6 +150,7 @@ export const ChannelList: React.FC<ChannelListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     internal: true,
+    position: true,
     external: true,
     custom: false,
   });
@@ -142,12 +159,13 @@ export const ChannelList: React.FC<ChannelListProps> = ({
   const [channelToArchive, setChannelToArchive] = useState<ChatThreadDto | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ element: HTMLElement; channel: ChatThreadDto } | null>(null);
 
-  // Load channels
+  // Load channels (uses user-visible endpoint to filter position channels by user's positions)
   const loadChannels = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await chatService.getChannels(eventId);
+      // Use the user-visible endpoint which filters position channels by user's assigned positions
+      const data = await chatService.getUserVisibleChannels(eventId);
       setChannels(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load channels';
@@ -160,6 +178,20 @@ export const ChannelList: React.FC<ChannelListProps> = ({
 
   useEffect(() => {
     loadChannels();
+  }, [loadChannels]);
+
+  // Refresh channels when profile changes (position or account change)
+  useEffect(() => {
+    const handleProfileChange = () => {
+      console.log('[ChannelList] Profile changed, refreshing channels');
+      loadChannels();
+    };
+    window.addEventListener('profileChanged', handleProfileChange);
+    window.addEventListener('accountChanged', handleProfileChange);
+    return () => {
+      window.removeEventListener('profileChanged', handleProfileChange);
+      window.removeEventListener('accountChanged', handleProfileChange);
+    };
   }, [loadChannels]);
 
   // Toggle section expansion
@@ -222,10 +254,9 @@ export const ChannelList: React.FC<ChannelListProps> = ({
   const internalChannels = channels.filter(
     (c) => isChannelType(c.channelType, ChannelType.Internal, ChannelType.Announcements)
   );
+  const positionChannels = channels.filter((c) => isChannelType(c.channelType, ChannelType.Position));
   const externalChannels = channels.filter((c) => isChannelType(c.channelType, ChannelType.External));
-  const otherChannels = channels.filter(
-    (c) => isChannelType(c.channelType, ChannelType.Position, ChannelType.Custom)
-  );
+  const customChannels = channels.filter((c) => isChannelType(c.channelType, ChannelType.Custom));
 
   if (loading) {
     return (
@@ -439,13 +470,19 @@ export const ChannelList: React.FC<ChannelListProps> = ({
         alwaysShow: true,
         emptyMessage: 'No channels available',
       })}
+      {/* Position channels section - only show if user has position channels visible */}
+      {positionChannels.length > 0 &&
+        renderSection('My Sections', 'position', positionChannels, {
+          alwaysShow: false,
+          emptyMessage: undefined,
+        })}
       {/* Only show External section if external messaging is configured by admin */}
       {externalMessagingConfigured &&
         renderSection('External', 'external', externalChannels, {
           alwaysShow: true,
           emptyMessage: 'No external channels connected',
         })}
-      {renderSection('Groups', 'custom', otherChannels, { showAddButton: true })}
+      {renderSection('Groups', 'custom', customChannels, { showAddButton: true })}
 
 
       {/* Create Channel Dialog */}
