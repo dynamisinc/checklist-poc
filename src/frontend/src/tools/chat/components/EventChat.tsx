@@ -44,18 +44,35 @@ import type {
   ChatThreadDto,
   ExternalChannelMappingDto,
 } from '../types/chat';
-import { ExternalPlatform, PlatformInfo } from '../types/chat';
+import { ExternalPlatform, PlatformInfo, ChannelType } from '../types/chat';
 
 interface EventChatProps {
   eventId: string;
   eventName?: string;
+  /** Specific channel ID to load (if not provided, loads default event chat) */
+  channelId?: string;
+  /** Channel name for display */
+  channelName?: string;
+  /** Channel type for permission checks */
+  channelType?: ChannelType;
   /** Compact mode for sidebar - hides header, adjusts heights */
   compact?: boolean;
 }
 
-export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName, compact = false }) => {
+export const EventChat: React.FC<EventChatProps> = ({
+  eventId,
+  eventName,
+  channelId,
+  channelName,
+  channelType,
+  compact = false,
+}) => {
   const theme = useTheme();
   const currentUser = getCurrentUser();
+
+  // Check if user can send messages (announcements channel is read-only for non-admin users)
+  // TODO: Implement proper permission check based on user roles
+  const canSendMessages = channelType !== ChannelType.Announcements;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -115,10 +132,15 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName, compac
       setLoading(true);
       setError(null);
 
-      const [threadData, channelsData] = await Promise.all([
-        chatService.getEventChatThread(eventId),
-        chatService.getExternalChannels(eventId),
-      ]);
+      // If channelId is provided, load that specific channel; otherwise load default
+      let threadData: ChatThreadDto;
+      if (channelId) {
+        threadData = await chatService.getChannel(eventId, channelId);
+      } else {
+        threadData = await chatService.getEventChatThread(eventId);
+      }
+
+      const channelsData = await chatService.getExternalChannels(eventId);
 
       setThread(threadData);
       setExternalChannels(channelsData);
@@ -134,11 +156,11 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName, compac
     } finally {
       setLoading(false);
     }
-  }, [eventId]);
+  }, [eventId, channelId]);
 
   // Send message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !thread?.id || sending) return;
+    if (!newMessage.trim() || !thread?.id || sending || !canSendMessages) return;
 
     const messageText = newMessage.trim();
     setNewMessage('');
@@ -279,7 +301,7 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName, compac
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="subtitle1" fontWeight={600}>
-              Event Chat
+              {channelName || 'Event Chat'}
             </Typography>
             {activeChannels.length > 0 && (
               <Tooltip title={`${activeChannels.length} external channel(s) connected`}>
@@ -429,43 +451,60 @@ export const EventChat: React.FC<EventChatProps> = ({ eventId, eventName, compac
           backgroundColor: '#fff',
         }}
       >
-        <CobraTextField
-          inputRef={inputRef}
-          fullWidth
-          size="small"
-          placeholder=""
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={sending}
-          multiline
-          maxRows={3}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 1,
-              backgroundColor: '#fff',
-            },
-          }}
-        />
-        <IconButton
-          onClick={handleSendMessage}
-          disabled={!newMessage.trim() || sending}
-          sx={{
-            color: !newMessage.trim() || sending
-              ? theme.palette.grey[400]
-              : theme.palette.text.secondary,
-            '&:hover': {
-              backgroundColor: 'transparent',
-              color: theme.palette.primary.main,
-            },
-          }}
-        >
-          {sending ? (
-            <CircularProgress size={20} color="inherit" />
-          ) : (
-            <FontAwesomeIcon icon={faPaperPlane} />
-          )}
-        </IconButton>
+        {canSendMessages ? (
+          <>
+            <CobraTextField
+              inputRef={inputRef}
+              fullWidth
+              size="small"
+              placeholder=""
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={sending}
+              multiline
+              maxRows={3}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                  backgroundColor: '#fff',
+                },
+              }}
+            />
+            <IconButton
+              onClick={handleSendMessage}
+              disabled={!newMessage.trim() || sending}
+              sx={{
+                color: !newMessage.trim() || sending
+                  ? theme.palette.grey[400]
+                  : theme.palette.text.secondary,
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  color: theme.palette.primary.main,
+                },
+              }}
+            >
+              {sending ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <FontAwesomeIcon icon={faPaperPlane} />
+              )}
+            </IconButton>
+          </>
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{
+              color: theme.palette.text.secondary,
+              fontStyle: 'italic',
+              textAlign: 'center',
+              width: '100%',
+              py: 0.5,
+            }}
+          >
+            This channel is read-only
+          </Typography>
+        )}
       </Box>
     </Paper>
   );

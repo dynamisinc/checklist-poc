@@ -5,9 +5,11 @@
  * Features:
  * - Draggable resize handle on the left edge
  * - Accordion-style channel list
+ * - Channel selection with message view
  * - Persisted width via ChatSidebarContext
  *
  * Related User Stories:
+ * - UC-001: Auto-Create Default Channels
  * - UC-012: Access event channels via accordion sidebar
  * - UC-014: Full-page chat view with tabbed channels
  */
@@ -25,11 +27,14 @@ import {
   faXmark,
   faExpand,
   faGripLinesVertical,
+  faChevronLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { useChatSidebar } from '../contexts/ChatSidebarContext';
 import { useEvents } from '../../../shared/events';
 import { EventChat } from './EventChat';
+import { ChannelList } from './ChannelList';
+import type { ChatThreadDto } from '../types/chat';
 
 export const ChatSidebar: React.FC = () => {
   const theme = useTheme();
@@ -42,9 +47,30 @@ export const ChatSidebar: React.FC = () => {
     setWidth,
   } = useChatSidebar();
 
+  // Channel state
+  const [selectedChannel, setSelectedChannel] = useState<ChatThreadDto | null>(null);
+  const [showChannelList, setShowChannelList] = useState(true);
+
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Reset selected channel when event changes
+  useEffect(() => {
+    setSelectedChannel(null);
+    setShowChannelList(true);
+  }, [currentEvent?.id]);
+
+  // Handle channel selection
+  const handleChannelSelect = useCallback((channel: ChatThreadDto) => {
+    setSelectedChannel(channel);
+    setShowChannelList(false);
+  }, []);
+
+  // Handle back to channel list
+  const handleBackToChannels = useCallback(() => {
+    setShowChannelList(true);
+  }, []);
 
   // Handle mouse down on resize handle
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -153,15 +179,24 @@ export const ChatSidebar: React.FC = () => {
           boxSizing: 'border-box',
         }}
       >
-        <Typography
-          sx={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Event Chat
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {!showChannelList && selectedChannel && (
+            <Tooltip title="Back to channels">
+              <IconButton size="small" onClick={handleBackToChannels}>
+                <FontAwesomeIcon icon={faChevronLeft} style={{ fontSize: 12 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Typography
+            sx={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            {showChannelList ? 'Event Chat' : selectedChannel?.name || 'Chat'}
+          </Typography>
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <Tooltip title="Open full chat page">
             <IconButton size="small" onClick={handleExpandToFullPage}>
@@ -186,11 +221,36 @@ export const ChatSidebar: React.FC = () => {
         }}
       >
         {currentEvent ? (
-          <EventChat
-            eventId={currentEvent.id}
-            eventName={currentEvent.name}
-            compact
-          />
+          <>
+            {showChannelList ? (
+              // Channel list view
+              <Box sx={{ flex: 1, overflowY: 'auto' }}>
+                <ChannelList
+                  eventId={currentEvent.id}
+                  selectedChannelId={selectedChannel?.id}
+                  onChannelSelect={handleChannelSelect}
+                  compact
+                />
+              </Box>
+            ) : selectedChannel ? (
+              // Chat view for selected channel
+              <EventChat
+                eventId={currentEvent.id}
+                eventName={currentEvent.name}
+                channelId={selectedChannel.id}
+                channelName={selectedChannel.name}
+                channelType={selectedChannel.channelType}
+                compact
+              />
+            ) : (
+              // Fallback - default event chat
+              <EventChat
+                eventId={currentEvent.id}
+                eventName={currentEvent.name}
+                compact
+              />
+            )}
+          </>
         ) : (
           <Box
             sx={{
