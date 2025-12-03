@@ -9,7 +9,6 @@ import {
   isValidVariant,
   getVariantInfo,
   checklistVariants,
-  type ChecklistVariant,
 } from './experimentConfig';
 
 describe('isValidVariant', () => {

@@ -92,7 +92,7 @@ public static class SystemSettingKeys
     // Integration settings
     public const string GroupMeAccessToken = "GroupMe.AccessToken";
     public const string GroupMeBaseUrl = "GroupMe.BaseUrl";
-    public const string GroupMeWebhookBaseUrl = "GroupMe.WebhookBaseUrl";
+    // Note: GroupMeWebhookBaseUrl is NOT stored in database - it comes from appsettings.json
 
     // AI settings (future)
     public const string OpenAiApiKey = "OpenAI.ApiKey";

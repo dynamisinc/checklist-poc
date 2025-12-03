@@ -49,6 +49,7 @@ export type {
   CreateSystemSettingRequest,
   UpdateSystemSettingRequest,
   UpdateSettingValueRequest,
+  GroupMeIntegrationStatus,
 } from './types/systemSettings';
 export {
   SettingCategory,

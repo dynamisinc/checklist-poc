@@ -11,24 +11,24 @@ namespace CobraAPI.Tools.Chat.Services;
 public class ChatService : IChatService
 {
     private readonly CobraDbContext _dbContext;
-    private readonly IExternalMessagingService _externalMessagingService;
     private readonly IChatHubService _chatHubService;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ChatService> _logger;
 
     private const int DefaultPageSize = 50;
 
     public ChatService(
         CobraDbContext dbContext,
-        IExternalMessagingService externalMessagingService,
         IChatHubService chatHubService,
         IHttpContextAccessor httpContextAccessor,
+        IServiceProvider serviceProvider,
         ILogger<ChatService> logger)
     {
         _dbContext = dbContext;
-        _externalMessagingService = externalMessagingService;
         _chatHubService = chatHubService;
         _httpContextAccessor = httpContextAccessor;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -111,6 +111,7 @@ public class ChatService : IChatService
             .Select(cm => new ChatMessageDto
             {
                 Id = cm.Id,
+                ChatThreadId = cm.ChatThreadId,
                 CreatedAt = cm.CreatedAt,
                 CreatedBy = cm.CreatedBy,
                 SenderDisplayName = cm.SenderDisplayName,
@@ -151,6 +152,7 @@ public class ChatService : IChatService
         var messageDto = new ChatMessageDto
         {
             Id = chatMessage.Id,
+            ChatThreadId = chatMessage.ChatThreadId,
             CreatedAt = chatMessage.CreatedAt,
             CreatedBy = chatMessage.CreatedBy,
             SenderDisplayName = chatMessage.SenderDisplayName,
@@ -162,13 +164,17 @@ public class ChatService : IChatService
         await _chatHubService.BroadcastMessageToEventAsync(eventId, messageDto);
 
         // Forward to external platforms (fire and forget)
+        // Must create a new scope because the request scope will be disposed
+        var senderName = userContext.FullName;
         _ = Task.Run(async () =>
         {
             try
             {
-                await _externalMessagingService.BroadcastToExternalChannelsAsync(
+                using var scope = _serviceProvider.CreateScope();
+                var externalMessagingService = scope.ServiceProvider.GetRequiredService<IExternalMessagingService>();
+                await externalMessagingService.BroadcastToExternalChannelsAsync(
                     eventId,
-                    userContext.FullName,
+                    senderName,
                     message);
             }
             catch (Exception ex)
@@ -227,6 +233,7 @@ public class ChatService : IChatService
         var messageDto = new ChatMessageDto
         {
             Id = chatMessage.Id,
+            ChatThreadId = chatMessage.ChatThreadId,
             CreatedAt = chatMessage.CreatedAt,
             CreatedBy = chatMessage.CreatedBy,
             SenderDisplayName = senderName,

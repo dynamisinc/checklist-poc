@@ -5,7 +5,12 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Configure JSON to output dates in ISO 8601 UTC format
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
@@ -40,6 +45,7 @@ builder.Services.AddHttpClient<IGroupMeApiClient, GroupMeApiClient>(client =>
 builder.Services.AddScoped<IChatHubService, ChatHubService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ChatService>(); // Concrete type for internal use
+builder.Services.AddScoped<IChannelService, ChannelService>();
 builder.Services.AddScoped<IExternalMessagingService, ExternalMessagingService>();
 
 // Register system settings service

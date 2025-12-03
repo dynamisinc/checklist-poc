@@ -12,14 +12,170 @@ import type {
   ExternalChannelMappingDto,
   SendMessageRequest,
   CreateExternalChannelRequest,
+  CreateChannelRequest,
+  UpdateChannelRequest,
 } from '../types/chat';
 
 /**
  * Chat API service
  */
 export const chatService = {
+  // ===== Channel API =====
+
+  /**
+   * Gets all channels for an event.
+   */
+  getChannels: async (eventId: string): Promise<ChatThreadDto[]> => {
+    const response = await apiClient.get<ChatThreadDto[]>(
+      `/api/events/${eventId}/chat/channels`
+    );
+    return response.data;
+  },
+
+  /**
+   * Gets a specific channel by ID.
+   */
+  getChannel: async (
+    eventId: string,
+    channelId: string
+  ): Promise<ChatThreadDto> => {
+    const response = await apiClient.get<ChatThreadDto>(
+      `/api/events/${eventId}/chat/channels/${channelId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Creates a new channel in an event.
+   */
+  createChannel: async (
+    eventId: string,
+    request: Omit<CreateChannelRequest, 'eventId'>
+  ): Promise<ChatThreadDto> => {
+    const response = await apiClient.post<ChatThreadDto>(
+      `/api/events/${eventId}/chat/channels`,
+      request
+    );
+    return response.data;
+  },
+
+  /**
+   * Updates a channel's metadata.
+   */
+  updateChannel: async (
+    eventId: string,
+    channelId: string,
+    request: UpdateChannelRequest
+  ): Promise<ChatThreadDto> => {
+    const response = await apiClient.patch<ChatThreadDto>(
+      `/api/events/${eventId}/chat/channels/${channelId}`,
+      request
+    );
+    return response.data;
+  },
+
+  /**
+   * Reorders channels within an event.
+   */
+  reorderChannels: async (
+    eventId: string,
+    orderedChannelIds: string[]
+  ): Promise<void> => {
+    await apiClient.put(
+      `/api/events/${eventId}/chat/channels/reorder`,
+      orderedChannelIds
+    );
+  },
+
+  /**
+   * Deletes a channel (soft delete/archive).
+   */
+  deleteChannel: async (eventId: string, channelId: string): Promise<void> => {
+    await apiClient.delete(`/api/events/${eventId}/chat/channels/${channelId}`);
+  },
+
+  /**
+   * Gets all channels including archived for administration.
+   */
+  getAllChannels: async (
+    eventId: string,
+    includeArchived = true
+  ): Promise<ChatThreadDto[]> => {
+    const response = await apiClient.get<ChatThreadDto[]>(
+      `/api/events/${eventId}/chat/channels/all?includeArchived=${includeArchived}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Gets archived channels for an event.
+   */
+  getArchivedChannels: async (eventId: string): Promise<ChatThreadDto[]> => {
+    const response = await apiClient.get<ChatThreadDto[]>(
+      `/api/events/${eventId}/chat/channels/archived`
+    );
+    return response.data;
+  },
+
+  /**
+   * Restores an archived channel.
+   */
+  restoreChannel: async (
+    eventId: string,
+    channelId: string
+  ): Promise<ChatThreadDto> => {
+    const response = await apiClient.post<ChatThreadDto>(
+      `/api/events/${eventId}/chat/channels/${channelId}/restore`
+    );
+    return response.data;
+  },
+
+  /**
+   * Permanently deletes a channel (cannot be undone without SQL access).
+   */
+  permanentDeleteChannel: async (
+    eventId: string,
+    channelId: string
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/api/events/${eventId}/chat/channels/${channelId}/permanent`
+    );
+  },
+
+  /**
+   * Archives all messages in a channel.
+   * @returns Number of messages archived.
+   */
+  archiveAllMessages: async (
+    eventId: string,
+    channelId: string
+  ): Promise<number> => {
+    const response = await apiClient.post<{ archivedCount: number }>(
+      `/api/events/${eventId}/chat/channels/${channelId}/archive-messages`
+    );
+    return response.data.archivedCount;
+  },
+
+  /**
+   * Archives messages older than specified days in a channel.
+   * @returns Number of messages archived.
+   */
+  archiveMessagesOlderThan: async (
+    eventId: string,
+    channelId: string,
+    days: number
+  ): Promise<number> => {
+    const response = await apiClient.post<{ archivedCount: number }>(
+      `/api/events/${eventId}/chat/channels/${channelId}/archive-messages-older-than?days=${days}`
+    );
+    return response.data.archivedCount;
+  },
+
+  // ===== Legacy Thread API =====
+
   /**
    * Gets or creates the default chat thread for an event.
+   * @deprecated Use getChannels instead
    */
   getEventChatThread: async (eventId: string): Promise<ChatThreadDto> => {
     const response = await apiClient.get<ChatThreadDto>(

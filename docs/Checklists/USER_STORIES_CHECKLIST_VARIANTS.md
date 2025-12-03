@@ -1,8 +1,10 @@
 # Landing Page & Dashboard User Stories
 
-> **Created:** 2025-11-29
-> **Status:** Implementation Complete - Ready for User Testing
-> **Epic:** Dashboard & Landing Page Experience
+> **Created:** 2025-11-29  
+> **Updated:** 2025-12-03  
+> **Status:** Implementation Complete - Ready for User Testing  
+> **Epic:** Dashboard & Landing Page Experience  
+> **Story Prefix:** CHK-LP-XX
 
 ## Overview
 
@@ -12,11 +14,20 @@ The implementation provides **4 different landing page experiences** that can be
 
 ---
 
+## Story Prefix Convention
+
+All landing page stories use the **CHK-LP-X** prefix where:
+- **CHK** = Checklist module
+- **LP** = Landing Page epic
+- **X** = Story number
+
+---
+
 ## Epic: Landing Page Experience
 
-### Story LP-1: Config-Based Landing Page Variants
-**As a** product owner
-**I want to** test different landing page layouts with my small user base (~20 users)
+### CHK-LP-1: Config-Based Landing Page Variants
+**As a** product owner  
+**I want to** test different landing page layouts with my small user base (~20 users)  
 **So that** I can determine which UX approach best serves infrequent users under stress
 
 **Acceptance Criteria:**
@@ -41,9 +52,9 @@ The implementation provides **4 different landing page experiences** that can be
 
 ---
 
-### Story LP-2: Task-First Minimal Landing Page
-**As an** incident operator
-**I want to** see a simple list of items that need my attention right now
+### CHK-LP-2: Task-First Minimal Landing Page
+**As an** incident operator  
+**I want to** see a simple list of items that need my attention right now  
 **So that** I can complete my tasks quickly without cognitive overload
 
 **Acceptance Criteria:**
@@ -68,9 +79,9 @@ The implementation provides **4 different landing page experiences** that can be
 
 ---
 
-### Story LP-3: Role-Adaptive Dashboard
-**As a** section chief or incident commander
-**I want to** see different views based on my role (tasks, team overview, insights)
+### CHK-LP-3: Role-Adaptive Dashboard
+**As a** section chief or incident commander  
+**I want to** see different views based on my role (tasks, team overview, insights)  
 **So that** I can switch between operator and oversight modes without navigating away
 
 **Acceptance Criteria:**
@@ -102,9 +113,9 @@ The implementation provides **4 different landing page experiences** that can be
 
 ---
 
-### Story LP-4: Summary Cards Landing Page
-**As a** returning user
-**I want to** see key statistics at a glance before diving into details
+### CHK-LP-4: Summary Cards Landing Page
+**As a** returning user  
+**I want to** see key statistics at a glance before diving into details  
 **So that** I can quickly assess my workload and prioritize
 
 **Acceptance Criteria:**
@@ -129,9 +140,9 @@ The implementation provides **4 different landing page experiences** that can be
 
 ---
 
-### Story LP-5: Control Variant (Current UX)
-**As a** current user
-**I want to** continue using the existing card-based layout
+### CHK-LP-5: Control Variant (Current UX)
+**As a** current user  
+**I want to** continue using the existing card-based layout  
 **So that** I don't experience disruption if the new variants don't suit me
 
 **Acceptance Criteria:**
@@ -154,17 +165,17 @@ The implementation provides **4 different landing page experiences** that can be
 
 ## Non-Functional Requirements
 
-### NFR-LP-1: Performance
+### CHK-LP-NFR-1: Performance
 - Landing page variants should load within 500ms
 - Variant switching should be instantaneous (no server round-trip)
 - Item click should navigate to checklist detail within 200ms
 
-### NFR-LP-2: Accessibility
+### CHK-LP-NFR-2: Accessibility
 - All variants must support keyboard navigation
 - Screen reader compatible
 - Color contrast meets WCAG 2.1 AA standards
 
-### NFR-LP-3: Persistence
+### CHK-LP-NFR-3: Persistence
 - Variant selection persists across browser sessions
 - Works across browser tabs (via storage events)
 
@@ -232,24 +243,24 @@ The implementation provides **4 different landing page experiences** that can be
 
 ## Future Enhancements (Backlog)
 
-### Story LP-6: Operational Period Summary View
-**As an** incoming shift supervisor
-**I want to** see a summary of the current operational period
+### CHK-LP-6: Operational Period Summary View
+**As an** incoming shift supervisor  
+**I want to** see a summary of the current operational period  
 **So that** I can quickly understand the state of operations during shift handoff
 
 **Acceptance Criteria (Proposed):**
 - Summary by position: which positions have incomplete items
 - Progress bars for each checklist in the period
 - Timeline of recent activity
-- Handoff notes section (future feature)
+- Handoff notes section (integrates with CHK-12.3)
 
 **Story Points:** 8 (Not implemented - backlog)
 
 ---
 
-### Story LP-7: Event Summary Dashboard
-**As an** incident commander
-**I want to** see an event-level summary across all operational periods
+### CHK-LP-7: Event Summary Dashboard
+**As an** incident commander  
+**I want to** see an event-level summary across all operational periods  
 **So that** I can assess overall incident response progress
 
 **Acceptance Criteria (Proposed):**
@@ -279,3 +290,4 @@ When testing with users, consider tracking:
 | Date | Version | Changes |
 |------|---------|---------|
 | 2025-11-29 | 1.0.0 | Initial implementation of 4 landing page variants |
+| 2025-12-03 | 1.1.0 | Added CHK-LP-XX story prefixes for consistency |

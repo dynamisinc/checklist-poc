@@ -8,9 +8,9 @@ namespace CobraAPI.Tools.Chat.ExternalPlatforms;
 /// Client service for interacting with the GroupMe REST API.
 /// Handles group creation, bot registration, and message sending.
 ///
-/// Configuration priority:
-/// 1. Database settings (SystemSettings table) - for customer-level overrides
-/// 2. appsettings.json - fallback for development
+/// Configuration:
+/// - AccessToken: From database settings (SystemSettings) - admin-configurable
+/// - WebhookBaseUrl: From appsettings.json - infrastructure config
 ///
 /// API Documentation: https://dev.groupme.com/docs/v3
 /// </summary>
@@ -32,7 +32,9 @@ public class GroupMeApiClient : IGroupMeApiClient
         _serviceProvider = serviceProvider;
         _logger = logger;
 
-        _httpClient.BaseAddress = new Uri(_settings.BaseUrl);
+        // Ensure base URL ends with / for proper URI combination
+        var baseUrl = _settings.BaseUrl.TrimEnd('/') + "/";
+        _httpClient.BaseAddress = new Uri(baseUrl);
     }
 
     /// <summary>
@@ -60,22 +62,11 @@ public class GroupMeApiClient : IGroupMeApiClient
     }
 
     /// <summary>
-    /// Gets the webhook base URL from database settings or falls back to appsettings
+    /// Gets the webhook base URL from appsettings.
+    /// This is infrastructure configuration, not user-editable.
     /// </summary>
-    private async Task<string> GetWebhookBaseUrlAsync()
+    private string GetWebhookBaseUrl()
     {
-        using var scope = _serviceProvider.CreateScope();
-        var settingsService = scope.ServiceProvider.GetService<ISystemSettingsService>();
-
-        if (settingsService != null)
-        {
-            var dbUrl = await settingsService.GetSettingValueAsync(SystemSettingKeys.GroupMeWebhookBaseUrl);
-            if (!string.IsNullOrEmpty(dbUrl))
-            {
-                return dbUrl;
-            }
-        }
-
         return _settings.WebhookBaseUrl;
     }
 
@@ -93,6 +84,14 @@ public class GroupMeApiClient : IGroupMeApiClient
         _logger.LogInformation("Creating GroupMe group: {GroupName}", name);
 
         var accessToken = await GetAccessTokenAsync();
+
+        // Validate access token is configured
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            _logger.LogError("GroupMe access token is not configured. Please configure it in Admin → System Settings.");
+            throw new InvalidOperationException("GroupMe access token is not configured. Please configure it in Admin → System Settings.");
+        }
+
         var request = new
         {
             name = name,
@@ -101,10 +100,23 @@ public class GroupMeApiClient : IGroupMeApiClient
         };
 
         var response = await _httpClient.PostAsJsonAsync(
-            $"/groups?token={accessToken}",
+            $"groups?token={accessToken}",
             request);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _logger.LogError("GroupMe API error creating group. Status: {StatusCode}, Response: {Response}",
+                response.StatusCode, errorContent);
+
+            // Check for common error cases
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new InvalidOperationException("GroupMe access token is invalid or expired. Please update it in Admin → System Settings.");
+            }
+
+            throw new InvalidOperationException($"GroupMe API error: {response.StatusCode} - {errorContent}");
+        }
 
         var result = await response.Content.ReadFromJsonAsync<GroupMeApiResponse<GroupMeGroup>>();
 
@@ -122,7 +134,7 @@ public class GroupMeApiClient : IGroupMeApiClient
     public async Task<GroupMeGroup> GetGroupAsync(string groupId)
     {
         var accessToken = await GetAccessTokenAsync();
-        var response = await _httpClient.GetAsync($"/groups/{groupId}?token={accessToken}");
+        var response = await _httpClient.GetAsync($"groups/{groupId}?token={accessToken}");
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<GroupMeApiResponse<GroupMeGroup>>();
@@ -140,7 +152,7 @@ public class GroupMeApiClient : IGroupMeApiClient
 
         var accessToken = await GetAccessTokenAsync();
         var response = await _httpClient.PostAsync(
-            $"/groups/{groupId}/destroy?token={accessToken}",
+            $"groups/{groupId}/destroy?token={accessToken}",
             null);
 
         response.EnsureSuccessStatusCode();
@@ -165,8 +177,8 @@ public class GroupMeApiClient : IGroupMeApiClient
         _logger.LogInformation("Creating GroupMe bot for group {GroupId}", groupId);
 
         var accessToken = await GetAccessTokenAsync();
-        var webhookBaseUrl = await GetWebhookBaseUrlAsync();
-        var callbackUrl = $"{webhookBaseUrl}/api/webhooks/groupme/{channelMappingId}";
+        var webhookBaseUrl = GetWebhookBaseUrl();
+        var callbackUrl = $"{webhookBaseUrl.TrimEnd('/')}/api/webhooks/groupme/{channelMappingId}";
 
         var request = new
         {
@@ -180,7 +192,7 @@ public class GroupMeApiClient : IGroupMeApiClient
         };
 
         var response = await _httpClient.PostAsJsonAsync(
-            $"/bots?token={accessToken}",
+            $"bots?token={accessToken}",
             request);
 
         response.EnsureSuccessStatusCode();
@@ -210,7 +222,7 @@ public class GroupMeApiClient : IGroupMeApiClient
             attachments = attachments
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/bots/post", request);
+        var response = await _httpClient.PostAsJsonAsync("bots/post", request);
 
         // Bot post returns 202 Accepted on success, no body
         if (!response.IsSuccessStatusCode)
@@ -235,7 +247,7 @@ public class GroupMeApiClient : IGroupMeApiClient
         var accessToken = await GetAccessTokenAsync();
         var request = new { bot_id = botId };
         var response = await _httpClient.PostAsJsonAsync(
-            $"/bots/destroy?token={accessToken}",
+            $"bots/destroy?token={accessToken}",
             request);
 
         response.EnsureSuccessStatusCode();

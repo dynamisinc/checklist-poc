@@ -8,7 +8,7 @@
  * Breadcrumb: Home / Events
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -26,6 +26,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalendarAlt, faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
 import { useEvents } from "../hooks/useEvents";
 import { getIconFromName, getEventTypeColor } from "../utils/iconMapping";
+import { CreateEventDialog } from "../components/CreateEventDialog";
+import { CobraNewButton } from "../../../theme/styledComponents";
 import CobraStyles from "../../../theme/CobraStyles";
 import type { Event } from "../types";
 
@@ -35,10 +37,20 @@ import type { Event } from "../types";
 export const EventsListPage: React.FC = () => {
   const navigate = useNavigate();
   const { events, loading, selectEvent } = useEvents();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const handleEventClick = (event: Event) => {
     selectEvent(event);
     navigate(`/events/${event.id}`);
+  };
+
+  const handleCreateEventClick = () => {
+    setCreateDialogOpen(true);
+  };
+
+  const handleEventCreated = (eventId: string) => {
+    // Navigate to the new event's landing page
+    navigate(`/events/${eventId}`);
   };
 
   if (loading) {
@@ -62,13 +74,18 @@ export const EventsListPage: React.FC = () => {
     <Container maxWidth={false} disableGutters>
       <Stack spacing={3} padding={CobraStyles.Padding.MainWindow}>
         {/* Page Header */}
-        <Box>
-          <Typography variant="h4" sx={{ mb: 1 }}>
-            Events
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Select an event to view details and access tools
-          </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <Box>
+            <Typography variant="h4" sx={{ mb: 1 }}>
+              Events
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Select an event to view details and access tools
+            </Typography>
+          </Box>
+          <CobraNewButton onClick={handleCreateEventClick}>
+            Create Event
+          </CobraNewButton>
         </Box>
 
         {/* Events Grid */}
@@ -78,7 +95,7 @@ export const EventsListPage: React.FC = () => {
               No events available
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Create an event using the event selector in the header.
+              Click "Create Event" to get started.
             </Typography>
           </Box>
         ) : (
@@ -159,6 +176,13 @@ export const EventsListPage: React.FC = () => {
           </Grid>
         )}
       </Stack>
+
+      {/* Create Event Dialog */}
+      <CreateEventDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onEventCreated={handleEventCreated}
+      />
     </Container>
   );
 };

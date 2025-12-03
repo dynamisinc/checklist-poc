@@ -4,6 +4,7 @@
  * Implements C5-style layout with:
  * - Fixed top header (54px)
  * - Collapsible left sidebar (64px closed, 288px open)
+ * - Collapsible right chat sidebar (resizable)
  * - Breadcrumb navigation
  * - Main content area
  *
@@ -20,6 +21,7 @@ import { AppHeader } from "./AppHeader";
 import { Sidebar } from "./Sidebar";
 import { Breadcrumb, BreadcrumbItem } from "./Breadcrumb";
 import { PermissionRole } from "../../../types";
+import { ChatSidebar, useChatSidebar } from "../../../tools/chat";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -72,6 +74,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     ? theme.cssStyling.drawerOpenWidth
     : theme.cssStyling.drawerClosedWidth;
 
+  // Get chat sidebar state
+  const { isOpen: chatSidebarOpen, width: chatSidebarWidth } = useChatSidebar();
+
   return (
     <Box sx={{ minHeight: "100vh" }}>
       {/* Top Header */}
@@ -103,11 +108,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           backgroundColor: theme.palette.background.default,
           // Account for header height
           pt: `${theme.cssStyling.headerHeight}px`,
-          // Account for sidebar width with margin
+          // Account for left sidebar width with margin
           ml: {
             xs: 0,
             md: `${drawerWidth}px`,
           },
+          // Account for right chat sidebar width
+          mr: chatSidebarOpen ? `${chatSidebarWidth}px` : 0,
           transition: theme.transitions.create(["margin"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
@@ -125,12 +132,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         <Box
           sx={{
             flexGrow: 1,
-            overflow: "auto",
+            overflowY: "auto",
+            overflowX: "hidden",
+            pr: 2,
           }}
         >
           {children}
         </Box>
       </Box>
+
+      {/* Right Chat Sidebar */}
+      <ChatSidebar />
     </Box>
   );
 };

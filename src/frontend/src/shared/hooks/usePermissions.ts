@@ -39,6 +39,9 @@ interface PermissionChecks {
   canManageFeatureFlags: boolean; // Modify feature flags
   canManageSystemSettings: boolean; // Access system configuration
 
+  // Chat permissions
+  canPostToAnnouncements: boolean; // Post to Announcements channel (Manage role only)
+
   // General
   canViewChecklists: boolean;
   isReadonly: boolean;
@@ -128,6 +131,9 @@ export const usePermissions = (): PermissionChecks => {
     canAccessSystemAdmin: isSysAdmin,
     canManageFeatureFlags: isSysAdmin,
     canManageSystemSettings: isSysAdmin,
+
+    // Chat permissions
+    canPostToAnnouncements: isManage, // Only Manage role can post to Announcements
 
     // General
     canViewChecklists: isReadonly || isContributor || isManage,

@@ -1,5 +1,44 @@
 # COBRA Checklist Tool - User Stories
 
+> **Last Updated:** 2025-12-03
+> **Status:** Active
+> **Scope:** Checklist tool specific features
+> **Version:** 2.1.0 - Aligned scoring algorithm with implementation, added Future-5 smart suggestion enhancements
+
+## Overview
+
+This document contains user stories specific to the **Checklist Tool**. For platform-level features that apply across all tools, see:
+
+- [Core Platform User Stories](../Core/USER-STORIES.md) - Authentication, permissions, observability
+- [Core Platform NFRs](../Core/NFR.md) - Performance, accessibility, security standards
+
+### Cross-References to Core Platform
+
+The following features are defined at the platform level and extended by this tool:
+
+| Core Story | Checklist Extension |
+|------------|---------------------|
+| Core-1: Role-Based Permissions | Story 2.6 adds ownership-based archive permission for Contributors |
+| Core-2: Profile Management | Used for position context in smart suggestions (Story 1.7) |
+| Core-4: Readonly Visual Indicators | Applied to checklist items, buttons, and forms |
+| Core-5: Application Insights | Checklist events: `ChecklistCreated`, `ItemCompleted`, `TemplateCreated` |
+| Core-9: Demo Seed Data | 3 sample templates (Safety, ICS Forms, Logistics) |
+
+### Role-Based Navigation (Checklist-Specific)
+
+Navigation items visible by role:
+
+| Navigation Item | Readonly | Contributor | Manage |
+|-----------------|----------|-------------|--------|
+| My Checklists | ✅ | ✅ | ✅ |
+| Template Library | ❌ | ❌ | ✅ |
+| Item Library | ❌ | ❌ | ✅ |
+| Analytics | ❌ | ❌ | ✅ |
+
+**Key UX Principle:** Contributors see simplified navigation (only "My Checklists") with the "Create Checklist" button providing direct access to templates via smart suggestions - no need to browse the full Template Library.
+
+---
+
 ## Epic: Checklist Template Management
 
 ### Story 1.1: Create Checklist Template
@@ -19,12 +58,22 @@
 - Form follows C5 button guidelines (Save Template on right, Cancel on left, both 48x48 minimum)
 - Uses Roboto font throughout
 - Validation prevents saving template without name or without at least one item
+- **Validation rules:**
+  - Template name: required, max 200 characters
+  - Template description: optional, max 1000 characters
+  - Category: required, max 50 characters
+  - Item text: required, max 200 characters
+  - Item notes: optional, max 1000 characters
+  - ItemType: must be "checkbox" (0) or "status" (1)
+  - DisplayOrder: required, must be positive integer
+  - Status options (for dropdown): JSON array, each option max 50 characters
 
 **Technical Notes:**
 - API Endpoint: `POST /api/checklists/templates`
 - Request body includes template metadata and array of items
 - Returns template ID on successful creation
 - Consider soft delete for templates (IsActive flag rather than hard delete)
+- Data annotations on DTOs enforce validation server-side
 
 **Story Points:** 5
 
@@ -189,10 +238,20 @@
   - **💡 Other Suggestions** - Popular and event-category-matched templates
   - **📋 All Templates** - Full alphabetical list (collapsed by default)
 - Multi-factor scoring algorithm prioritizes templates:
-  - Position match: +1000 points (highest priority)
-  - Event category match: +500 points
-  - Recently used (30-day window): +0 to +200 points (scaled by recency)
-  - Popularity: +0 to +100 points (capped at 50 uses)
+  ```
+  Score = PositionMatch + EventCategoryMatch + RecentlyUsed + Popularity
+
+  Where:
+    PositionMatch    = +1000 points (if template.RecommendedPositions contains user's position)
+    EventCategoryMatch = +500 points (if template.EventCategories matches current event)
+    RecentlyUsed     = 0-200 points (scaled: 30 days ago=0, today=200)
+    Popularity       = 0-100 points (capped at 50 uses, 2 points per use)
+  ```
+  - **Position match (+1000):** Highest priority - matches RecommendedPositions array
+  - **Event category match (+500):** Matches EventCategories to current event type
+  - **Recently used (+0-200):** Linear decay over 30 days: `(30 - daysAgo) / 30 * 200`
+  - **Popularity (+0-100):** `Math.Min(usageCount * 2, 100)` - capped to prevent runaway effect
+  - **Seasonal relevance:** Future enhancement - hurricane season Jun-Nov, winter Dec-Mar
 - Visual badges explain why template is suggested:
   - 📍 "Recommended for [Position]" (blue badge)
   - 🔥 "Popular (X uses)" (green badge)
@@ -204,6 +263,7 @@
   - LastUsedAt updates to current timestamp
   - No user action required
 - API endpoint: `GET /api/templates/suggestions?position={position}&eventCategory={category}&limit={limit}`
+- **Auto-detection:** System automatically detects event category from user's current event context when available
 - Templates in "Recommended" section appear first (user sees best matches immediately)
 - "All Templates" section allows browsing if suggestions don't match need
 - Search filter works across all sections
@@ -767,115 +827,8 @@
 
 ## Epic: Permissions and Position-Based Access
 
-### Story 4.0: Role-Based Permission System
-**As a** COBRA system administrator
-**I want to** assign users to one of four permission roles (None, Readonly, Contributor, Manage)
-**So that** access to features is controlled based on user capability and training level
-
-**Acceptance Criteria:**
-- Four permission roles defined: None, Readonly, Contributor, Manage
-- Each role has specific capabilities as defined in capability matrix
-- Role assignment determines:
-  - Navigation items visible in app
-  - Actions available on checklists and templates
-  - Data visibility (own checklists vs. all checklists)
-- **Contributor role** (casual users):
-  - Can view template library
-  - Can create checklists from templates
-  - Can edit own checklists and complete items
-  - Cannot create/edit templates
-  - Cannot access item library or analytics
-  - Target training time: 30 minutes
-- **Readonly role** (observers):
-  - Can view all checklists and templates
-  - Can view analytics/reports
-  - Cannot create or edit anything
-  - Target training time: 5 minutes
-- **Manage role** (administrators):
-  - Full access to all features
-  - Can create/edit templates
-  - Can access item library
-  - Can view analytics
-  - Can manage system settings
-  - Target training time: 2+ hours
-- Permission checks enforced both client-side (UI) and server-side (API)
-- Declarative permission checking via React hook: `usePermissions()`
-- Navigation conditionally renders based on role
-- Actions conditionally display based on role
-- Clear visual indicators when actions are disabled due to permissions
-
-**Technical Notes:**
-- POC: `usePermissions` hook reads from localStorage profile
-- Production: Replace with JWT token claims from authentication
-- Client-side checks hide UI elements
-- Server-side checks enforce authorization on all API endpoints
-- Capability matrix documented in `docs/ROLES_AND_PERMISSIONS.md`
-- Hook listens to custom `profileChanged` event for reactivity
-- localStorage key: `mockUserProfile` with `{ positions: string[], role: PermissionRole }`
-
-**Story Points:** 5
-
-**Implementation Status:** ✅ Complete (Phase 1)
-
----
-
-### Story 4.0b: Profile Management for POC Demo
-**As a** COBRA evaluator or demo user
-**I want to** easily switch between different positions and permission roles
-**So that** I can test and demonstrate role-based functionality without authentication
-
-**Acceptance Criteria:**
-- **Profile Menu component** accessible from app header (avatar/profile icon)
-- **Position selection:**
-  - Checkbox list of common ICS positions (Safety Officer, Operations Chief, etc.)
-  - Can select multiple positions simultaneously
-  - Primary position = first selected position
-  - Selected positions persist across page refresh
-- **Role selection:**
-  - Dropdown with four options: None, Readonly, Contributor, Manage
-  - Each option shows description of capabilities
-  - Role displayed with visual indicator (badge or label)
-  - Selected role persists across page refresh
-- **Profile persistence:**
-  - Uses localStorage for POC demo (key: `mockUserProfile`)
-  - Stores: `{ positions: string[], role: PermissionRole }`
-  - Survives page refresh and navigation
-- **Reactivity:**
-  - Changing profile immediately updates app
-  - Navigation items refresh based on new role
-  - Custom `profileChanged` event broadcasts change
-  - usePermissions hook listens and re-evaluates
-  - No page refresh required
-- **Visual feedback:**
-  - Current position(s) and role displayed in profile menu
-  - Active selections highlighted
-  - Clear "Save" or auto-save behavior
-  - Success indicator when profile saved
-- **User experience:**
-  - Quick access (1-2 clicks to open menu)
-  - Clear labels and descriptions
-  - Intuitive interaction (checkboxes for multi-select, dropdown for single-select)
-  - Mobile-friendly (touch targets 48x48 pixels)
-- **For demo purposes:**
-  - Simulates authenticated user context
-  - Allows rapid switching between personas
-  - Foundation ready for real authentication
-  - Easy for evaluators to explore different role behaviors
-
-**Technical Notes:**
-- Component: `ProfileMenu.tsx` (replaces simple PositionSelector)
-- localStorage key: `mockUserProfile`
-- Custom event: `window.dispatchEvent(new Event('profileChanged'))`
-- usePermissions hook listens to: `storage` and `profileChanged` events
-- Production replacement: Read position/role from JWT token claims
-- Server-side: No authentication in POC (would require JWT validation in production)
-- Multi-position support ready (frontend handles array, backend can be updated later)
-
-**Story Points:** 3
-
-**Implementation Status:** ✅ Complete (Phase 1)
-
----
+> **Note:** Core permission system stories (4.0, 4.0b) have been moved to [Core Platform User Stories](../Core/USER-STORIES.md).
+> This section contains **checklist-specific** permission extensions.
 
 ### Story 4.1: Position-Based Checklist Visibility
 **As a** COBRA operational user  
@@ -1673,11 +1626,17 @@
 - Identify: unused templates, most active users, peak usage times
 - Export statistics to Excel
 - Refresh data daily (nightly batch job)
+- **Smart suggestion analytics:**
+  - Click-through rate per suggestion section (Recommended, Recently Used, Other, All)
+  - Percentage of checklists created via smart suggestions vs. manual search
+  - Template discovery time (time from picker open to template selection)
+  - Insight: "Recommended templates have 85% CTR vs. 12% for All Templates"
 
 **Technical Notes:**
 - Pre-aggregate data for performance
 - API Endpoint: `GET /api/checklists/admin/usage-statistics`
 - Consider Azure Application Insights for deeper analytics
+- Track suggestion interactions via Application Insights custom events
 
 **Story Points:** 8
 
@@ -1764,6 +1723,171 @@
 
 ---
 
+## User Scenarios (UX Validation)
+
+The following scenarios describe typical user workflows for UX testing and validation. They are derived from [ROLES_AND_PERMISSIONS.md](./ROLES_AND_PERMISSIONS.md).
+
+### Scenario 1: First-Time Contributor
+
+**User:** Maria, Safety Officer, just assigned to a wildfire
+
+**Expected Workflow:**
+1. Opens app on mobile → Sees empty "My Checklists"
+2. Taps "Create Checklist" button
+3. Bottom sheet shows: "Recommended for Safety Officer"
+4. Sees "Daily Safety Briefing" (most used by Safety Officers)
+5. Taps "Use Template" → Auto-fills: Event, Op Period, Position
+6. Taps "Create" → Immediately starts working on checklist
+
+**Success Criteria:**
+- Total time: **30 seconds or less**
+- Training required: **5 minutes** (shown the button, told to tap it)
+- Zero navigation to Template Library required
+
+---
+
+### Scenario 2: Experienced Contributor
+
+**User:** John, Operations Chief, has used app many times
+
+**Expected Workflow:**
+1. Opens app → Sees 3 active checklists
+2. Taps "Create Checklist" → Suggestions include "Recently Used"
+3. Sees template used yesterday → One tap to reuse
+4. Modifies checklist name → Creates
+
+**Success Criteria:**
+- Total time: **15 seconds**
+- Training required: **Already knows the flow**
+
+---
+
+### Scenario 3: Readonly Observer
+
+**User:** Inspector from regulatory agency
+
+**Expected Workflow:**
+1. Opens app → Sees checklists shared with them
+2. Taps checklist → Opens detail view
+3. Sees 🔒 lock icon and "Read-only access" banner
+4. Can scroll through items, see completion status
+5. Can view notes and history
+6. **Cannot** toggle checkboxes (grayed out)
+
+**Success Criteria:**
+- Training required: **10-15 minutes** (how to navigate, export)
+- Clear understanding of read-only limitations
+
+---
+
+### Scenario 4: Admin Creating Template
+
+**User:** Planning Chief setting up templates for hurricane season
+
+**Expected Workflow:**
+1. Opens Template Library
+2. Clicks "Create New Template"
+3. Uses visual editor with drag-drop
+4. Adds items from Item Library
+5. Sets metadata:
+   - Category: "Weather"
+   - Event categories: ["Hurricane", "Tropical Storm"]
+   - Recommended positions: ["Logistics Chief", "Shelter Manager"]
+   - Estimated time: 20 minutes
+6. Preview → Validates → Saves
+7. Template immediately available to Contributors
+
+**Success Criteria:**
+- Training required: **2-4 hours** (template design, best practices)
+- Can create basic template in **<15 minutes** after training
+
+---
+
+## Success Metrics
+
+The following metrics define success criteria for the Checklist tool. These should be tracked via Application Insights and user testing.
+
+### Contributor Efficiency (30-minute training goal)
+
+| Metric | Target |
+|--------|--------|
+| Can create checklist in < 1 minute (after 10-minute training) | 90% of users |
+| Can complete items without assistance | 95% of users |
+| Prefer mobile app over desktop | 80% of users |
+| Request features from Template Library | < 5% of users |
+
+### Admin Effectiveness (3-4 hour training goal)
+
+| Metric | Target |
+|--------|--------|
+| Can create basic template in < 15 minutes | 100% of trained admins |
+| Can use Item Library effectively | 90% of trained admins |
+| Understand analytics dashboard | 80% of trained admins |
+| Can troubleshoot common user issues | 100% of trained admins |
+
+### System Adoption
+
+| Metric | Target |
+|--------|--------|
+| Instances created via smart suggestions (not manual search) | 70%+ |
+| Templates used at least once per month | 60%+ |
+| Templates unused after 90 days | < 10% |
+
+---
+
+## Open Questions (Requiring Product Decisions)
+
+The following questions were identified during requirements gathering and need product owner decisions before implementation:
+
+### OQ-1: Multi-Position Workflows
+**Question:** Can a user have multiple positions simultaneously?
+
+**Example:** Safety Officer + Operations Section Chief
+
+**Considerations:**
+- Should smart suggestions merge results from all positions?
+- Which position is used for audit attribution?
+- Current implementation: First selected position is "primary"
+
+**Status:** 🟡 Partially addressed - Primary position used for attribution, all positions used for suggestions
+
+---
+
+### OQ-2: Template Visibility Filtering
+**Question:** Should Contributors see ALL templates or only relevant ones?
+
+**Options:**
+1. Show all active templates in search
+2. Auto-filter by user's position
+3. Auto-filter by current event category
+
+**Status:** 🟡 Smart suggestions prioritize relevant templates, but full list available via search
+
+---
+
+### OQ-3: Permission Inheritance
+**Question:** If user is Manage at org level, are they Manage at event level?
+
+**Considerations:**
+- Can permissions be scoped to specific events?
+- Should there be event-level permission overrides?
+
+**Status:** ⚪ Not yet addressed - POC uses single permission level
+
+---
+
+### OQ-4: Readonly Sharing Mechanism
+**Question:** How do Readonly users get access to checklists?
+
+**Options:**
+1. Explicit sharing by checklist owner
+2. Automatic based on event participation
+3. Shared link with access token
+
+**Status:** ⚪ Not yet addressed - POC doesn't implement sharing
+
+---
+
 ## Technical Debt and Documentation
 
 ### TD-1: Comprehensive API Documentation
@@ -1812,6 +1936,8 @@
 
 ## Future Considerations (Beyond MVP)
 
+> Sourced from [SMART_SUGGESTIONS_AND_PERMISSIONS.md](./SMART_SUGGESTIONS_AND_PERMISSIONS.md) and product roadmap discussions.
+
 ### Future-1: Mobile Native App
 - Dedicated iOS/Android apps for better offline experience
 - Push notifications for checklist updates
@@ -1822,6 +1948,8 @@
 - Smart template suggestions based on incident type
 - Anomaly detection (e.g., "This item usually completes faster")
 - Natural language processing for smart item search
+- **Collaborative filtering:** "Users similar to you also used these templates"
+- **Personalized recency window:** ML-based window per user (7-60 days based on usage frequency)
 
 ### Future-3: Advanced Integrations
 - Integration with external task management tools (Jira, Asana)
@@ -1833,6 +1961,12 @@
 - Achievement badges for completion milestones
 - Leaderboards (appropriate for non-crisis scenarios)
 - Streak tracking for recurring checklist completion
+
+### Future-5: Smart Suggestion Enhancements
+- **Template suggestion analytics:** Track click-through rate per section, measure suggestion effectiveness
+- **Time-based suggestions:** Morning = "Daily Briefing" templates, End of shift = "Shift Handoff" templates
+- **Real-time suggestion updates:** WebSocket live suggestions, "3 other users just used this" badge
+- **Smart auto-creation prompts:** System detects context (new operational period) and prompts "Create shift briefing?"
 
 ---
 

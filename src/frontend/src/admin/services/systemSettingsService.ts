@@ -11,6 +11,7 @@ import type {
   UpdateSystemSettingRequest,
   UpdateSettingValueRequest,
   SettingCategory,
+  GroupMeIntegrationStatus,
 } from '../types/systemSettings';
 
 export const systemSettingsService = {
@@ -84,6 +85,18 @@ export const systemSettingsService = {
    */
   initializeDefaults: async (): Promise<void> => {
     await apiClient.post('/api/systemsettings/initialize');
+  },
+
+  /**
+   * Get GroupMe integration status including computed webhook URLs.
+   * The webhook base URL comes from server configuration (appsettings),
+   * not from database settings.
+   */
+  getGroupMeIntegrationStatus: async (): Promise<GroupMeIntegrationStatus> => {
+    const response = await apiClient.get<GroupMeIntegrationStatus>(
+      '/api/systemsettings/integrations/groupme'
+    );
+    return response.data;
   },
 };
 

@@ -214,21 +214,9 @@ public class SystemSettingsService : ISystemSettingsService
                 ModifiedAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
             },
-            new SystemSetting
-            {
-                Id = Guid.NewGuid(),
-                Key = SystemSettingKeys.GroupMeWebhookBaseUrl,
-                Value = "",
-                Category = SettingCategory.Integration,
-                DisplayName = "GroupMe Webhook Base URL",
-                Description = "Base URL for receiving GroupMe webhooks. Should be the public URL of this COBRA instance.",
-                IsSecret = false,
-                IsEnabled = true,
-                SortOrder = 2,
-                ModifiedBy = modifiedBy,
-                ModifiedAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
-            },
+            // Note: GroupMe.WebhookBaseUrl is NOT stored in database - it comes from appsettings.json
+            // This is infrastructure configuration, not a user-configurable setting.
+            // The Admin UI displays the computed webhook callback URL as read-only.
 
             // Future AI settings
             new SystemSetting

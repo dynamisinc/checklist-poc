@@ -4,6 +4,7 @@
  * Implements C5-style header with:
  * - App branding (left)
  * - Event selector (left, after branding)
+ * - Chat sidebar toggle (right)
  * - Profile menu (right)
  * - Mobile menu toggle
  *
@@ -17,13 +18,16 @@ import {
   Typography,
   IconButton,
   Box,
+  Tooltip,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faComments } from "@fortawesome/free-solid-svg-icons";
 import { ProfileMenu } from "../ProfileMenu";
 import { EventSelector, CreateEventDialog } from "../../../shared/events";
 import { PermissionRole } from "../../../types";
+import { useChatSidebar } from "../../../tools/chat";
+import { useFeatureFlags } from "../../../admin";
 
 interface AppHeaderProps {
   onMobileMenuToggle?: () => void;
@@ -36,6 +40,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const theme = useTheme();
   const [createEventOpen, setCreateEventOpen] = useState(false);
+  const { isOpen: chatSidebarOpen, toggleSidebar: toggleChatSidebar } = useChatSidebar();
+  const { isVisible, isComingSoon, isActive } = useFeatureFlags();
+
+  // Chat feature flag status
+  const chatVisible = isVisible('chat');
+  const chatComingSoon = isComingSoon('chat');
+  const chatEnabled = isActive('chat');
 
   return (
     <>
@@ -89,8 +100,44 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {/* Spacer */}
           <Box sx={{ flexGrow: 1 }} />
 
-          {/* Right: Profile Menu */}
-          <Box sx={{ display: "flex", alignItems: "center" }}>
+          {/* Right: Chat Toggle + Profile Menu */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {/* Chat Sidebar Toggle - respects feature flag */}
+            {chatVisible && (
+              <Tooltip
+                title={
+                  chatComingSoon
+                    ? "Chat - Coming Soon"
+                    : chatSidebarOpen
+                      ? "Close chat"
+                      : "Open chat"
+                }
+              >
+                <span>
+                  <IconButton
+                    onClick={chatEnabled ? toggleChatSidebar : undefined}
+                    disabled={chatComingSoon}
+                    sx={{
+                      color: chatComingSoon
+                        ? "rgba(255, 250, 205, 0.3)"
+                        : chatSidebarOpen
+                          ? "#FFFACD"
+                          : "rgba(255, 250, 205, 0.7)",
+                      "&:hover": chatEnabled
+                        ? {
+                            color: "#FFFACD",
+                            backgroundColor: "rgba(255, 255, 255, 0.1)",
+                          }
+                        : undefined,
+                      cursor: chatComingSoon ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faComments} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+
             {onProfileChange && (
               <ProfileMenu onProfileChange={onProfileChange} />
             )}

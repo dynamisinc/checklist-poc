@@ -83,9 +83,7 @@
       "Bash(git merge:*)",
       "Bash(git branch:*)",
       "Bash(git stash:*)",
-      "Bash(dotnet ef dbcontext:*)",
-      "Bash(gh label:*)",
-      "Bash(Select-String -Pattern \"(error CS|Build succeeded)\")"
+      "Bash(dotnet ef dbcontext:*)"
     ],
     "deny": [],
     "ask": []

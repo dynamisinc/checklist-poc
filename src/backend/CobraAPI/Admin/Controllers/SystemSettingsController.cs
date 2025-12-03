@@ -6,6 +6,8 @@
  */
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using CobraAPI.Tools.Chat.ExternalPlatforms;
 
 namespace CobraAPI.Admin.Controllers;
 
@@ -14,13 +16,16 @@ namespace CobraAPI.Admin.Controllers;
 public class SystemSettingsController : ControllerBase
 {
     private readonly ISystemSettingsService _settingsService;
+    private readonly GroupMeSettings _groupMeSettings;
     private readonly ILogger<SystemSettingsController> _logger;
 
     public SystemSettingsController(
         ISystemSettingsService settingsService,
+        IOptions<GroupMeSettings> groupMeSettings,
         ILogger<SystemSettingsController> logger)
     {
         _settingsService = settingsService;
+        _groupMeSettings = groupMeSettings.Value;
         _logger = logger;
     }
 
@@ -181,10 +186,63 @@ public class SystemSettingsController : ControllerBase
         return Ok(setting);
     }
 
+    /// <summary>
+    /// Get GroupMe integration status including computed webhook callback URL.
+    /// The webhook URL is determined by appsettings configuration, not database settings.
+    /// </summary>
+    [HttpGet("integrations/groupme")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<GroupMeIntegrationStatusDto>> GetGroupMeIntegrationStatus()
+    {
+        // Get the access token configured status from database
+        var hasAccessToken = await _settingsService.HasSettingAsync(SystemSettingKeys.GroupMeAccessToken);
+
+        // Build the webhook callback URL pattern from appsettings
+        var webhookBaseUrl = _groupMeSettings.WebhookBaseUrl?.TrimEnd('/');
+        var webhookCallbackUrlPattern = !string.IsNullOrEmpty(webhookBaseUrl)
+            ? $"{webhookBaseUrl}/api/webhooks/groupme/{{channelMappingId}}"
+            : null;
+
+        return Ok(new GroupMeIntegrationStatusDto
+        {
+            IsConfigured = hasAccessToken && !string.IsNullOrEmpty(webhookBaseUrl),
+            HasAccessToken = hasAccessToken,
+            WebhookBaseUrl = webhookBaseUrl ?? "(not configured)",
+            WebhookCallbackUrlPattern = webhookCallbackUrlPattern ?? "(WebhookBaseUrl not configured)",
+            WebhookHealthCheckUrl = !string.IsNullOrEmpty(webhookBaseUrl)
+                ? $"{webhookBaseUrl}/api/webhooks/health"
+                : "(not available)"
+        });
+    }
+
     private string GetCurrentUser()
     {
         // Get user from context (set by MockUserMiddleware)
         var userContext = HttpContext.Items["UserContext"] as UserContext;
         return userContext?.Email ?? "system";
     }
+}
+
+/// <summary>
+/// GroupMe integration status for Admin UI display.
+/// </summary>
+public record GroupMeIntegrationStatusDto
+{
+    /// <summary>Whether GroupMe integration is fully configured (has token + webhook URL)</summary>
+    public bool IsConfigured { get; init; }
+
+    /// <summary>Whether an access token has been set in system settings</summary>
+    public bool HasAccessToken { get; init; }
+
+    /// <summary>The webhook base URL from appsettings (read-only, not user-editable)</summary>
+    public string WebhookBaseUrl { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The full webhook callback URL pattern that GroupMe will use.
+    /// Replace {channelMappingId} with the actual channel mapping GUID.
+    /// </summary>
+    public string WebhookCallbackUrlPattern { get; init; } = string.Empty;
+
+    /// <summary>URL to test webhook endpoint accessibility</summary>
+    public string WebhookHealthCheckUrl { get; init; } = string.Empty;
 }

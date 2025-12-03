@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using CobraAPI.Core.Data;
+using CobraAPI.Tools.Chat.Services;
 using System.Text.Json;
 
 namespace CobraAPI.Shared.Events.Services;
@@ -10,15 +11,18 @@ namespace CobraAPI.Shared.Events.Services;
 public class EventService : IEventService
 {
     private readonly CobraDbContext _context;
+    private readonly IChannelService _channelService;
     private readonly ILogger<EventService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public EventService(
         CobraDbContext context,
+        IChannelService channelService,
         ILogger<EventService> logger,
         IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
+        _channelService = channelService;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
     }
@@ -138,6 +142,9 @@ public class EventService : IEventService
 
         _context.Events.Add(eventEntity);
         await _context.SaveChangesAsync();
+
+        // Create default channels for the new event
+        await _channelService.CreateDefaultChannelsAsync(eventEntity.Id, currentUser);
 
         // Reload with includes
         await _context.Entry(eventEntity)

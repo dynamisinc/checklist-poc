@@ -60,7 +60,7 @@ export const SystemSettingKeys = {
   // Integration settings
   GroupMeAccessToken: 'GroupMe.AccessToken',
   GroupMeBaseUrl: 'GroupMe.BaseUrl',
-  GroupMeWebhookBaseUrl: 'GroupMe.WebhookBaseUrl',
+  // Note: GroupMeWebhookBaseUrl is NOT stored in database - comes from appsettings
 
   // AI settings (future)
   OpenAiApiKey: 'OpenAI.ApiKey',
@@ -72,3 +72,20 @@ export const SystemSettingKeys = {
   // System settings
   SystemMaintenanceMode: 'System.MaintenanceMode',
 } as const;
+
+/**
+ * GroupMe integration status from server configuration.
+ * WebhookBaseUrl comes from appsettings, not database settings.
+ */
+export interface GroupMeIntegrationStatus {
+  /** Whether GroupMe integration is fully configured (has token + webhook URL) */
+  isConfigured: boolean;
+  /** Whether an access token has been set in system settings */
+  hasAccessToken: boolean;
+  /** The webhook base URL from appsettings (read-only, not user-editable) */
+  webhookBaseUrl: string;
+  /** The full webhook callback URL pattern that GroupMe will use */
+  webhookCallbackUrlPattern: string;
+  /** URL to test webhook endpoint accessibility */
+  webhookHealthCheckUrl: string;
+}

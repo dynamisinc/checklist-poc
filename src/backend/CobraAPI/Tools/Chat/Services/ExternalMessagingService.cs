@@ -46,6 +46,7 @@ public class ExternalMessagingService : IExternalMessagingService
     /// <summary>
     /// Creates an external channel mapping for an event.
     /// This creates the group on the external platform and registers a bot for messaging.
+    /// If an active channel already exists for this event+platform, returns the existing one.
     /// </summary>
     public async Task<ExternalChannelMappingDto> CreateExternalChannelAsync(CreateExternalChannelRequest request)
     {
@@ -54,6 +55,42 @@ public class ExternalMessagingService : IExternalMessagingService
 
         _logger.LogInformation("Creating external channel for event {EventId} on {Platform}",
             request.EventId, request.Platform);
+
+        // Check if an active channel already exists for this event + platform
+        var existingChannel = await _dbContext.ExternalChannelMappings
+            .FirstOrDefaultAsync(m => m.EventId == request.EventId
+                                   && m.Platform == request.Platform
+                                   && m.IsActive);
+
+        if (existingChannel != null)
+        {
+            _logger.LogInformation("Active {Platform} channel already exists for event {EventId}, returning existing mapping {MappingId}",
+                request.Platform, request.EventId, existingChannel.Id);
+            return MapToDto(existingChannel);
+        }
+
+        // Check for a deactivated channel that can be reactivated
+        // This allows reconnecting to the same GroupMe group after disconnecting
+        var deactivatedChannel = await _dbContext.ExternalChannelMappings
+            .FirstOrDefaultAsync(m => m.EventId == request.EventId
+                                   && m.Platform == request.Platform
+                                   && !m.IsActive);
+
+        if (deactivatedChannel != null)
+        {
+            _logger.LogInformation("Reactivating deactivated {Platform} channel for event {EventId}, mapping {MappingId}",
+                request.Platform, request.EventId, deactivatedChannel.Id);
+
+            deactivatedChannel.IsActive = true;
+            deactivatedChannel.LastModifiedBy = userContext.Email;
+            deactivatedChannel.LastModifiedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+
+            var reactivatedDto = MapToDto(deactivatedChannel);
+            await _chatHubService.BroadcastChannelConnectedAsync(request.EventId, reactivatedDto);
+
+            return reactivatedDto;
+        }
 
         // Get event details for naming
         var eventEntity = await _dbContext.Events

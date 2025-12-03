@@ -207,11 +207,15 @@ public class CobraDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
         });
 
-        // ChatThread configuration
+        // ChatThread (Channel) configuration
         modelBuilder.Entity<ChatThread>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.ChannelType).IsRequired().HasConversion<int>();
+            entity.Property(e => e.IconName).HasMaxLength(50);
+            entity.Property(e => e.Color).HasMaxLength(20);
             entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(200);
 
             entity.HasOne(e => e.Event)
@@ -219,7 +223,16 @@ public class CobraDbContext : DbContext
                 .HasForeignKey(e => e.EventId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Optional FK to ExternalChannelMapping for External channels
+            // Use NoAction to avoid multiple cascade paths (Event cascades to both ChatThread and ExternalChannelMapping)
+            entity.HasOne(e => e.ExternalChannelMapping)
+                .WithMany()
+                .HasForeignKey(e => e.ExternalChannelMappingId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             entity.HasIndex(e => new { e.EventId, e.IsDefaultEventThread });
+            entity.HasIndex(e => new { e.EventId, e.ChannelType });
+            entity.HasIndex(e => new { e.EventId, e.DisplayOrder });
         });
 
         // ChatMessage configuration

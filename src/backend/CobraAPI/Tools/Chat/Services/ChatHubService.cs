@@ -63,6 +63,58 @@ public class ChatHubService : IChatHubService
             .Group($"event-{eventId}")
             .SendAsync("ExternalChannelDisconnected", channelId);
     }
+
+    /// <summary>
+    /// Broadcasts a notification that a channel was created.
+    /// </summary>
+    public async Task BroadcastChannelCreatedAsync(Guid eventId, ChatThreadDto channel)
+    {
+        _logger.LogDebug("Broadcasting channel created for event {EventId}: {ChannelId}",
+            eventId, channel.Id);
+
+        await _hubContext.Clients
+            .Group($"event-{eventId}")
+            .SendAsync("ChannelCreated", channel);
+    }
+
+    /// <summary>
+    /// Broadcasts a notification that a channel was archived.
+    /// </summary>
+    public async Task BroadcastChannelArchivedAsync(Guid eventId, Guid channelId)
+    {
+        _logger.LogDebug("Broadcasting channel archived for event {EventId}: {ChannelId}",
+            eventId, channelId);
+
+        await _hubContext.Clients
+            .Group($"event-{eventId}")
+            .SendAsync("ChannelArchived", channelId);
+    }
+
+    /// <summary>
+    /// Broadcasts a notification that a channel was restored.
+    /// </summary>
+    public async Task BroadcastChannelRestoredAsync(Guid eventId, ChatThreadDto channel)
+    {
+        _logger.LogDebug("Broadcasting channel restored for event {EventId}: {ChannelId}",
+            eventId, channel.Id);
+
+        await _hubContext.Clients
+            .Group($"event-{eventId}")
+            .SendAsync("ChannelRestored", channel);
+    }
+
+    /// <summary>
+    /// Broadcasts a notification that a channel was permanently deleted.
+    /// </summary>
+    public async Task BroadcastChannelDeletedAsync(Guid eventId, Guid channelId)
+    {
+        _logger.LogDebug("Broadcasting channel deleted for event {EventId}: {ChannelId}",
+            eventId, channelId);
+
+        await _hubContext.Clients
+            .Group($"event-{eventId}")
+            .SendAsync("ChannelDeleted", channelId);
+    }
 }
 
 /// <summary>
@@ -73,4 +125,8 @@ public interface IChatHubService
     Task BroadcastMessageToEventAsync(Guid eventId, ChatMessageDto message);
     Task BroadcastChannelConnectedAsync(Guid eventId, ExternalChannelMappingDto channel);
     Task BroadcastChannelDisconnectedAsync(Guid eventId, Guid channelId);
+    Task BroadcastChannelCreatedAsync(Guid eventId, ChatThreadDto channel);
+    Task BroadcastChannelArchivedAsync(Guid eventId, Guid channelId);
+    Task BroadcastChannelRestoredAsync(Guid eventId, ChatThreadDto channel);
+    Task BroadcastChannelDeletedAsync(Guid eventId, Guid channelId);
 }

@@ -33,6 +33,9 @@ import {
   faPlug,
   faKey,
   faGlobe,
+  faCopy,
+  faCircleCheck,
+  faCircleXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import type { IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
@@ -46,6 +49,7 @@ import {
   SystemSettingDto,
   SettingCategory,
   SettingCategoryNames,
+  GroupMeIntegrationStatus,
 } from '../types/systemSettings';
 
 // Category icons
@@ -238,9 +242,209 @@ const SettingRow: React.FC<SettingRowProps> = ({ setting, onSave, onToggle, savi
   );
 };
 
+/**
+ * GroupMe Integration Status Card
+ * Displays read-only webhook configuration from server appsettings
+ */
+const GroupMeStatusCard: React.FC<{
+  status: GroupMeIntegrationStatus | null;
+  loading: boolean;
+}> = ({ status, loading }) => {
+  const theme = useTheme();
+
+  const handleCopyUrl = (url: string, label: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success(`${label} copied to clipboard`);
+  };
+
+  if (loading || !status) {
+    return null;
+  }
+
+  // Detect if using localhost (development mode without ngrok)
+  const isLocalhost = status.webhookBaseUrl.includes('localhost') ||
+                      status.webhookBaseUrl.includes('127.0.0.1');
+
+  return (
+    <Card
+      sx={{
+        mb: 3,
+        borderLeft: `4px solid`,
+        borderLeftColor: status.isConfigured
+          ? theme.palette.success.main
+          : theme.palette.warning.main,
+        backgroundColor: theme.palette.grey[50],
+      }}
+    >
+      <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+          {/* Icon */}
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 1,
+              backgroundColor: theme.palette.buttonPrimary.light,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <FontAwesomeIcon
+              icon={faGlobe}
+              style={{ color: theme.palette.buttonPrimary.main }}
+            />
+          </Box>
+
+          {/* Content */}
+          <Box sx={{ flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <Typography variant="subtitle2">GroupMe Webhook Configuration</Typography>
+              <Chip
+                icon={
+                  <FontAwesomeIcon
+                    icon={status.isConfigured ? faCircleCheck : faCircleXmark}
+                    style={{ fontSize: 10 }}
+                  />
+                }
+                label={status.isConfigured ? 'Ready' : 'Incomplete'}
+                size="small"
+                color={status.isConfigured ? 'success' : 'warning'}
+                sx={{ height: 20, fontSize: 10 }}
+              />
+            </Box>
+
+            {/* Development Mode Warning */}
+            {isLocalhost && (
+              <Alert severity="info" sx={{ mb: 2, py: 0.5 }}>
+                <Typography variant="caption" component="div">
+                  <strong>Local Development Mode</strong> - GroupMe webhooks won&apos;t work with localhost.
+                </Typography>
+                <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
+                  To test webhooks locally, start ngrok and update <code>appsettings.Development.json</code>:
+                </Typography>
+                <Box component="pre" sx={{
+                  mt: 0.5,
+                  p: 1,
+                  backgroundColor: theme.palette.grey[100],
+                  borderRadius: 1,
+                  fontSize: '0.75rem',
+                  overflow: 'auto',
+                }}>
+                  {`ngrok http 5000\n\n# Then update appsettings.Development.json:\n"GroupMe": {\n  "WebhookBaseUrl": "https://your-ngrok-url.ngrok-free.app"\n}`}
+                </Box>
+              </Alert>
+            )}
+
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+              These URLs are determined by server configuration and cannot be changed here.
+              When creating a GroupMe channel, the bot will be registered with the callback URL below.
+            </Typography>
+
+            {/* Webhook Base URL */}
+            <Box sx={{ mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Webhook Base URL (from appsettings)
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <CobraTextField
+                  size="small"
+                  fullWidth
+                  value={status.webhookBaseUrl}
+                  InputProps={{ readOnly: true }}
+                  sx={{
+                    maxWidth: 500,
+                    '& .MuiInputBase-input': {
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                    },
+                  }}
+                />
+                <Tooltip title="Copy URL">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCopyUrl(status.webhookBaseUrl, 'Webhook Base URL')}
+                  >
+                    <FontAwesomeIcon icon={faCopy} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Box>
+
+            {/* Webhook Callback URL Pattern */}
+            <Box sx={{ mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Webhook Callback URL Pattern
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <CobraTextField
+                  size="small"
+                  fullWidth
+                  value={status.webhookCallbackUrlPattern}
+                  InputProps={{ readOnly: true }}
+                  sx={{
+                    maxWidth: 500,
+                    '& .MuiInputBase-input': {
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                    },
+                  }}
+                />
+                <Tooltip title="Copy URL Pattern">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCopyUrl(status.webhookCallbackUrlPattern, 'Callback URL Pattern')}
+                  >
+                    <FontAwesomeIcon icon={faCopy} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                {'{channelMappingId}'} is replaced with the actual channel mapping GUID when a GroupMe channel is created.
+              </Typography>
+            </Box>
+
+            {/* Health Check URL */}
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Webhook Health Check URL
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <CobraTextField
+                  size="small"
+                  fullWidth
+                  value={status.webhookHealthCheckUrl}
+                  InputProps={{ readOnly: true }}
+                  sx={{
+                    maxWidth: 500,
+                    '& .MuiInputBase-input': {
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                    },
+                  }}
+                />
+                <Tooltip title="Copy Health Check URL">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCopyUrl(status.webhookHealthCheckUrl, 'Health Check URL')}
+                  >
+                    <FontAwesomeIcon icon={faCopy} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const SystemSettingsAdmin: React.FC = () => {
   const theme = useTheme();
   const [settings, setSettings] = useState<SystemSettingDto[]>([]);
+  const [groupMeStatus, setGroupMeStatus] = useState<GroupMeIntegrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -249,8 +453,12 @@ export const SystemSettingsAdmin: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await systemSettingsService.getAllSettings();
-      setSettings(data);
+      const [settingsData, groupMeData] = await Promise.all([
+        systemSettingsService.getAllSettings(),
+        systemSettingsService.getGroupMeIntegrationStatus(),
+      ]);
+      setSettings(settingsData);
+      setGroupMeStatus(groupMeData);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load settings';
       setError(message);
@@ -377,6 +585,7 @@ export const SystemSettingsAdmin: React.FC = () => {
         const category = Number(categoryStr) as SettingCategory;
         const categoryName = SettingCategoryNames[category] || 'Other';
         const categoryIcon = categoryIcons[category] || faGear;
+        const isIntegrationCategory = category === SettingCategory.Integration;
 
         return (
           <Box key={category} sx={{ mb: 4 }}>
@@ -394,6 +603,11 @@ export const SystemSettingsAdmin: React.FC = () => {
               <FontAwesomeIcon icon={categoryIcon} />
               {categoryName}
             </Typography>
+
+            {/* Show GroupMe webhook status card in Integration category */}
+            {isIntegrationCategory && (
+              <GroupMeStatusCard status={groupMeStatus} loading={loading} />
+            )}
 
             {categorySettings.map((setting) => (
               <SettingRow

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -15,6 +16,9 @@ public class ChatServiceTests : IDisposable
     private readonly Mock<IExternalMessagingService> _mockExternalMessagingService;
     private readonly Mock<IChatHubService> _mockChatHubService;
     private readonly Mock<IHttpContextAccessor> _mockHttpContextAccessor;
+    private readonly Mock<IServiceProvider> _mockServiceProvider;
+    private readonly Mock<IServiceScope> _mockServiceScope;
+    private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly Mock<ILogger<ChatService>> _mockLogger;
     private readonly ChatService _service;
     private readonly UserContext _testUser;
@@ -29,6 +33,9 @@ public class ChatServiceTests : IDisposable
         _mockExternalMessagingService = new Mock<IExternalMessagingService>();
         _mockChatHubService = new Mock<IChatHubService>();
         _mockHttpContextAccessor = new Mock<IHttpContextAccessor>();
+        _mockServiceProvider = new Mock<IServiceProvider>();
+        _mockServiceScope = new Mock<IServiceScope>();
+        _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         _mockLogger = new Mock<ILogger<ChatService>>();
 
         _testUser = TestUserContextFactory.CreateTestUser();
@@ -38,11 +45,20 @@ public class ChatServiceTests : IDisposable
         httpContext.Items["UserContext"] = _testUser;
         _mockHttpContextAccessor.Setup(x => x.HttpContext).Returns(httpContext);
 
+        // Setup service provider to create scope and resolve IExternalMessagingService
+        var scopeServiceProvider = new Mock<IServiceProvider>();
+        scopeServiceProvider.Setup(x => x.GetService(typeof(IExternalMessagingService)))
+            .Returns(_mockExternalMessagingService.Object);
+        _mockServiceScope.Setup(x => x.ServiceProvider).Returns(scopeServiceProvider.Object);
+        _mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(_mockServiceScope.Object);
+        _mockServiceProvider.Setup(x => x.GetService(typeof(IServiceScopeFactory)))
+            .Returns(_mockServiceScopeFactory.Object);
+
         _service = new ChatService(
             _context,
-            _mockExternalMessagingService.Object,
             _mockChatHubService.Object,
             _mockHttpContextAccessor.Object,
+            _mockServiceProvider.Object,
             _mockLogger.Object);
     }
 

@@ -101,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: "chat",
       label: "Chat",
       icon: faComments,
-      path: "/chat",
+      path: "/chat/dashboard",
       featureFlag: "chat",
     },
     {
@@ -183,6 +183,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (path === "/checklists/dashboard") {
       // Checklist tool is active for all /checklists/* routes
       return location.pathname.startsWith("/checklists");
+    }
+    if (path === "/chat/dashboard") {
+      // Chat tool is active for all /chat/* routes
+      return location.pathname.startsWith("/chat");
     }
     return location.pathname.startsWith(path);
   };

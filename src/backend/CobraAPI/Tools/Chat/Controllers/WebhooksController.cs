@@ -15,14 +15,14 @@ namespace CobraAPI.Tools.Chat.Controllers;
 [Route("api/webhooks")]
 public class WebhooksController : ControllerBase
 {
-    private readonly IExternalMessagingService _externalMessagingService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<WebhooksController> _logger;
 
     public WebhooksController(
-        IExternalMessagingService externalMessagingService,
+        IServiceProvider serviceProvider,
         ILogger<WebhooksController> logger)
     {
-        _externalMessagingService = externalMessagingService;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -60,13 +60,18 @@ public class WebhooksController : ControllerBase
                 return BadRequest("Invalid payload");
             }
 
-            // Process the message asynchronously
+            // Process the message asynchronously in a new scope
             // We return 200 immediately to prevent GroupMe from retrying
+            // Important: Create a new DI scope because the request scope will be disposed
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await _externalMessagingService.ProcessGroupMeWebhookAsync(channelMappingId, payload);
+                    // Create a new scope for the background task
+                    // This ensures DbContext and other scoped services are properly resolved
+                    using var scope = _serviceProvider.CreateScope();
+                    var messagingService = scope.ServiceProvider.GetRequiredService<IExternalMessagingService>();
+                    await messagingService.ProcessGroupMeWebhookAsync(channelMappingId, payload);
                 }
                 catch (Exception ex)
                 {

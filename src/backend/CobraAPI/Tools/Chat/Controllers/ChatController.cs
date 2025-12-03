@@ -4,25 +4,239 @@ namespace CobraAPI.Tools.Chat.Controllers;
 
 /// <summary>
 /// API controller for chat operations.
-/// Provides endpoints for sending messages, retrieving messages, and managing external channels.
+/// Provides endpoints for sending messages, retrieving messages, and managing channels.
 /// </summary>
 [ApiController]
 [Route("api/events/{eventId:guid}/chat")]
 public class ChatController : ControllerBase
 {
     private readonly IChatService _chatService;
+    private readonly IChannelService _channelService;
     private readonly IExternalMessagingService _externalMessagingService;
+    private readonly IChatHubService _chatHubService;
     private readonly ILogger<ChatController> _logger;
 
     public ChatController(
         IChatService chatService,
+        IChannelService channelService,
         IExternalMessagingService externalMessagingService,
+        IChatHubService chatHubService,
         ILogger<ChatController> logger)
     {
         _chatService = chatService;
+        _channelService = channelService;
         _externalMessagingService = externalMessagingService;
+        _chatHubService = chatHubService;
         _logger = logger;
     }
+
+    #region Channels
+
+    /// <summary>
+    /// Gets all channels for an event.
+    /// </summary>
+    [HttpGet("channels")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<ChatThreadDto>>> GetChannels(Guid eventId)
+    {
+        var channels = await _channelService.GetEventChannelsAsync(eventId);
+        return Ok(channels);
+    }
+
+    /// <summary>
+    /// Gets a specific channel by ID.
+    /// </summary>
+    [HttpGet("channels/{channelId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ChatThreadDto>> GetChannel(Guid eventId, Guid channelId)
+    {
+        var channel = await _channelService.GetChannelAsync(channelId);
+        if (channel == null)
+        {
+            return NotFound("Channel not found");
+        }
+        return Ok(channel);
+    }
+
+    /// <summary>
+    /// Creates a new channel in an event.
+    /// </summary>
+    [HttpPost("channels")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ChatThreadDto>> CreateChannel(
+        Guid eventId,
+        [FromBody] CreateChannelRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest("Channel name is required");
+        }
+
+        request.EventId = eventId;
+        var channel = await _channelService.CreateChannelAsync(request);
+
+        // Broadcast channel created event
+        await _chatHubService.BroadcastChannelCreatedAsync(eventId, channel);
+
+        return CreatedAtAction(
+            nameof(GetChannel),
+            new { eventId, channelId = channel.Id },
+            channel);
+    }
+
+    /// <summary>
+    /// Updates a channel's metadata.
+    /// </summary>
+    [HttpPatch("channels/{channelId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ChatThreadDto>> UpdateChannel(
+        Guid eventId,
+        Guid channelId,
+        [FromBody] UpdateChannelRequest request)
+    {
+        var channel = await _channelService.UpdateChannelAsync(channelId, request);
+        if (channel == null)
+        {
+            return NotFound("Channel not found");
+        }
+        return Ok(channel);
+    }
+
+    /// <summary>
+    /// Reorders channels within an event.
+    /// </summary>
+    [HttpPut("channels/reorder")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<ActionResult> ReorderChannels(
+        Guid eventId,
+        [FromBody] List<Guid> orderedChannelIds)
+    {
+        await _channelService.ReorderChannelsAsync(eventId, orderedChannelIds);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Deletes a channel (soft delete/archive).
+    /// Cannot delete the default event channel or external channels.
+    /// </summary>
+    [HttpDelete("channels/{channelId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> DeleteChannel(Guid eventId, Guid channelId)
+    {
+        var result = await _channelService.DeleteChannelAsync(channelId);
+        if (!result)
+        {
+            return BadRequest("Cannot delete this channel. It may be a default or external channel.");
+        }
+
+        // Broadcast channel archived event
+        await _chatHubService.BroadcastChannelArchivedAsync(eventId, channelId);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Gets all channels including archived for administration.
+    /// </summary>
+    [HttpGet("channels/all")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<ChatThreadDto>>> GetAllChannels(
+        Guid eventId,
+        [FromQuery] bool includeArchived = true)
+    {
+        var channels = await _channelService.GetAllEventChannelsAsync(eventId, includeArchived);
+        return Ok(channels);
+    }
+
+    /// <summary>
+    /// Gets archived channels for an event.
+    /// </summary>
+    [HttpGet("channels/archived")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<ChatThreadDto>>> GetArchivedChannels(Guid eventId)
+    {
+        var channels = await _channelService.GetArchivedChannelsAsync(eventId);
+        return Ok(channels);
+    }
+
+    /// <summary>
+    /// Restores an archived channel.
+    /// </summary>
+    [HttpPost("channels/{channelId:guid}/restore")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ChatThreadDto>> RestoreChannel(Guid eventId, Guid channelId)
+    {
+        var channel = await _channelService.RestoreChannelAsync(channelId);
+        if (channel == null)
+        {
+            return NotFound("Channel not found or not archived");
+        }
+
+        // Broadcast channel restored event
+        await _chatHubService.BroadcastChannelRestoredAsync(eventId, channel);
+
+        return Ok(channel);
+    }
+
+    /// <summary>
+    /// Permanently deletes a channel (cannot be undone without SQL access).
+    /// </summary>
+    [HttpDelete("channels/{channelId:guid}/permanent")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> PermanentDeleteChannel(Guid eventId, Guid channelId)
+    {
+        var result = await _channelService.PermanentDeleteChannelAsync(channelId);
+        if (!result)
+        {
+            return BadRequest("Cannot permanently delete this channel. It may be a default or Announcements channel.");
+        }
+
+        // Broadcast channel permanently deleted event
+        await _chatHubService.BroadcastChannelDeletedAsync(eventId, channelId);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Archives all messages in a channel.
+    /// </summary>
+    [HttpPost("channels/{channelId:guid}/archive-messages")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ArchiveMessagesResponse>> ArchiveAllMessages(Guid eventId, Guid channelId)
+    {
+        var count = await _channelService.ArchiveAllMessagesAsync(channelId);
+        return Ok(new ArchiveMessagesResponse { ArchivedCount = count });
+    }
+
+    /// <summary>
+    /// Archives messages older than specified days in a channel.
+    /// </summary>
+    [HttpPost("channels/{channelId:guid}/archive-messages-older-than")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ArchiveMessagesResponse>> ArchiveMessagesOlderThan(
+        Guid eventId,
+        Guid channelId,
+        [FromQuery] int days)
+    {
+        if (days < 1)
+        {
+            return BadRequest("Days must be at least 1");
+        }
+
+        var count = await _channelService.ArchiveMessagesOlderThanAsync(channelId, days);
+        return Ok(new ArchiveMessagesResponse { ArchivedCount = count });
+    }
+
+    #endregion
 
     /// <summary>
     /// Gets or creates the default chat thread for an event.
@@ -95,17 +309,25 @@ public class ChatController : ControllerBase
         Guid eventId,
         [FromBody] CreateExternalChannelApiRequest request)
     {
-        var mapping = await _externalMessagingService.CreateExternalChannelAsync(new CreateExternalChannelRequest
+        try
         {
-            EventId = eventId,
-            Platform = request.Platform,
-            CustomGroupName = request.CustomGroupName
-        });
+            var mapping = await _externalMessagingService.CreateExternalChannelAsync(new CreateExternalChannelRequest
+            {
+                EventId = eventId,
+                Platform = request.Platform,
+                CustomGroupName = request.CustomGroupName
+            });
 
-        return CreatedAtAction(
-            nameof(GetExternalChannels),
-            new { eventId },
-            mapping);
+            return CreatedAtAction(
+                nameof(GetExternalChannels),
+                new { eventId },
+                mapping);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to create external channel for event {EventId}", eventId);
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -138,4 +360,12 @@ public class CreateExternalChannelApiRequest
 {
     public ExternalPlatform Platform { get; set; }
     public string? CustomGroupName { get; set; }
+}
+
+/// <summary>
+/// Response model for archive messages operations.
+/// </summary>
+public class ArchiveMessagesResponse
+{
+    public int ArchivedCount { get; set; }
 }
