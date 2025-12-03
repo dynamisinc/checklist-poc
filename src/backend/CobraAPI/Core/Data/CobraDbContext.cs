@@ -26,6 +26,10 @@ public class CobraDbContext : DbContext
 
     // System configuration
     public DbSet<SystemSetting> SystemSettings { get; set; }
+
+    // Position entities
+    public DbSet<Position> Positions { get; set; }
+    public DbSet<PositionTranslation> PositionTranslations { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -230,9 +234,18 @@ public class CobraDbContext : DbContext
                 .HasForeignKey(e => e.ExternalChannelMappingId)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            // Optional FK to Position for Position channels
+            entity.HasOne(e => e.Position)
+                .WithMany()
+                .HasForeignKey(e => e.PositionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasIndex(e => new { e.EventId, e.IsDefaultEventThread });
             entity.HasIndex(e => new { e.EventId, e.ChannelType });
             entity.HasIndex(e => new { e.EventId, e.DisplayOrder });
+            // Index for position channel filtering
+            entity.HasIndex(e => new { e.EventId, e.PositionId })
+                .HasFilter("[PositionId] IS NOT NULL");
         });
 
         // ChatMessage configuration
@@ -310,6 +323,35 @@ public class CobraDbContext : DbContext
             entity.HasIndex(e => e.Key).IsUnique();
             entity.HasIndex(e => e.Category);
             entity.HasIndex(e => new { e.Category, e.SortOrder });
+        });
+
+        // Position configuration
+        modelBuilder.Entity<Position>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.IconName).HasMaxLength(50);
+            entity.Property(e => e.Color).HasMaxLength(20);
+            entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(200);
+
+            entity.HasMany(e => e.Translations)
+                .WithOne(t => t.Position)
+                .HasForeignKey(t => t.PositionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.OrganizationId);
+            entity.HasIndex(e => new { e.OrganizationId, e.IsActive });
+            entity.HasIndex(e => new { e.OrganizationId, e.DisplayOrder });
+        });
+
+        // PositionTranslation configuration
+        modelBuilder.Entity<PositionTranslation>(entity =>
+        {
+            // Composite primary key: PositionId + LanguageId
+            entity.HasKey(e => new { e.PositionId, e.LanguageId });
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+
+            entity.HasIndex(e => e.LanguageId);
         });
     }
 }

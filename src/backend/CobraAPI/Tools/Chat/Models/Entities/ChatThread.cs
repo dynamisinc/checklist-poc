@@ -56,6 +56,17 @@ public class ChatThread
     public string? Color { get; set; }
 
     /// <summary>
+    /// For Position channels, the ID of the associated Position entity.
+    /// Used to filter visibility to users assigned to this position.
+    /// </summary>
+    public Guid? PositionId { get; set; }
+
+    /// <summary>
+    /// Navigation property to the Position (if this is a Position channel).
+    /// </summary>
+    public Position? Position { get; set; }
+
+    /// <summary>
     /// For External channels, the ID of the linked ExternalChannelMapping.
     /// Null for internal channels.
     /// </summary>

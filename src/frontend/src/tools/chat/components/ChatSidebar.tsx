@@ -84,6 +84,22 @@ export const ChatSidebar: React.FC = () => {
     setShowChannelList(true);
   }, [currentEvent?.id]);
 
+  // Reset selected channel when profile changes (position or account change)
+  // This ensures we don't show a channel the user can no longer access
+  useEffect(() => {
+    const handleProfileChange = () => {
+      console.log('[ChatSidebar] Profile changed, resetting selected channel');
+      setSelectedChannel(null);
+      setShowChannelList(true);
+    };
+    window.addEventListener('profileChanged', handleProfileChange);
+    window.addEventListener('accountChanged', handleProfileChange);
+    return () => {
+      window.removeEventListener('profileChanged', handleProfileChange);
+      window.removeEventListener('accountChanged', handleProfileChange);
+    };
+  }, []);
+
   // Load external channels when event changes
   useEffect(() => {
     const loadExternalChannels = async () => {

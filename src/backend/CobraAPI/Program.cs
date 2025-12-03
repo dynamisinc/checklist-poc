@@ -34,6 +34,7 @@ builder.Services.AddScoped<IItemLibraryService, ItemLibraryService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IEventCategoryService, EventCategoryService>();
 builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IPositionService, PositionService>();
 
 // Register chat services
 builder.Services.Configure<GroupMeSettings>(
@@ -88,6 +89,57 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Applying database migrations...");
         context.Database.Migrate();
         logger.LogInformation("Database migrations applied successfully");
+
+        // Seed default ICS positions for the default organization
+        var defaultOrgId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var existingPositions = context.Positions.Count(p => p.OrganizationId == defaultOrgId && p.IsActive);
+        if (existingPositions == 0)
+        {
+            logger.LogInformation("Seeding default ICS positions for organization {OrgId}...", defaultOrgId);
+
+            var defaultLanguageId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+            var defaultPositions = new (string Name, string Description, string Icon, string Color, int Order)[]
+            {
+                ("Incident Commander", "Command staff coordination", "star", "#0020C2", 1),
+                ("Operations Section Chief", "Operations section coordination", "cogs", "#E42217", 2),
+                ("Planning Section Chief", "Planning section coordination", "clipboard-list", "#4CAF50", 3),
+                ("Logistics Section Chief", "Logistics section coordination", "truck", "#FF9800", 4),
+                ("Finance/Admin Section Chief", "Finance and administration coordination", "dollar-sign", "#9C27B0", 5),
+                ("Safety Officer", "Safety officer coordination", "shield-halved", "#F44336", 6),
+                ("Public Information Officer", "Public information coordination", "bullhorn", "#2196F3", 7),
+                ("Liaison Officer", "Liaison officer coordination", "handshake", "#00BCD4", 8),
+            };
+
+            foreach (var (name, description, icon, color, order) in defaultPositions)
+            {
+                var positionId = Guid.NewGuid();
+                context.Positions.Add(new Position
+                {
+                    Id = positionId,
+                    OrganizationId = defaultOrgId,
+                    SourceLanguageId = defaultLanguageId,
+                    IsActive = true,
+                    IconName = icon,
+                    Color = color,
+                    DisplayOrder = order,
+                    CreatedBy = "system",
+                    CreatedAt = DateTime.UtcNow,
+                });
+                context.PositionTranslations.Add(new PositionTranslation
+                {
+                    PositionId = positionId,
+                    LanguageId = defaultLanguageId,
+                    Name = name,
+                    Description = description,
+                });
+            }
+            context.SaveChanges();
+            logger.LogInformation("Seeded {Count} default ICS positions", defaultPositions.Length);
+        }
+        else
+        {
+            logger.LogInformation("Organization {OrgId} already has {Count} positions, skipping seed", defaultOrgId, existingPositions);
+        }
     }
     catch (Exception ex)
     {

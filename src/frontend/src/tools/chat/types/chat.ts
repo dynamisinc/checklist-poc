@@ -56,6 +56,8 @@ export interface ChatThreadDto {
   displayOrder: number;
   iconName?: string;
   color?: string;
+  /** For Position channels, the full ICS position name for filtering */
+  positionName?: string;
   messageCount: number;
   createdAt: string;
   /** Whether the channel is active (false = archived) */
@@ -225,6 +227,11 @@ export interface CreateChannelRequest {
   channelType: ChannelType;
   iconName?: string;
   color?: string;
+  /**
+   * Optional position ID for Position channels.
+   * When set, only users assigned to this position can see the channel.
+   */
+  positionId?: string;
 }
 
 /**

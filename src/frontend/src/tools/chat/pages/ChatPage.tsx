@@ -151,7 +151,7 @@ export const ChatPage: React.FC = () => {
       setChannelsLoading(true);
       setChannelsError(null);
       const [channelsData, externalData] = await Promise.all([
-        chatService.getChannels(currentEvent.id),
+        chatService.getUserVisibleChannels(currentEvent.id),
         chatService.getExternalChannels(currentEvent.id),
       ]);
       setChannels(channelsData);
@@ -178,6 +178,20 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     loadChannels();
+  }, [loadChannels]);
+
+  // Refresh channels when profile changes (position or account change)
+  useEffect(() => {
+    const handleProfileChange = () => {
+      console.log('[ChatPage] Profile changed, refreshing channels');
+      loadChannels();
+    };
+    window.addEventListener('profileChanged', handleProfileChange);
+    window.addEventListener('accountChanged', handleProfileChange);
+    return () => {
+      window.removeEventListener('profileChanged', handleProfileChange);
+      window.removeEventListener('accountChanged', handleProfileChange);
+    };
   }, [loadChannels]);
 
   // Reset selection when event changes

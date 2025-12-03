@@ -236,6 +236,52 @@ public class ChatController : ControllerBase
         return Ok(new ArchiveMessagesResponse { ArchivedCount = count });
     }
 
+    /// <summary>
+    /// Creates position-based channels for an event.
+    /// Creates one channel for each ICS position (Command, Operations, Planning, etc.).
+    /// </summary>
+    [HttpPost("channels/position")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    public async Task<ActionResult<List<ChatThreadDto>>> CreatePositionChannels(Guid eventId)
+    {
+        var userContext = HttpContext.Items["UserContext"] as UserContext;
+        var createdBy = userContext?.Email ?? "system";
+
+        var channels = await _channelService.CreatePositionChannelsAsync(eventId, createdBy);
+
+        // Broadcast channel created events for each position channel
+        foreach (var channel in channels)
+        {
+            await _chatHubService.BroadcastChannelCreatedAsync(eventId, channel);
+        }
+
+        _logger.LogInformation(
+            "Created {Count} position channels for event {EventId}",
+            channels.Count, eventId);
+
+        return StatusCode(StatusCodes.Status201Created, channels);
+    }
+
+    /// <summary>
+    /// Gets channels visible to the current user based on their positions and role.
+    /// Position channels are only visible to users assigned to that position,
+    /// unless the user has Manage role (which can see all channels),
+    /// or the user created the channel (creator can always see their channel).
+    /// Other channel types are visible to all users.
+    /// </summary>
+    [HttpGet("channels/visible")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<ChatThreadDto>>> GetUserVisibleChannels(Guid eventId)
+    {
+        var userContext = HttpContext.Items["UserContext"] as UserContext;
+        var userPositionIds = userContext?.PositionIds ?? new List<Guid>();
+        var userEmail = userContext?.Email ?? string.Empty;
+        var canManage = userContext?.CanManage ?? false;
+
+        var channels = await _channelService.GetUserVisibleChannelsAsync(eventId, userPositionIds, userEmail, canManage);
+        return Ok(channels);
+    }
+
     #endregion
 
     /// <summary>

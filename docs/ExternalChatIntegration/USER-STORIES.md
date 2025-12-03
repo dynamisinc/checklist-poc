@@ -92,21 +92,27 @@
 
 **Title:** Create additional internal channels for an event
 
-**As a** user with Manage permissions  
-**I want** to create additional internal channels  
+**As a** user with Manage permissions
+**I want** to create additional internal channels
 **So that** I can organize conversations by topic, section, or team
 
 **Acceptance Criteria:**
-- [ ] User with Manage permissions can create new internal channels
-- [ ] Channel name is required and must be unique within the event
-- [ ] Optional channel description field
-- [ ] New channel appears in sidebar accordion and full-page tabs
-- [ ] New internal channels never bridge to external platforms
-- [ ] Channel creation is logged for verification
+- [x] User with Manage permissions can create new internal channels
+- [x] Channel name is required and must be unique within the event
+- [x] Optional channel description field
+- [x] New channel appears in sidebar accordion and full-page tabs
+- [x] New internal channels never bridge to external platforms
+- [x] Channel creation is logged for verification
+- [x] Optional: Restrict channel visibility to a specific ICS position
+  - Position selector dropdown with positions from database
+  - When a position is selected, channel type becomes Position
+  - Only users assigned to that position can see the channel
+  - Users with Manage role can see all channels regardless of position
+  - Helper text explains visibility restriction when position is selected
 
 **Dependencies:** UC-001
 
-**Notes:** Examples: "Operations", "Logistics", "Safety", "Structure Fire - 123 Main St"
+**Notes:** Examples: "Operations", "Logistics", "Safety", "Structure Fire - 123 Main St". Position-restricted channels are useful for sensitive coordination (e.g., "Safety Officer Coordination" visible only to Safety Officers).
 
 ---
 
@@ -848,13 +854,14 @@ CREATE INDEX IX_UserChannelReadState_UserId ON UserChannelReadState(UserId);
 
 ## Implementation Status
 
-*Last Updated: 2025-12-02*
+*Last Updated: 2025-12-03*
 
 ### Completed
 
 | Story | Title | Notes |
 |-------|-------|-------|
 | UC-001 | Auto-Create Default Channels | Complete: Backend auto-creates channels on event creation. Frontend ChannelList component displays channels in sidebar accordion. Announcements channel shows read-only message. Role-based write permission pending. |
+| UC-004 | Manually Create Internal Channel | Complete: Create channel dialog with optional position restriction. Position selector using Autocomplete with database-defined positions. Position channels visible only to assigned users; Manage role sees all. |
 | UC-005 | Create GroupMe Channel | Create new GroupMe group for event. Includes duplicate prevention and reconnect support. |
 | UC-007 | Disconnect External Channel | Deactivate channel (soft delete). Reconnecting reactivates the same GroupMe group. |
 | UC-009 | Receive External Messages | Webhook receives GroupMe messages and displays in COBRA via SignalR real-time. |

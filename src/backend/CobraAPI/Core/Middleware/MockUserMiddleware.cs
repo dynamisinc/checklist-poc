@@ -1,4 +1,5 @@
 using CobraAPI.Core.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace CobraAPI.Core.Middleware;
 
@@ -13,8 +14,9 @@ namespace CobraAPI.Core.Middleware;
 /// How It Works:
 ///   1. Reads mock user settings from appsettings.json (MockAuth section)
 ///   2. Creates a UserContext with configured user details
-///   3. Injects UserContext into HttpContext.Items for controller access
-///   4. Logs user context creation for debugging
+///   3. Resolves position names to position IDs from the database
+///   4. Injects UserContext into HttpContext.Items for controller access
+///   5. Logs user context creation for debugging
 ///
 /// Production Replacement:
 ///   In production, replace this with real authentication middleware that:
@@ -42,15 +44,18 @@ public class MockUserMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<MockUserMiddleware> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public MockUserMiddleware(
         RequestDelegate next,
         ILogger<MockUserMiddleware> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IServiceScopeFactory scopeFactory)
     {
         _next = next;
         _logger = logger;
         _configuration = configuration;
+        _scopeFactory = scopeFactory;
     }
 
     /// <summary>
@@ -112,6 +117,46 @@ public class MockUserMiddleware
             var isSysAdminStr = context.Request.Headers["X-User-IsSysAdmin"].FirstOrDefault();
             var isSysAdmin = !string.IsNullOrEmpty(isSysAdminStr) && bool.Parse(isSysAdminStr);
 
+            // Organization ID - POC uses a fixed default organization
+            // In production, this would come from the authenticated user's claims
+            var defaultOrgId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+            var orgIdStr = context.Request.Headers["X-User-OrganizationId"].FirstOrDefault();
+            var organizationId = !string.IsNullOrEmpty(orgIdStr) && Guid.TryParse(orgIdStr, out var parsedOrgId)
+                ? parsedOrgId
+                : defaultOrgId;
+
+            // Resolve position names to position IDs from the database
+            var positionIds = new List<Guid>();
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<CobraDbContext>();
+
+                // Find positions by matching translation names (case-insensitive)
+                var positionEntities = await dbContext.Positions
+                    .Include(p => p.Translations)
+                    .Where(p => p.OrganizationId == organizationId && p.IsActive)
+                    .ToListAsync();
+
+                foreach (var positionName in positions)
+                {
+                    var matchingPosition = positionEntities.FirstOrDefault(p =>
+                        p.Translations.Any(t =>
+                            t.Name.Equals(positionName, StringComparison.OrdinalIgnoreCase)));
+
+                    if (matchingPosition != null)
+                    {
+                        positionIds.Add(matchingPosition.Id);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail - positions may not exist in DB yet
+                _logger.LogWarning(ex,
+                    "Failed to resolve position IDs from database. Position-based channel filtering may not work.");
+            }
+
             // Create mock user context
             var userContext = new UserContext
             {
@@ -119,9 +164,11 @@ public class MockUserMiddleware
                 FullName = fullName,
                 Position = position,
                 Positions = positions,
+                PositionIds = positionIds,
                 IsAdmin = isAdmin,
                 IsSysAdmin = isSysAdmin,
                 Role = role,
+                OrganizationId = organizationId,
                 CurrentEventId = null, // Could be set from query string in future
                 CurrentOperationalPeriod = null
             };
@@ -131,9 +178,10 @@ public class MockUserMiddleware
 
             // Log for debugging
             _logger.LogInformation(
-                "Mock user context created: {Email} (Positions: {Positions}, Role: {Role}, SysAdmin: {IsSysAdmin})",
+                "Mock user context created: {Email} (Positions: {Positions}, PositionIds: {PositionIds}, Role: {Role}, SysAdmin: {IsSysAdmin})",
                 userContext.Email,
                 string.Join(", ", userContext.Positions),
+                string.Join(", ", userContext.PositionIds),
                 userContext.Role,
                 userContext.IsSysAdmin
             );

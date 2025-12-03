@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using CobraAPI.Shared.Positions.Models.Entities;
 
 namespace CobraAPI.Tests.Chat.Services;
 
@@ -20,6 +21,12 @@ public class ChannelServiceTests : IDisposable
     // Test event IDs
     private static readonly Guid TestEventId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly Guid TestEvent2Id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+    // Test position IDs
+    private static readonly Guid IncidentCommanderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid OperationsSectionChiefId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid SafetyOfficerId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly Guid TestLanguageId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
     public ChannelServiceTests()
     {
@@ -783,7 +790,361 @@ public class ChannelServiceTests : IDisposable
 
     #endregion
 
+    #region CreatePositionChannelsAsync Tests
+
+    [Fact]
+    public async Task CreatePositionChannelsAsync_CreatesAllPositionChannels()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEvent();
+
+        // Act
+        var result = await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Assert - Creates channels for all seeded positions (3 in test)
+        Assert.Equal(3, result.Count);
+        Assert.All(result, c => Assert.Equal(ChannelType.Position, c.ChannelType));
+    }
+
+    [Fact]
+    public async Task CreatePositionChannelsAsync_SetsCorrectPositionIds()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEvent();
+
+        // Act
+        var result = await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Assert - Should create channels for all seeded positions
+        Assert.Equal(3, result.Count);
+        var positionIds = result.Select(c => c.PositionId).ToList();
+        Assert.Contains(IncidentCommanderId, positionIds);
+        Assert.Contains(OperationsSectionChiefId, positionIds);
+        Assert.Contains(SafetyOfficerId, positionIds);
+
+        // Check position details are populated
+        var incidentCommanderChannel = result.First(c => c.PositionId == IncidentCommanderId);
+        Assert.NotNull(incidentCommanderChannel.Position);
+        Assert.Equal("Incident Commander", incidentCommanderChannel.Position!.Name);
+    }
+
+    [Fact]
+    public async Task CreatePositionChannelsAsync_SetsIconsAndColors()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEvent();
+
+        // Act
+        var result = await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Assert
+        var commandChannel = result.First(c => c.PositionId == IncidentCommanderId);
+        Assert.Equal("star", commandChannel.IconName);
+        Assert.Equal("#0020C2", commandChannel.Color);
+
+        var operationsChannel = result.First(c => c.PositionId == OperationsSectionChiefId);
+        Assert.Equal("cogs", operationsChannel.IconName);
+        Assert.Equal("#E42217", operationsChannel.Color);
+    }
+
+    [Fact]
+    public async Task CreatePositionChannelsAsync_SetsDisplayOrderFromConfig()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEvent();
+
+        // Act
+        var result = await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Assert - Position channels should have display orders >= 10 (using position display orders)
+        Assert.All(result, c => Assert.True(c.DisplayOrder >= 10));
+    }
+
+    [Fact]
+    public async Task CreatePositionChannelsAsync_SetsCreatedByCorrectly()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEvent();
+        var createdBy = "specific-user@test.com";
+
+        // Act
+        var result = await _service.CreatePositionChannelsAsync(TestEventId, createdBy);
+
+        // Assert
+        var dbChannels = _context.ChatThreads.Where(c => c.EventId == TestEventId && c.ChannelType == ChannelType.Position).ToList();
+        Assert.All(dbChannels, c => Assert.Equal(createdBy, c.CreatedBy));
+    }
+
+    [Fact]
+    public async Task CreatePositionChannelsAsync_PersistsToDatabase()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEvent();
+
+        // Act
+        await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Assert - Should create 3 channels (one for each seeded position)
+        var dbChannels = _context.ChatThreads.Where(c => c.EventId == TestEventId && c.ChannelType == ChannelType.Position).ToList();
+        Assert.Equal(3, dbChannels.Count);
+    }
+
+    #endregion
+
+    #region GetUserVisibleChannelsAsync Tests
+
+    [Fact]
+    public async Task GetUserVisibleChannelsAsync_ReturnsNonPositionChannels_ForAllUsers()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEventWithChannels();
+        await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Act - User with no positions (empty list of position IDs)
+        var result = await _service.GetUserVisibleChannelsAsync(TestEventId, new List<Guid>(), "other@test.com");
+
+        // Assert - Should see Internal, Announcements, Custom but no Position channels
+        Assert.Equal(3, result.Count);
+        Assert.Contains(result, c => c.Name == "Event Chat");
+        Assert.Contains(result, c => c.Name == "Announcements");
+        Assert.Contains(result, c => c.Name == "Custom Channel");
+        Assert.DoesNotContain(result, c => c.ChannelType == ChannelType.Position);
+    }
+
+    [Fact]
+    public async Task GetUserVisibleChannelsAsync_ReturnsMatchingPositionChannels()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEventWithChannels();
+        await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Act - User with Incident Commander position ID
+        var result = await _service.GetUserVisibleChannelsAsync(TestEventId, new List<Guid> { IncidentCommanderId }, "other@test.com");
+
+        // Assert - Should see default channels + Command position channel
+        Assert.Equal(4, result.Count); // Event Chat, Announcements, Custom, Command
+        Assert.Contains(result, c => c.PositionId == IncidentCommanderId);
+    }
+
+    [Fact]
+    public async Task GetUserVisibleChannelsAsync_ReturnsMultiplePositionChannels_ForMultiPositionUser()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEventWithChannels();
+        await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Act - User with multiple position IDs
+        var result = await _service.GetUserVisibleChannelsAsync(
+            TestEventId,
+            new List<Guid> { IncidentCommanderId, SafetyOfficerId },
+            "other@test.com");
+
+        // Assert - Should see default channels + both position channels
+        Assert.Equal(5, result.Count);
+        Assert.Contains(result, c => c.PositionId == IncidentCommanderId);
+        Assert.Contains(result, c => c.PositionId == SafetyOfficerId);
+    }
+
+    [Fact]
+    public async Task GetUserVisibleChannelsAsync_ExcludesInactiveChannels()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEventWithChannels();
+        await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Archive a position channel
+        var commandChannel = _context.ChatThreads.First(c => c.PositionId == IncidentCommanderId);
+        commandChannel.IsActive = false;
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetUserVisibleChannelsAsync(
+            TestEventId,
+            new List<Guid> { IncidentCommanderId },
+            "other@test.com");
+
+        // Assert - Archived channel should not appear
+        Assert.DoesNotContain(result, c => c.PositionId == IncidentCommanderId);
+    }
+
+    [Fact]
+    public async Task GetUserVisibleChannelsAsync_OrdersByDisplayOrder()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEventWithChannels();
+        await _service.CreatePositionChannelsAsync(TestEventId, "creator@test.com");
+
+        // Act
+        var result = await _service.GetUserVisibleChannelsAsync(
+            TestEventId,
+            new List<Guid> { IncidentCommanderId, OperationsSectionChiefId },
+            "other@test.com");
+
+        // Assert - Should be ordered by DisplayOrder
+        var displayOrders = result.Select(c => c.DisplayOrder).ToList();
+        Assert.Equal(displayOrders.OrderBy(d => d).ToList(), displayOrders);
+    }
+
+    [Fact]
+    public async Task GetUserVisibleChannelsAsync_ReturnsChannelForCreator_EvenWithoutPosition()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEventWithChannels();
+
+        // Create a position-restricted channel by a specific user
+        var creatorEmail = "channel-creator@test.com";
+        var request = new CreateChannelRequest
+        {
+            EventId = TestEventId,
+            Name = "Safety Position Channel",
+            ChannelType = ChannelType.Position,
+            PositionId = SafetyOfficerId
+        };
+
+        // Temporarily change the mock user context to the creator
+        var httpContext = new DefaultHttpContext();
+        var creatorUser = new UserContext
+        {
+            Email = creatorEmail,
+            FullName = "Channel Creator",
+            OrganizationId = _testUser.OrganizationId,
+            PositionIds = new List<Guid>(), // Creator has no positions
+            Role = PermissionRole.Contributor // Not a manager
+        };
+        httpContext.Items["UserContext"] = creatorUser;
+        _mockHttpContextAccessor.Setup(x => x.HttpContext).Returns(httpContext);
+
+        var channel = await _service.CreateChannelAsync(request);
+
+        // Act - Creator without the position should still see the channel
+        var result = await _service.GetUserVisibleChannelsAsync(
+            TestEventId,
+            new List<Guid>(), // Empty - creator doesn't have the position
+            creatorEmail);
+
+        // Assert - Creator should see their channel even without the position
+        Assert.Contains(result, c => c.Name == "Safety Position Channel");
+    }
+
+    [Fact]
+    public async Task GetUserVisibleChannelsAsync_HidesChannelFromNonCreator_WithoutPosition()
+    {
+        // Arrange
+        await SeedPositions();
+        await SeedEventWithChannels();
+
+        // Create a position-restricted channel
+        var request = new CreateChannelRequest
+        {
+            EventId = TestEventId,
+            Name = "Safety Position Channel",
+            ChannelType = ChannelType.Position,
+            PositionId = SafetyOfficerId
+        };
+        await _service.CreateChannelAsync(request);
+
+        // Act - Another user without the position should NOT see the channel
+        var result = await _service.GetUserVisibleChannelsAsync(
+            TestEventId,
+            new List<Guid>(), // Empty - user doesn't have the position
+            "other-user@test.com"); // Different user
+
+        // Assert - Other user should NOT see the position channel
+        Assert.DoesNotContain(result, c => c.Name == "Safety Position Channel");
+    }
+
+    #endregion
+
     #region Helper Methods
+
+    private async Task SeedPositions()
+    {
+        // Seed positions for the test organization
+        var positions = new List<Position>
+        {
+            new Position
+            {
+                Id = IncidentCommanderId,
+                OrganizationId = _testUser.OrganizationId,
+                SourceLanguageId = TestLanguageId,
+                IsActive = true,
+                IconName = "star",
+                Color = "#0020C2",
+                DisplayOrder = 10,
+                CreatedBy = "test@test.com",
+                CreatedAt = DateTime.UtcNow,
+                Translations = new List<PositionTranslation>
+                {
+                    new PositionTranslation
+                    {
+                        PositionId = IncidentCommanderId,
+                        LanguageId = TestLanguageId,
+                        Name = "Incident Commander",
+                        Description = "Overall command of the incident"
+                    }
+                }
+            },
+            new Position
+            {
+                Id = OperationsSectionChiefId,
+                OrganizationId = _testUser.OrganizationId,
+                SourceLanguageId = TestLanguageId,
+                IsActive = true,
+                IconName = "cogs",
+                Color = "#E42217",
+                DisplayOrder = 11,
+                CreatedBy = "test@test.com",
+                CreatedAt = DateTime.UtcNow,
+                Translations = new List<PositionTranslation>
+                {
+                    new PositionTranslation
+                    {
+                        PositionId = OperationsSectionChiefId,
+                        LanguageId = TestLanguageId,
+                        Name = "Operations Section Chief",
+                        Description = "Directs tactical operations"
+                    }
+                }
+            },
+            new Position
+            {
+                Id = SafetyOfficerId,
+                OrganizationId = _testUser.OrganizationId,
+                SourceLanguageId = TestLanguageId,
+                IsActive = true,
+                IconName = "shield-alt",
+                Color = "#32CD32",
+                DisplayOrder = 12,
+                CreatedBy = "test@test.com",
+                CreatedAt = DateTime.UtcNow,
+                Translations = new List<PositionTranslation>
+                {
+                    new PositionTranslation
+                    {
+                        PositionId = SafetyOfficerId,
+                        LanguageId = TestLanguageId,
+                        Name = "Safety Officer",
+                        Description = "Monitors incident safety"
+                    }
+                }
+            }
+        };
+
+        _context.Positions.AddRange(positions);
+        await _context.SaveChangesAsync();
+    }
 
     private async Task SeedEvent()
     {

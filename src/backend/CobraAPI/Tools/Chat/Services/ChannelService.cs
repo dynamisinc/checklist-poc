@@ -35,6 +35,8 @@ public class ChannelService : IChannelService
     {
         var channels = await _dbContext.ChatThreads
             .Include(ct => ct.ExternalChannelMapping)
+            .Include(ct => ct.Position)
+                .ThenInclude(p => p!.Translations)
             .Include(ct => ct.Messages.Where(m => m.IsActive))
             .Where(ct => ct.EventId == eventId && ct.IsActive)
             .OrderBy(ct => ct.DisplayOrder)
@@ -49,6 +51,8 @@ public class ChannelService : IChannelService
     {
         var channel = await _dbContext.ChatThreads
             .Include(ct => ct.ExternalChannelMapping)
+            .Include(ct => ct.Position)
+                .ThenInclude(p => p!.Translations)
             .Include(ct => ct.Messages.Where(m => m.IsActive))
             .Where(ct => ct.Id == channelId && ct.IsActive)
             .FirstOrDefaultAsync();
@@ -67,16 +71,20 @@ public class ChannelService : IChannelService
             .Where(ct => ct.EventId == request.EventId && ct.IsActive)
             .MaxAsync(ct => (int?)ct.DisplayOrder) ?? -1;
 
+        // If PositionId is provided, set channel type to Position
+        var channelType = request.PositionId.HasValue ? ChannelType.Position : request.ChannelType;
+
         var channel = new ChatThread
         {
             Id = Guid.NewGuid(),
             EventId = request.EventId,
             Name = request.Name,
             Description = request.Description,
-            ChannelType = request.ChannelType,
+            ChannelType = channelType,
             DisplayOrder = maxOrder + 1,
             IconName = request.IconName,
             Color = request.Color,
+            PositionId = request.PositionId,
             IsDefaultEventThread = false,
             IsActive = true,
             CreatedBy = userContext.Email,
@@ -86,9 +94,18 @@ public class ChannelService : IChannelService
         _dbContext.ChatThreads.Add(channel);
         await _dbContext.SaveChangesAsync();
 
+        // If position channel, reload with Position navigation property
+        if (request.PositionId.HasValue)
+        {
+            channel = await _dbContext.ChatThreads
+                .Include(ct => ct.Position)
+                    .ThenInclude(p => p!.Translations)
+                .FirstAsync(ct => ct.Id == channel.Id);
+        }
+
         _logger.LogInformation(
-            "Created channel {ChannelId} '{Name}' of type {Type} for event {EventId}",
-            channel.Id, channel.Name, channel.ChannelType, request.EventId);
+            "Created channel {ChannelId} '{Name}' of type {Type} for event {EventId}, PositionId: {PositionId}",
+            channel.Id, channel.Name, channel.ChannelType, request.EventId, request.PositionId);
 
         return MapToDto(channel);
     }
@@ -143,6 +160,8 @@ public class ChannelService : IChannelService
     {
         var channel = await _dbContext.ChatThreads
             .Include(ct => ct.ExternalChannelMapping)
+            .Include(ct => ct.Position)
+                .ThenInclude(p => p!.Translations)
             .FirstOrDefaultAsync(ct => ct.Id == channelId && ct.IsActive);
 
         if (channel == null)
@@ -244,6 +263,8 @@ public class ChannelService : IChannelService
     {
         var query = _dbContext.ChatThreads
             .Include(ct => ct.ExternalChannelMapping)
+            .Include(ct => ct.Position)
+                .ThenInclude(p => p!.Translations)
             .Include(ct => ct.Messages.Where(m => m.IsActive))
             .Where(ct => ct.EventId == eventId);
 
@@ -265,6 +286,8 @@ public class ChannelService : IChannelService
     {
         var channels = await _dbContext.ChatThreads
             .Include(ct => ct.ExternalChannelMapping)
+            .Include(ct => ct.Position)
+                .ThenInclude(p => p!.Translations)
             .Include(ct => ct.Messages.Where(m => m.IsActive))
             .Where(ct => ct.EventId == eventId && !ct.IsActive)
             // Exclude permanently deleted channels (those with [DELETED] prefix)
@@ -280,6 +303,8 @@ public class ChannelService : IChannelService
     {
         var channel = await _dbContext.ChatThreads
             .Include(ct => ct.ExternalChannelMapping)
+            .Include(ct => ct.Position)
+                .ThenInclude(p => p!.Translations)
             .FirstOrDefaultAsync(ct => ct.Id == channelId && !ct.IsActive);
 
         if (channel == null)
@@ -402,6 +427,121 @@ public class ChannelService : IChannelService
         return messages.Count;
     }
 
+    /// <inheritdoc />
+    public async Task<List<ChatThreadDto>> CreatePositionChannelsAsync(Guid eventId, string createdBy)
+    {
+        var userContext = GetUserContext();
+        var now = DateTime.UtcNow;
+
+        // Get all positions for this organization
+        var positions = await _dbContext.Positions
+            .Include(p => p.Translations)
+            .Where(p => p.OrganizationId == userContext.OrganizationId && p.IsActive)
+            .OrderBy(p => p.DisplayOrder)
+            .ToListAsync();
+
+        if (!positions.Any())
+        {
+            _logger.LogWarning(
+                "No positions found for organization {OrganizationId}, cannot create position channels",
+                userContext.OrganizationId);
+            return new List<ChatThreadDto>();
+        }
+
+        // Get the base display order (after default channels)
+        var maxOrder = await _dbContext.ChatThreads
+            .Where(ct => ct.EventId == eventId && ct.IsActive)
+            .MaxAsync(ct => (int?)ct.DisplayOrder) ?? 1;
+
+        var createdChannels = new List<ChatThread>();
+
+        foreach (var position in positions)
+        {
+            // Get the translation for display
+            var translation = position.Translations.FirstOrDefault();
+            if (translation == null) continue;
+
+            var channel = new ChatThread
+            {
+                Id = Guid.NewGuid(),
+                EventId = eventId,
+                Name = translation.Name,
+                Description = translation.Description,
+                ChannelType = ChannelType.Position,
+                DisplayOrder = maxOrder + position.DisplayOrder,
+                IconName = position.IconName,
+                Color = position.Color,
+                PositionId = position.Id,
+                IsDefaultEventThread = false,
+                IsActive = true,
+                CreatedBy = createdBy,
+                CreatedAt = now,
+            };
+
+            createdChannels.Add(channel);
+        }
+
+        _dbContext.ChatThreads.AddRange(createdChannels);
+        await _dbContext.SaveChangesAsync();
+
+        // Reload with Position navigation property
+        var channelIds = createdChannels.Select(c => c.Id).ToList();
+        var reloadedChannels = await _dbContext.ChatThreads
+            .Include(ct => ct.Position)
+            .ThenInclude(p => p!.Translations)
+            .Where(ct => channelIds.Contains(ct.Id))
+            .ToListAsync();
+
+        _logger.LogInformation(
+            "Created {Count} position channels for event {EventId}",
+            createdChannels.Count, eventId);
+
+        return reloadedChannels.Select(MapToDto).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<List<ChatThreadDto>> GetUserVisibleChannelsAsync(Guid eventId, List<Guid> userPositionIds, string userEmail, bool canManage = false)
+    {
+        var channels = await _dbContext.ChatThreads
+            .Include(ct => ct.ExternalChannelMapping)
+            .Include(ct => ct.Position)
+                .ThenInclude(p => p!.Translations)
+            .Include(ct => ct.Messages.Where(m => m.IsActive))
+            .Where(ct => ct.EventId == eventId && ct.IsActive)
+            .ToListAsync();
+
+        // Filter position channels by user's position IDs, ownership, or Manage role
+        var visibleChannels = channels.Where(c =>
+        {
+            // Position channels are only visible to users in that position
+            // UNLESS:
+            // - User has Manage role - they can see all channels
+            // - User created the channel - creator can always see their channel
+            if (c.ChannelType == ChannelType.Position)
+            {
+                if (canManage)
+                    return true;
+
+                // Creator can always see their own channel
+                if (string.Equals(c.CreatedBy, userEmail, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (!c.PositionId.HasValue)
+                    return false;
+
+                return userPositionIds.Contains(c.PositionId.Value);
+            }
+
+            // All other channel types are visible to everyone
+            return true;
+        })
+        .OrderBy(c => c.DisplayOrder)
+        .ThenBy(c => c.CreatedAt)
+        .ToList();
+
+        return visibleChannels.Select(MapToDto).ToList();
+    }
+
     /// <summary>
     /// Ensures a DateTime is specified as UTC kind for proper JSON serialization.
     /// EF Core retrieves DateTime from SQL Server without kind specified.
@@ -422,6 +562,21 @@ public class ChannelService : IChannelService
             .OrderByDescending(m => m.CreatedAt)
             .FirstOrDefault();
 
+        // Map Position to PositionChannelDto if present
+        PositionChannelDto? positionDto = null;
+        if (ct.Position != null)
+        {
+            var translation = ct.Position.Translations?.FirstOrDefault();
+            positionDto = new PositionChannelDto
+            {
+                Id = ct.Position.Id,
+                Name = translation?.Name ?? ct.Position.Id.ToString(),
+                Description = translation?.Description,
+                IconName = ct.Position.IconName,
+                Color = ct.Position.Color
+            };
+        }
+
         return new ChatThreadDto
         {
             Id = ct.Id,
@@ -434,6 +589,8 @@ public class ChannelService : IChannelService
             DisplayOrder = ct.DisplayOrder,
             IconName = ct.IconName,
             Color = ct.Color,
+            PositionId = ct.PositionId,
+            Position = positionDto,
             MessageCount = ct.Messages?.Count(m => m.IsActive) ?? 0,
             CreatedAt = SpecifyUtc(ct.CreatedAt),
             IsActive = ct.IsActive,
