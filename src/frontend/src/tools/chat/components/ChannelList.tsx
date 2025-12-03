@@ -264,9 +264,10 @@ export const ChannelList: React.FC<ChannelListProps> = ({
     title: string,
     sectionKey: string,
     sectionChannels: ChatThreadDto[],
-    showAddButton = false
+    options: { showAddButton?: boolean; alwaysShow?: boolean; emptyMessage?: string } = {}
   ) => {
-    if (sectionChannels.length === 0 && !showAddButton) return null;
+    const { showAddButton = false, alwaysShow = false, emptyMessage } = options;
+    if (sectionChannels.length === 0 && !showAddButton && !alwaysShow) return null;
 
     const isExpanded = expandedSections[sectionKey];
 
@@ -324,7 +325,22 @@ export const ChannelList: React.FC<ChannelListProps> = ({
         </Box>
         <Collapse in={isExpanded}>
           <List dense disablePadding sx={{ px: compact ? 0.5 : 1 }}>
-            {sectionChannels.map(renderChannelItem)}
+            {sectionChannels.length > 0 ? (
+              sectionChannels.map(renderChannelItem)
+            ) : emptyMessage ? (
+              <Typography
+                variant="body2"
+                sx={{
+                  px: compact ? 1.5 : 2,
+                  py: 1,
+                  color: theme.palette.text.secondary,
+                  fontStyle: 'italic',
+                  fontSize: 12,
+                }}
+              >
+                {emptyMessage}
+              </Typography>
+            ) : null}
           </List>
         </Collapse>
       </Box>
@@ -334,8 +350,11 @@ export const ChannelList: React.FC<ChannelListProps> = ({
   return (
     <Box sx={{ py: 1 }}>
       {renderSection('Channels', 'internal', internalChannels)}
-      {renderSection('External', 'external', externalChannels)}
-      {renderSection('Groups', 'custom', otherChannels, true)}
+      {renderSection('External', 'external', externalChannels, {
+        alwaysShow: true,
+        emptyMessage: 'No external channels connected',
+      })}
+      {renderSection('Groups', 'custom', otherChannels, { showAddButton: true })}
 
       {channels.length === 0 && (
         <Box sx={{ p: 2, textAlign: 'center' }}>
