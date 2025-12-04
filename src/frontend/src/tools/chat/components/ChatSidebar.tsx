@@ -20,12 +20,6 @@ import {
   Typography,
   IconButton,
   Tooltip,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -34,10 +28,6 @@ import {
   faExpand,
   faGripLinesVertical,
   faChevronLeft,
-  faEllipsisV,
-  faLink,
-  faLinkSlash,
-  faExternalLinkAlt,
   faWifi,
   faExclamationTriangle,
 } from '@fortawesome/free-solid-svg-icons';
@@ -47,12 +37,13 @@ import { useChatSidebar } from '../contexts/ChatSidebarContext';
 import { useEvents } from '../../../shared/events';
 import { EventChat } from './EventChat';
 import { ChannelList } from './ChannelList';
+import { ChannelMenu } from './ChannelMenu';
 import { TeamsChannelDialog } from './TeamsChannelDialog';
 import { chatService } from '../services/chatService';
 import { useExternalMessagingConfig } from '../hooks/useExternalMessagingConfig';
 import { useChatHub } from '../hooks/useChatHub';
 import type { ChatThreadDto, ExternalChannelMappingDto } from '../types/chat';
-import { ExternalPlatform, PlatformInfo } from '../types/chat';
+import { ExternalPlatform } from '../types/chat';
 
 export const ChatSidebar: React.FC = () => {
   const theme = useTheme();
@@ -76,7 +67,6 @@ export const ChatSidebar: React.FC = () => {
 
   // External channels state
   const [externalChannels, setExternalChannels] = useState<ExternalChannelMappingDto[]>([]);
-  const [channelMenuAnchor, setChannelMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
@@ -120,12 +110,6 @@ export const ChatSidebar: React.FC = () => {
 
   // Get active external channels
   const activeChannels = externalChannels.filter((c) => c.isActive);
-  const hasGroupMeChannel = activeChannels.some(
-    (c) => c.platform === ExternalPlatform.GroupMe
-  );
-  const hasTeamsChannel = activeChannels.some(
-    (c) => c.platform === ExternalPlatform.Teams
-  );
 
   // Teams dialog state
   const [teamsDialogOpen, setTeamsDialogOpen] = useState(false);
@@ -133,7 +117,6 @@ export const ChatSidebar: React.FC = () => {
   // Create GroupMe channel
   const handleCreateGroupMeChannel = async () => {
     if (!currentEvent) return;
-    setChannelMenuAnchor(null);
     try {
       const channel = await chatService.createExternalChannel(currentEvent.id, {
         platform: ExternalPlatform.GroupMe,
@@ -156,7 +139,6 @@ export const ChatSidebar: React.FC = () => {
 
   // Open Teams channel dialog
   const handleOpenTeamsDialog = () => {
-    setChannelMenuAnchor(null);
     setTeamsDialogOpen(true);
   };
 
@@ -177,7 +159,6 @@ export const ChatSidebar: React.FC = () => {
   // Disconnect external channel
   const handleDisconnectChannel = async (channelId: string) => {
     if (!currentEvent) return;
-    setChannelMenuAnchor(null);
     try {
       await chatService.deactivateExternalChannel(currentEvent.id, channelId);
       setExternalChannels((prev) => prev.filter((c) => c.id !== channelId));
@@ -356,111 +337,17 @@ export const ChatSidebar: React.FC = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {/* Connected channel chips - only show if external messaging is configured */}
-          {externalMessagingConfigured &&
-            activeChannels.map((channel) => {
-              const platformKey = channel.platform as ExternalPlatform;
-              const platformInfo = PlatformInfo[platformKey] || null;
-
-              return (
-                <Chip
-                  key={channel.id}
-                  size="small"
-                  label={platformInfo?.name || channel.platform}
-                  sx={{
-                    height: 20,
-                    fontSize: 10,
-                    backgroundColor: `${platformInfo?.color || '#666'}20`,
-                    color: platformInfo?.color || '#666',
-                  }}
-                  onClick={() => {
-                    if (channel.shareUrl) {
-                      window.open(channel.shareUrl, '_blank');
-                    }
-                  }}
-                  icon={
-                    channel.shareUrl ? (
-                      <FontAwesomeIcon icon={faExternalLinkAlt} style={{ fontSize: 8 }} />
-                    ) : undefined
-                  }
-                />
-              );
-            })}
-
           {/* External channel menu - only show if external messaging is configured */}
           {externalMessagingConfigured && (
-            <>
-              <Tooltip title="External channels">
-                <IconButton
-                  size="small"
-                  onClick={(e) => setChannelMenuAnchor(e.currentTarget)}
-                >
-                  <FontAwesomeIcon icon={faEllipsisV} style={{ fontSize: 12 }} />
-                </IconButton>
-              </Tooltip>
-              <Menu
-                anchorEl={channelMenuAnchor}
-                open={Boolean(channelMenuAnchor)}
-                onClose={() => setChannelMenuAnchor(null)}
-              >
-                {!hasGroupMeChannel && externalMessagingConfig.groupMe.isConfigured && (
-                  <MenuItem onClick={handleCreateGroupMeChannel}>
-                    <ListItemIcon>
-                      <FontAwesomeIcon icon={faLink} />
-                    </ListItemIcon>
-                    <ListItemText>Connect GroupMe</ListItemText>
-                  </MenuItem>
-                )}
-                {!hasTeamsChannel && externalMessagingConfig.teams.isConfigured && (
-                  <MenuItem
-                    onClick={handleOpenTeamsDialog}
-                    disabled={!externalMessagingConfig.teams.isConnected}
-                  >
-                    <ListItemIcon>
-                      <FontAwesomeIcon icon={faLink} />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Connect Teams"
-                      secondary={
-                        !externalMessagingConfig.teams.isConnected
-                          ? 'Bot not available'
-                          : externalMessagingConfig.teams.availableConversations === 0
-                            ? 'No channels available'
-                            : `${externalMessagingConfig.teams.availableConversations} channel(s)`
-                      }
-                    />
-                  </MenuItem>
-                )}
-                {activeChannels.length > 0 && (
-                  <>
-                    <Divider />
-                    <MenuItem disabled>
-                      <Typography variant="caption" color="text.secondary">
-                        Connected Channels
-                      </Typography>
-                    </MenuItem>
-                    {activeChannels.map((channel) => (
-                      <MenuItem
-                        key={channel.id}
-                        onClick={() => handleDisconnectChannel(channel.id)}
-                      >
-                        <ListItemIcon>
-                          <FontAwesomeIcon icon={faLinkSlash} />
-                        </ListItemIcon>
-                        <ListItemText>Disconnect {channel.externalGroupName}</ListItemText>
-                      </MenuItem>
-                    ))}
-                  </>
-                )}
-                {!hasGroupMeChannel && !hasTeamsChannel && activeChannels.length === 0 && (
-                  <MenuItem disabled>
-                    <Typography variant="caption" color="text.secondary">
-                      No external channels
-                    </Typography>
-                  </MenuItem>
-                )}
-              </Menu>
-            </>
+            <ChannelMenu
+              config={externalMessagingConfig}
+              activeChannels={activeChannels}
+              onCreateGroupMe={handleCreateGroupMeChannel}
+              onOpenTeamsDialog={handleOpenTeamsDialog}
+              onDisconnectChannel={handleDisconnectChannel}
+              showChips={false}
+              compact
+            />
           )}
 
           <Tooltip title="Open full chat page">

@@ -17,7 +17,7 @@ import type {
   TeamsIntegrationStatus,
 } from '../../../admin/types/systemSettings';
 
-interface ExternalMessagingConfig {
+export interface ExternalMessagingConfig {
   /** Whether any external messaging platform is configured */
   isConfigured: boolean;
   /** Whether GroupMe specifically is configured */

@@ -11,6 +11,7 @@
 export { FeatureFlagsAdmin } from './components/FeatureFlagsAdmin';
 export { SystemSettingsAdmin } from './components/SystemSettingsAdmin';
 export { SysAdminLoginDialog } from './components/SysAdminLoginDialog';
+export { TeamsConnectorManagement } from './components/TeamsConnectorManagement';
 
 // Contexts
 export {
@@ -47,4 +48,7 @@ export {
 export type {
   GroupMeIntegrationStatus,
   TeamsIntegrationStatus,
+  TeamsConnectorDto,
+  ListTeamsConnectorsResponse,
+  CleanupResponse,
 } from './types/systemSettings';

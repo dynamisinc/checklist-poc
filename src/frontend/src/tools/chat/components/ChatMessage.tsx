@@ -11,31 +11,8 @@ import React from 'react';
 import { Box, Typography, Avatar, Tooltip, Badge } from '@mui/material';
 import { useTheme, styled } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faCommentDots,
-  faCommentSms,
-} from '@fortawesome/free-solid-svg-icons';
-import { faSlack, faMicrosoft } from '@fortawesome/free-brands-svg-icons';
 import type { ChatMessageDto } from '../types/chat';
-import { PlatformInfo, ExternalPlatform } from '../types/chat';
-
-/**
- * Gets the FontAwesome icon for a platform.
- */
-const getPlatformIcon = (platform: ExternalPlatform) => {
-  switch (platform) {
-    case ExternalPlatform.GroupMe:
-      return faCommentDots;
-    case ExternalPlatform.Signal:
-      return faCommentSms;
-    case ExternalPlatform.Teams:
-      return faMicrosoft;
-    case ExternalPlatform.Slack:
-      return faSlack;
-    default:
-      return faCommentDots;
-  }
-};
+import { getPlatformIcon, getPlatformColor } from '../utils/platformUtils';
 
 /**
  * Styled badge for platform icon overlay on avatar.
@@ -122,10 +99,10 @@ const avatarColors = [
  */
 const getAvatarColor = (message: ChatMessageDto): string => {
   if (message.isExternalMessage && message.externalSource) {
-    const platform =
-      ExternalPlatform[message.externalSource as keyof typeof ExternalPlatform];
-    if (platform && PlatformInfo[platform]) {
-      return PlatformInfo[platform].color;
+    // Use shared utility that handles string/number enum values
+    const color = getPlatformColor(message.externalSource);
+    if (color !== '#666') {
+      return color;
     }
   }
 
@@ -154,11 +131,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       ? ` (via ${message.externalSource})`
       : '';
 
-  // Get platform info for external messages
-  const externalPlatform = message.isExternalMessage && message.externalSource
-    ? ExternalPlatform[message.externalSource as keyof typeof ExternalPlatform]
+  // Get platform color for external messages using shared utility
+  const externalPlatformColor = message.isExternalMessage && message.externalSource
+    ? getPlatformColor(message.externalSource)
     : null;
-  const platformInfo = externalPlatform ? PlatformInfo[externalPlatform] : null;
 
   /**
    * Renders the avatar, with platform badge overlay for external messages.
@@ -180,15 +156,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     );
 
     // Wrap with platform badge for external messages
-    if (message.isExternalMessage && externalPlatform && platformInfo) {
+    if (message.isExternalMessage && message.externalSource && externalPlatformColor) {
       return (
         <PlatformBadge
-          platformcolor={platformInfo.color}
+          platformcolor={externalPlatformColor}
           overlap="circular"
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           badgeContent={
             <FontAwesomeIcon
-              icon={getPlatformIcon(externalPlatform)}
+              icon={getPlatformIcon(message.externalSource)}
               style={{ fontSize: '0.5rem' }}
             />
           }

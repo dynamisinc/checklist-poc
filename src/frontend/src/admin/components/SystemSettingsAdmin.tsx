@@ -42,6 +42,7 @@ import type {
   GroupMeIntegrationStatus,
   TeamsIntegrationStatus,
 } from '../types/systemSettings';
+import { TeamsConnectorManagement } from './TeamsConnectorManagement';
 
 /**
  * GroupMe Integration Card
@@ -648,6 +649,33 @@ export const SystemSettingsAdmin: React.FC = () => {
           status={teamsStatus}
           loading={loading}
         />
+      </Box>
+
+      {/* Teams Connector Management Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography
+          variant="subtitle1"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            mb: 2,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+          }}
+        >
+          <FontAwesomeIcon icon={faPlug} />
+          Teams Connector Management
+        </Typography>
+
+        <Card
+          sx={{
+            backgroundColor: theme.palette.grey[50],
+            p: 2,
+          }}
+        >
+          <TeamsConnectorManagement />
+        </Card>
       </Box>
     </Box>
   );

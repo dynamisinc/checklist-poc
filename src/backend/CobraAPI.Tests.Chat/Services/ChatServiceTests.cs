@@ -323,12 +323,13 @@ public class ChatServiceTests : IDisposable
         // Wait briefly for the background task
         await Task.Delay(100);
 
-        // Assert
+        // Assert - chatThreadId is now passed to route messages to the correct external channel
         _mockExternalMessagingService.Verify(
             x => x.BroadcastToExternalChannelsAsync(
                 TestEventId,
                 _testUser.FullName,
-                message),
+                message,
+                threadId),
             Times.Once);
     }
 

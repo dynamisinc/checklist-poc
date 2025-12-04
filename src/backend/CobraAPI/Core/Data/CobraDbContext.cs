@@ -299,6 +299,11 @@ public class CobraDbContext : DbContext
             entity.Property(e => e.ShareUrl).HasMaxLength(500);
             entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(200);
 
+            // Teams Stateless Architecture fields (UC-TI-029)
+            entity.Property(e => e.ConversationReferenceJson); // nvarchar(max) by default
+            entity.Property(e => e.TenantId).HasMaxLength(100);
+            entity.Property(e => e.InstalledByName).HasMaxLength(200);
+
             entity.HasOne(e => e.Event)
                 .WithMany()
                 .HasForeignKey(e => e.EventId)
@@ -307,6 +312,14 @@ public class CobraDbContext : DbContext
             entity.HasIndex(e => e.EventId);
             entity.HasIndex(e => new { e.Platform, e.ExternalGroupId }).IsUnique();
             entity.HasIndex(e => e.IsActive).HasFilter("[IsActive] = 1");
+
+            // Index for tenant-based queries (future multi-tenancy)
+            entity.HasIndex(e => e.TenantId)
+                .HasFilter("[TenantId] IS NOT NULL");
+
+            // Index for stale connector cleanup (Teams platform only)
+            entity.HasIndex(e => e.LastActivityAt)
+                .HasFilter("[Platform] = 3"); // Teams = 3 in ExternalPlatform enum
         });
 
         // SystemSetting configuration

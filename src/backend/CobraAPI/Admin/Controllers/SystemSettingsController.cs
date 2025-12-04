@@ -241,6 +241,13 @@ public class SystemSettingsController : ControllerBase
                 // Check if TeamsBot is reachable
                 var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(5);
+
+                // Add API key header if configured
+                if (!string.IsNullOrEmpty(_teamsBotSettings.ApiKey))
+                {
+                    client.DefaultRequestHeaders.Add("X-Api-Key", _teamsBotSettings.ApiKey);
+                }
+
                 var healthResponse = await client.GetAsync($"{baseUrl}/api/health");
                 isConnected = healthResponse.IsSuccessStatusCode;
 

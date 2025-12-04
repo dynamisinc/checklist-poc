@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using CobraAPI.Core.Data;
 using CobraAPI.Core.Models;
 
@@ -13,7 +14,7 @@ public class ChatService : IChatService
     private readonly CobraDbContext _dbContext;
     private readonly IChatHubService _chatHubService;
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<ChatService> _logger;
 
     private const int DefaultPageSize = 50;
@@ -22,13 +23,13 @@ public class ChatService : IChatService
         CobraDbContext dbContext,
         IChatHubService chatHubService,
         IHttpContextAccessor httpContextAccessor,
-        IServiceProvider serviceProvider,
+        IServiceScopeFactory serviceScopeFactory,
         ILogger<ChatService> logger)
     {
         _dbContext = dbContext;
         _chatHubService = chatHubService;
         _httpContextAccessor = httpContextAccessor;
-        _serviceProvider = serviceProvider;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -164,14 +165,14 @@ public class ChatService : IChatService
         await _chatHubService.BroadcastMessageToEventAsync(eventId, messageDto);
 
         // Forward to external platforms (fire and forget)
-        // Must create a new scope because the request scope will be disposed
+        // Must create a new scope using IServiceScopeFactory because the request scope will be disposed
         var senderName = userContext.FullName;
         var threadId = chatThreadId; // Capture for closure
         _ = Task.Run(async () =>
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
+                using var scope = _serviceScopeFactory.CreateScope();
                 var externalMessagingService = scope.ServiceProvider.GetRequiredService<IExternalMessagingService>();
                 await externalMessagingService.BroadcastToExternalChannelsAsync(
                     eventId,

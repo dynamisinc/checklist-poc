@@ -1,3 +1,5 @@
+using System.Text.Json;
+using CobraAPI.TeamsBot.Middleware;
 using CobraAPI.TeamsBot.Models;
 using CobraAPI.TeamsBot.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +12,11 @@ namespace CobraAPI.TeamsBot.Controllers;
 /// <summary>
 /// Internal API endpoints for CobraAPI to send messages to Teams.
 /// These endpoints are called by CobraAPI when COBRA users send messages.
-/// WARNING: For POC, these are not secured. In production, add authentication.
+/// Protected by API key authentication when CobraApi:ApiKey is configured.
 /// </summary>
 [Route("api/[controller]")]
 [ApiController]
+[ApiKeyAuth]
 public class InternalController : ControllerBase
 {
     private readonly IConversationReferenceService _conversationReferenceService;
@@ -36,11 +39,13 @@ public class InternalController : ControllerBase
     /// <summary>
     /// Sends a message to a Teams channel/conversation.
     /// Called by CobraAPI when a COBRA user sends a message that should be forwarded to Teams.
+    /// Stateless: ConversationReference is passed in the request from CobraAPI database.
     /// </summary>
-    /// <param name="request">The message to send</param>
+    /// <param name="request">The message to send, including ConversationReferenceJson</param>
     /// <returns>Success status and message ID</returns>
     [HttpPost("send")]
     [ProducesResponseType(typeof(TeamsSendResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TeamsSendResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(TeamsSendResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(TeamsSendResponse), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> SendMessage([FromBody] TeamsSendRequest request)
@@ -49,8 +54,34 @@ public class InternalController : ControllerBase
             "Received send request for conversation {ConversationId} from {SenderName}",
             request.ConversationId, request.SenderName);
 
-        // Get the stored conversation reference
-        var reference = await _conversationReferenceService.GetAsync(request.ConversationId);
+        // Stateless architecture: ConversationReference comes from request (CobraAPI database)
+        ConversationReference? reference = null;
+
+        if (!string.IsNullOrEmpty(request.ConversationReferenceJson))
+        {
+            // Primary path: Use ConversationReference from CobraAPI
+            try
+            {
+                reference = JsonSerializer.Deserialize<ConversationReference>(request.ConversationReferenceJson);
+                _logger.LogDebug("Using ConversationReference from request for {ConversationId}", request.ConversationId);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Failed to deserialize ConversationReferenceJson for {ConversationId}",
+                    request.ConversationId);
+            }
+        }
+
+        // Fallback: Try in-memory storage (for backwards compatibility during migration)
+        if (reference == null)
+        {
+            reference = await _conversationReferenceService.GetAsync(request.ConversationId);
+            if (reference != null)
+            {
+                _logger.LogDebug("Using in-memory ConversationReference fallback for {ConversationId}",
+                    request.ConversationId);
+            }
+        }
 
         if (reference == null)
         {
@@ -58,7 +89,7 @@ public class InternalController : ControllerBase
             return NotFound(new TeamsSendResponse
             {
                 Success = false,
-                Error = $"Conversation '{request.ConversationId}' not found. Bot may not be installed in this channel."
+                Error = $"Conversation '{request.ConversationId}' not found. Bot may not be installed in this channel, or ConversationReference was not provided."
             });
         }
 

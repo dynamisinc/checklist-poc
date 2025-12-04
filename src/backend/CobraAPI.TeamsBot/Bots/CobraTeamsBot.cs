@@ -1,9 +1,11 @@
+using System.Text.Json;
 using CobraAPI.TeamsBot.Models;
 using CobraAPI.TeamsBot.Services;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Teams;
 using Microsoft.Bot.Schema;
 using Microsoft.Bot.Schema.Teams;
+using Microsoft.Extensions.Options;
 
 namespace CobraAPI.TeamsBot.Bots;
 
@@ -26,6 +28,7 @@ public class CobraTeamsBot : TeamsActivityHandler
     private readonly ICobraApiClient _cobraApiClient;
     private readonly ConversationState _conversationState;
     private readonly UserState _userState;
+    private readonly BotSettings _botSettings;
 
     /// <summary>
     /// Initializes a new instance of the CobraTeamsBot.
@@ -35,13 +38,15 @@ public class CobraTeamsBot : TeamsActivityHandler
         IConversationReferenceService conversationReferenceService,
         ICobraApiClient cobraApiClient,
         ConversationState conversationState,
-        UserState userState)
+        UserState userState,
+        IOptions<BotSettings> botSettings)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _conversationReferenceService = conversationReferenceService ?? throw new ArgumentNullException(nameof(conversationReferenceService));
         _cobraApiClient = cobraApiClient ?? throw new ArgumentNullException(nameof(cobraApiClient));
         _conversationState = conversationState ?? throw new ArgumentNullException(nameof(conversationState));
         _userState = userState ?? throw new ArgumentNullException(nameof(userState));
+        _botSettings = botSettings?.Value ?? new BotSettings();
     }
 
     /// <summary>
@@ -211,10 +216,10 @@ public class CobraTeamsBot : TeamsActivityHandler
                     activity.Conversation?.Id,
                     activity.ChannelId);
 
-                // Send welcome message
-                var welcomeText = @"👋 **Welcome to COBRA Communications!**
+                // Send welcome message using configurable display name
+                var welcomeText = $@"👋 **Welcome to COBRA Communications!**
 
-I'm the COBRA bot, connecting this Teams channel to your COBRA incident management system.
+I'm **{_botSettings.DisplayName}**, connecting this Teams channel to your COBRA incident management system.
 
 **What I can do:**
 • Forward messages from this channel to COBRA
@@ -315,18 +320,56 @@ _This integration is part of the COBRA Unified Communications system._";
     /// <summary>
     /// Captures the conversation reference for proactive messaging.
     /// Called on every turn to ensure we have the latest service URL.
+    /// Stateless architecture: Stores in CobraAPI database (primary) and in-memory (fallback).
     /// </summary>
     private async Task CaptureConversationReferenceAsync(ITurnContext turnContext, CancellationToken cancellationToken)
     {
         var activity = turnContext.Activity;
-        if (activity.Conversation != null)
+        if (activity.Conversation == null)
+            return;
+
+        var conversationId = activity.Conversation.Id;
+        var reference = activity.GetConversationReference();
+
+        // Extract metadata for stateless storage
+        var tenantId = activity.Conversation.TenantId;
+        var channelName = activity.ChannelId == "emulator" ? "Emulator" : (activity.Conversation.Name ?? "Teams Channel");
+        var installedByName = activity.From?.Name;
+        var isEmulator = activity.ChannelId == "emulator";
+
+        // Serialize ConversationReference for storage
+        var referenceJson = JsonSerializer.Serialize(reference);
+
+        // Primary: Store in CobraAPI database
+        var storeRequest = new StoreConversationReferenceRequest
         {
-            var reference = activity.GetConversationReference();
-            await _conversationReferenceService.AddOrUpdateAsync(
-                activity.Conversation.Id,
-                reference,
-                cancellationToken);
+            ConversationId = conversationId,
+            ConversationReferenceJson = referenceJson,
+            TenantId = tenantId,
+            ChannelName = channelName,
+            InstalledByName = installedByName,
+            IsEmulator = isEmulator
+        };
+
+        var result = await _cobraApiClient.StoreConversationReferenceAsync(storeRequest);
+        if (result != null)
+        {
+            _logger.LogDebug(
+                "Stored ConversationReference in CobraAPI. MappingId: {MappingId}, IsNew: {IsNew}",
+                result.MappingId, result.IsNewMapping);
         }
+        else
+        {
+            _logger.LogDebug(
+                "CobraAPI storage unavailable, using in-memory fallback for {ConversationId}",
+                conversationId);
+        }
+
+        // Fallback: Also store in-memory for backwards compatibility
+        await _conversationReferenceService.AddOrUpdateAsync(
+            conversationId,
+            reference,
+            cancellationToken);
     }
 
     /// <summary>

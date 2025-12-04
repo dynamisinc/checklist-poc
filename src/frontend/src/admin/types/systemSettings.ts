@@ -39,3 +39,52 @@ export interface TeamsIntegrationStatus {
   /** Human-readable status message */
   statusMessage: string;
 }
+
+// === Teams Connector Management Types (UC-TI-030) ===
+
+/**
+ * Summary of a Teams connector for admin UI.
+ * Represents a Teams channel/conversation where the bot is installed.
+ */
+export interface TeamsConnectorDto {
+  /** The mapping ID (ExternalChannelMapping.Id) */
+  mappingId: string;
+  /** Human-readable name for the connector */
+  displayName: string;
+  /** The Teams conversation ID */
+  conversationId: string;
+  /** Customer's Microsoft 365 tenant ID */
+  tenantId: string | null;
+  /** Last time a message was received from this channel */
+  lastActivityAt: string | null;
+  /** Name of user who installed/first used the bot */
+  installedByName: string | null;
+  /** True if this is a Bot Framework Emulator connection */
+  isEmulator: boolean;
+  /** Whether the connector is active */
+  isActive: boolean;
+  /** Whether ConversationReference is stored (required for outbound messages) */
+  hasConversationReference: boolean;
+  /** When the connector was created */
+  createdAt: string;
+  /** The linked COBRA event ID */
+  linkedEventId: string | null;
+  /** The linked COBRA event name */
+  linkedEventName: string | null;
+}
+
+/**
+ * Response from listing Teams connectors.
+ */
+export interface ListTeamsConnectorsResponse {
+  count: number;
+  connectors: TeamsConnectorDto[];
+}
+
+/**
+ * Response from cleanup operations.
+ */
+export interface CleanupResponse {
+  deletedCount: number;
+  deletedMappingIds: string[];
+}

@@ -773,6 +773,149 @@ Teams Admin Center > Teams apps > Permission policies > Org-wide settings > Cust
 
 ---
 
+## Feature: Stateless Bot Architecture
+
+### UC-TI-029: Implement Stateless Bot with CobraAPI Storage
+
+**Title:** Make TeamsBot stateless by storing ConversationReferences in CobraAPI database
+
+**As a** COBRA platform operator
+**I want** the TeamsBot to be stateless with all persistent data in CobraAPI
+**So that** the bot can be restarted, scaled, or redeployed without data loss
+
+**Background:**
+The current TeamsBot stores ConversationReferences in-memory, which means:
+- Data is lost when the bot restarts
+- Each Bot Framework Emulator session creates a new orphan connector
+- No way to identify or clean up stale connectors
+- Connectors only show as GUIDs with no human-readable names
+
+This story implements a stateless architecture where:
+1. TeamsBot stores nothing locally - all state lives in CobraAPI's SQL Server
+2. ConversationReferences are stored alongside ExternalChannelMapping records
+3. TeamsBot calls CobraAPI to store/retrieve ConversationReferences
+4. Management UI can view, rename, and clean up connectors
+
+**Acceptance Criteria:**
+
+**Database Changes (CobraAPI):**
+- [ ] Add `ConversationReferenceJson` column to `ExternalChannelMapping` (nvarchar(max), nullable)
+- [ ] Add `TenantId` column to `ExternalChannelMapping` (nvarchar(100), nullable) - captures Teams tenant for future multi-tenancy
+- [ ] Add `LastActivityAt` column to `ExternalChannelMapping` (datetime2, nullable) - tracks when last message received
+- [ ] Add `InstalledByName` column to `ExternalChannelMapping` (nvarchar(200), nullable) - who added the bot
+- [ ] Add `IsEmulator` column to `ExternalChannelMapping` (bit, default 0) - flags dev/test connections
+- [ ] Create EF Core migration for schema changes
+
+**CobraAPI Endpoints:**
+- [ ] `PUT /api/chat/teams/conversation-reference` - Store/update ConversationReference
+  - Request: `{ conversationId, conversationReferenceJson, tenantId?, channelName?, installedByName?, isEmulator? }`
+  - Creates ExternalChannelMapping if not exists, or updates existing
+  - Returns mapping ID
+- [ ] `GET /api/chat/teams/conversation-reference/{conversationId}` - Retrieve ConversationReference
+  - Returns ConversationReferenceJson for proactive messaging
+- [ ] `PATCH /api/chat/teams/mappings/{mappingId}/name` - Rename a connector
+  - Request: `{ displayName }`
+  - Updates ExternalGroupName
+- [ ] `DELETE /api/chat/teams/mappings/{mappingId}` - Delete a connector (soft delete)
+- [ ] `DELETE /api/chat/teams/mappings/stale?inactiveDays=30` - Bulk cleanup stale connectors
+- [ ] `GET /api/chat/teams/mappings` - List all Teams mappings with metadata
+  - Returns: mappingId, displayName, tenantId, lastActivityAt, isEmulator, isLinkedToEvent, eventName
+
+**TeamsBot Changes:**
+- [ ] Remove in-memory `ConversationReferenceService`
+- [ ] Create `ICobraApiClient` to call CobraAPI endpoints
+- [ ] On `OnMembersAddedAsync` (bot installed): Call CobraAPI to store ConversationReference
+- [ ] On `OnMessageActivityAsync`: Update LastActivityAt via CobraAPI
+- [ ] On `OnMembersRemovedAsync` (bot removed): Call CobraAPI to deactivate mapping
+- [ ] For proactive messaging: Fetch ConversationReference from CobraAPI before sending
+- [ ] Detect emulator connections and flag them (`isEmulator = true`)
+
+**Message Flow Changes:**
+
+*Inbound (Teams → COBRA):*
+```
+Teams Message → TeamsBot
+    ↓
+1. Call CobraAPI: PUT /api/chat/teams/conversation-reference (update LastActivityAt)
+2. Call CobraAPI: POST /api/webhooks/teams/{mappingId} (existing flow)
+    ↓
+CobraAPI processes message → SignalR → COBRA UI
+```
+
+*Outbound (COBRA → Teams):*
+```
+COBRA sends message → ExternalMessagingService
+    ↓
+1. Lookup ExternalChannelMapping (has ConversationReferenceJson)
+2. Call TeamsBot: POST /api/internal/send with ConversationReferenceJson
+    ↓
+TeamsBot uses ConversationReference → Teams API → Teams Channel
+```
+
+**Dependencies:**
+- UC-TI-008 (Store Conversation References) - this story supersedes/enhances it
+- Existing ExternalChannelMapping infrastructure
+
+**Technical Notes:**
+
+*Why store ConversationReference in CobraAPI, not a separate TeamsBot database:*
+- Single source of truth - one database to manage
+- ConversationReferences are already tied to ExternalChannelMappings
+- Simpler operations - one connection string, one backup strategy
+- TeamsBot becomes truly stateless and horizontally scalable
+
+*Multi-Tenant Considerations:*
+- TenantId captured from `activity.Conversation.TenantId`
+- Not used for filtering yet (single org POC), but enables future multi-tenancy
+- Each customer org's Teams tenant will have its own TenantId
+
+*ConversationReference Lifecycle:*
+1. **Created**: When bot is installed in a Teams channel
+2. **Updated**: On every incoming message (ServiceUrl can change)
+3. **Deactivated**: When bot is removed from Teams channel
+4. **Deleted**: Manual cleanup via admin UI or stale connector cleanup
+
+*Emulator Detection:*
+- Bot Framework Emulator uses `channelId = "emulator"`
+- Flag these connections for easy identification and cleanup
+
+**Priority:** High - Required before production deployment
+
+---
+
+### UC-TI-030: Connector Management Admin UI
+
+**Title:** Admin interface for managing Teams connectors
+
+**As a** COBRA administrator
+**I want** a UI to view, rename, and delete Teams connectors
+**So that** I can manage bot connections and clean up stale entries
+
+**Acceptance Criteria:**
+- [ ] Add "Teams Connectors" section to Admin Settings page
+- [ ] Display table of all Teams connectors with columns:
+  - Display Name (editable)
+  - Teams Tenant ID
+  - Linked Event (if any)
+  - Last Activity (relative time)
+  - Is Emulator (badge)
+  - Status (Active/Inactive)
+- [ ] Inline rename - click to edit display name
+- [ ] Delete button with confirmation dialog
+- [ ] "Clean Up Stale" button to remove connectors inactive for X days
+- [ ] Filter by: All, Linked, Unlinked, Emulator, Stale
+- [ ] Sort by: Name, Last Activity, Created Date
+- [ ] Show connection health indicator (green = recent activity, yellow = >7 days, red = >30 days)
+
+**Dependencies:** UC-TI-029
+
+**Technical Notes:**
+- Uses new CobraAPI endpoints from UC-TI-029
+- Follows existing Admin Settings UI patterns
+- Consider showing "Test Connection" button to verify ConversationReference is still valid
+
+---
+
 ## Summary
 
 | Category | Stories |
@@ -784,7 +927,8 @@ Teams Admin Center > Teams apps > Permission policies > Org-wide settings > Cust
 | Message Display & UX | UC-TI-022, UC-TI-023 |
 | Error Handling & Resilience | UC-TI-024, UC-TI-025 |
 | Documentation & Training | UC-TI-026 to UC-TI-028 |
-| **Total** | **28 stories** |
+| Stateless Bot Architecture | UC-TI-029, UC-TI-030 |
+| **Total** | **30 stories** |
 
 ---
 
@@ -835,7 +979,13 @@ Teams Admin Center > Teams apps > Permission policies > Org-wide settings > Cust
 - UC-TI-026: Create Developer Documentation
 - UC-TI-027: Create End User Guide
 
-### Phase 6: Hardening
+### Phase 6: Stateless Architecture (Pre-Production)
+*Required before multi-tenant deployment*
+
+- UC-TI-029: Implement Stateless Bot with CobraAPI Storage ⭐ **HIGH PRIORITY**
+- UC-TI-030: Connector Management Admin UI
+
+### Phase 7: Hardening
 *Production readiness*
 
 - UC-TI-024: Handle Teams API Failures

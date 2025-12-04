@@ -83,14 +83,24 @@ public class TeamsWebhookPayload
 
 /// <summary>
 /// Request model for CobraAPI to send outbound messages to Teams.
+/// For stateless architecture, includes ConversationReferenceJson from CobraAPI database.
 /// </summary>
 public class TeamsSendRequest
 {
     /// <summary>
     /// The conversation ID to send the message to.
+    /// Used for logging and debugging.
     /// </summary>
     [JsonPropertyName("conversationId")]
     public string ConversationId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Serialized Bot Framework ConversationReference (JSON).
+    /// Contains all info needed for proactive messaging: ServiceUrl, Conversation, Bot.
+    /// Required for stateless bot architecture - passed from CobraAPI database.
+    /// </summary>
+    [JsonPropertyName("conversationReferenceJson")]
+    public string? ConversationReferenceJson { get; set; }
 
     /// <summary>
     /// The message text to send.

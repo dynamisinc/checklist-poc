@@ -177,6 +177,104 @@ public class CobraApiClient : ICobraApiClient
             return null;
         }
     }
+
+    // === Stateless Architecture Methods (UC-TI-029) ===
+
+    /// <summary>
+    /// Stores or updates a ConversationReference in CobraAPI.
+    /// Called on every incoming message to keep the reference current.
+    /// </summary>
+    public async Task<StoreConversationReferenceResult?> StoreConversationReferenceAsync(
+        StoreConversationReferenceRequest request)
+    {
+        if (string.IsNullOrEmpty(_settings.BaseUrl))
+        {
+            _logger.LogWarning("CobraAPI BaseUrl is not configured. Cannot store ConversationReference.");
+            return null;
+        }
+
+        try
+        {
+            _logger.LogDebug(
+                "Storing ConversationReference for {ConversationId}, TenantId: {TenantId}, IsEmulator: {IsEmulator}",
+                request.ConversationId, request.TenantId, request.IsEmulator);
+
+            var response = await _httpClient.PutAsJsonAsync(
+                "api/chat/teams/conversation-reference",
+                request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<StoreConversationReferenceResult>();
+                if (result != null)
+                {
+                    _logger.LogInformation(
+                        "Stored ConversationReference for {ConversationId}, MappingId: {MappingId}, IsNew: {IsNew}",
+                        request.ConversationId, result.MappingId, result.IsNewMapping);
+                    return result;
+                }
+            }
+
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning(
+                "Failed to store ConversationReference. Status: {StatusCode}, Error: {Error}",
+                response.StatusCode, errorContent);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error storing ConversationReference for {ConversationId}",
+                request.ConversationId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets a ConversationReference from CobraAPI by conversation ID.
+    /// </summary>
+    public async Task<GetConversationReferenceResult?> GetConversationReferenceAsync(string conversationId)
+    {
+        if (string.IsNullOrEmpty(_settings.BaseUrl))
+        {
+            _logger.LogWarning("CobraAPI BaseUrl is not configured. Cannot get ConversationReference.");
+            return null;
+        }
+
+        try
+        {
+            var encodedId = Uri.EscapeDataString(conversationId);
+            var response = await _httpClient.GetAsync(
+                $"api/chat/teams/conversation-reference/{encodedId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<GetConversationReferenceResult>();
+                if (result != null)
+                {
+                    _logger.LogDebug(
+                        "Retrieved ConversationReference for {ConversationId}, MappingId: {MappingId}",
+                        conversationId, result.MappingId);
+                    return result;
+                }
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _logger.LogDebug("No ConversationReference found for {ConversationId}", conversationId);
+                return null;
+            }
+
+            _logger.LogWarning(
+                "Unexpected response {StatusCode} when getting ConversationReference for {ConversationId}",
+                response.StatusCode, conversationId);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting ConversationReference for {ConversationId}", conversationId);
+            return null;
+        }
+    }
 }
 
 /// <summary>

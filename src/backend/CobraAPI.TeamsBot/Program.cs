@@ -1,4 +1,5 @@
 using CobraAPI.TeamsBot.Bots;
+using CobraAPI.TeamsBot.Models;
 using CobraAPI.TeamsBot.Services;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
@@ -45,6 +46,9 @@ builder.Services.AddSingleton<IConversationReferenceService, ConversationReferen
 builder.Services.Configure<CobraApiSettings>(builder.Configuration.GetSection("CobraApi"));
 builder.Services.AddHttpClient<ICobraApiClient, CobraApiClient>();
 
+// Configure Bot settings (display name, etc.)
+builder.Services.Configure<BotSettings>(builder.Configuration.GetSection("Bot"));
+
 // Register the main bot
 builder.Services.AddTransient<IBot, CobraTeamsBot>();
 
@@ -78,7 +82,8 @@ var logger = app.Services.GetRequiredService<ILogger<Program>>();
 var configuration = app.Services.GetRequiredService<IConfiguration>();
 var appId = configuration["MicrosoftAppId"];
 var cobraApiUrl = configuration["CobraApi:BaseUrl"];
-logger.LogInformation("COBRA Teams Bot starting...");
+var botDisplayName = configuration["Bot:DisplayName"] ?? "COBRA Bot";
+logger.LogInformation("{BotName} starting...", botDisplayName);
 logger.LogInformation("Bot App ID configured: {HasAppId}", !string.IsNullOrEmpty(appId));
 logger.LogInformation("CobraAPI URL: {CobraApiUrl}", cobraApiUrl ?? "(not configured)");
 logger.LogInformation("Environment: {Environment}", app.Environment.EnvironmentName);

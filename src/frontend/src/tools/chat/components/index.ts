@@ -5,6 +5,7 @@
  */
 
 export { ArchiveChannelDialog } from './ArchiveChannelDialog';
+export { ChannelMenu } from './ChannelMenu';
 export { ChatMessage } from './ChatMessage';
 export { ChannelList } from './ChannelList';
 export { CreateChannelDialog } from './CreateChannelDialog';

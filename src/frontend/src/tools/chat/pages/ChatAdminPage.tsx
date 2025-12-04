@@ -40,11 +40,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faComments,
   faExclamationTriangle,
-  faBullhorn,
-  faHashtag,
-  faUserGroup,
   faEllipsisVertical,
   faBoxArchive,
   faRotateLeft,
@@ -52,13 +48,7 @@ import {
   faClock,
   faMessage,
   faCalendarMinus,
-  faCommentDots,
-  faCommentSms,
 } from '@fortawesome/free-solid-svg-icons';
-import {
-  faMicrosoft,
-  faSlack,
-} from '@fortawesome/free-brands-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { formatDistanceToNow, parseISO } from 'date-fns';
@@ -77,57 +67,7 @@ import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { ArchiveChannelDialog } from '../components/ArchiveChannelDialog';
 import { RestoreChannelDialog } from '../components/RestoreChannelDialog';
 import { PermanentDeleteDialog } from '../components/PermanentDeleteDialog';
-
-/**
- * Get icon for channel based on type
- */
-const getChannelIcon = (channel: ChatThreadDto) => {
-  if (channel.iconName) {
-    switch (channel.iconName) {
-      case 'comments':
-        return faComments;
-      case 'bullhorn':
-        return faBullhorn;
-      case 'hashtag':
-        return faHashtag;
-      case 'user-group':
-        return faUserGroup;
-      default:
-        return faHashtag;
-    }
-  }
-
-  switch (channel.channelType) {
-    case ChannelType.Internal:
-      return faComments;
-    case ChannelType.Announcements:
-      return faBullhorn;
-    case ChannelType.Position:
-      return faUserGroup;
-    case ChannelType.External:
-    case ChannelType.Custom:
-    default:
-      return faHashtag;
-  }
-};
-
-/**
- * Get icon for external platform
- */
-const getPlatformIcon = (platform: ExternalPlatform) => {
-  switch (platform) {
-    case ExternalPlatform.GroupMe:
-      return faCommentDots;
-    case ExternalPlatform.Signal:
-      return faCommentSms;
-    case ExternalPlatform.Teams:
-      return faMicrosoft;
-    case ExternalPlatform.Slack:
-      return faSlack;
-    default:
-      return faCommentDots;
-  }
-};
+import { getChannelIcon, getPlatformIcon } from '../utils/platformUtils';
 
 /**
  * Check if a channel can be archived

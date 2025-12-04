@@ -26,35 +26,22 @@ import {
   MenuItem,
   ListItemIcon as MenuItemIcon,
 } from '@mui/material';
-import { useTheme, Theme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faComments,
-  faCommentDots,
-  faCommentSms,
-  faBullhorn,
   faChevronDown,
   faChevronRight,
   faPlus,
-  faHashtag,
-  faUserGroup,
   faEllipsisVertical,
   faBoxArchive,
-  faStar,
-  faCogs,
-  faClipboardList,
-  faTruck,
-  faDollarSign,
-  faShieldHalved,
-  faHandshake,
 } from '@fortawesome/free-solid-svg-icons';
-import { faMicrosoft, faSlack } from '@fortawesome/free-brands-svg-icons';
 import { chatService } from '../services/chatService';
 import { useExternalMessagingConfig } from '../hooks/useExternalMessagingConfig';
 import type { ChatThreadDto } from '../types/chat';
-import { ChannelType, ExternalPlatform, PlatformInfo, isChannelType } from '../types/chat';
+import { ChannelType, isChannelType } from '../types/chat';
 import { CreateChannelDialog } from './CreateChannelDialog';
 import { ArchiveChannelDialog } from './ArchiveChannelDialog';
+import { getChannelIcon, getChannelColor } from '../utils/platformUtils';
 
 interface ChannelListProps {
   eventId: string;
@@ -64,106 +51,6 @@ interface ChannelListProps {
   /** Key to force a refresh of channels (increment to reload) */
   refreshKey?: number;
 }
-
-/**
- * Map icon name string to FontAwesome icon definition
- */
-const iconNameToIcon = (iconName: string) => {
-  const iconMap: Record<string, typeof faComments> = {
-    comments: faComments,
-    bullhorn: faBullhorn,
-    hashtag: faHashtag,
-    'user-group': faUserGroup,
-    star: faStar,
-    cogs: faCogs,
-    'clipboard-list': faClipboardList,
-    truck: faTruck,
-    'dollar-sign': faDollarSign,
-    'shield-halved': faShieldHalved,
-    handshake: faHandshake,
-  };
-  return iconMap[iconName] ?? faHashtag;
-};
-
-/**
- * Get icon for external platform
- */
-const getPlatformIcon = (platform: ExternalPlatform) => {
-  switch (platform) {
-    case ExternalPlatform.GroupMe:
-      return faCommentDots;
-    case ExternalPlatform.Signal:
-      return faCommentSms;
-    case ExternalPlatform.Teams:
-      return faMicrosoft;
-    case ExternalPlatform.Slack:
-      return faSlack;
-    default:
-      return faCommentDots;
-  }
-};
-
-/**
- * Get icon for channel based on type and metadata
- */
-const getChannelIcon = (channel: ChatThreadDto) => {
-  // Use custom icon if provided
-  if (channel.iconName) {
-    return iconNameToIcon(channel.iconName);
-  }
-
-  // External channels use platform-specific icons
-  if (isChannelType(channel.channelType, ChannelType.External) && channel.externalChannel) {
-    return getPlatformIcon(channel.externalChannel.platform);
-  }
-
-  // Default icons by type
-  switch (channel.channelType) {
-    case ChannelType.Internal:
-      return faComments;
-    case ChannelType.Announcements:
-      return faBullhorn;
-    case ChannelType.External:
-      return faCommentDots; // Fallback if no externalChannel
-    case ChannelType.Position:
-      return faUserGroup;
-    case ChannelType.Custom:
-    default:
-      return faHashtag;
-  }
-};
-
-/**
- * Get color for channel
- */
-const getChannelColor = (channel: ChatThreadDto, theme: Theme) => {
-  // Use custom color if provided
-  if (channel.color) {
-    return channel.color;
-  }
-
-  // External channels use platform colors
-  if (isChannelType(channel.channelType, ChannelType.External) && channel.externalChannel) {
-    const platformKey = channel.externalChannel.platform as ExternalPlatform;
-    const platformInfo = PlatformInfo[platformKey];
-    if (platformInfo) {
-      return platformInfo.color;
-    }
-  }
-
-  // Default colors by type
-  if (isChannelType(channel.channelType, ChannelType.Internal)) {
-    return theme.palette.primary.main;
-  }
-  if (isChannelType(channel.channelType, ChannelType.Announcements)) {
-    return theme.palette.warning.main;
-  }
-  if (isChannelType(channel.channelType, ChannelType.Position)) {
-    return theme.palette.info.main;
-  }
-  // Custom or default
-  return theme.palette.text.secondary;
-};
 
 export const ChannelList: React.FC<ChannelListProps> = ({
   eventId,

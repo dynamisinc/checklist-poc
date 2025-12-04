@@ -759,10 +759,12 @@ public class ExternalMessagingService : IExternalMessagingService
                             .CountAsync(ct => ct.ExternalChannelMappingId == channel.Id && ct.IsActive);
 
                         // Send with context if multiple channels share this Teams conversation
+                        // Include ConversationReferenceJson for stateless bot architecture
                         await SendMessageToTeamsAsync(
                             channel.ExternalGroupId,
                             senderName,
                             message,
+                            channel.ConversationReferenceJson,
                             eventName,
                             channelName,
                             hasMultipleChannels: linkedChannelCount > 1);
@@ -784,10 +786,12 @@ public class ExternalMessagingService : IExternalMessagingService
 
     /// <summary>
     /// Sends a message to a Teams conversation via the TeamsBot service.
+    /// Stateless architecture: ConversationReferenceJson is passed from DB to TeamsBot.
     /// </summary>
-    /// <param name="conversationId">Teams conversation ID</param>
+    /// <param name="conversationId">Teams conversation ID (for logging)</param>
     /// <param name="senderName">COBRA sender name</param>
     /// <param name="message">Message text</param>
+    /// <param name="conversationReferenceJson">Serialized Bot Framework ConversationReference (from DB)</param>
     /// <param name="eventName">Optional event name for context</param>
     /// <param name="channelName">Optional channel name for context</param>
     /// <param name="hasMultipleChannels">True if multiple COBRA channels share this Teams conversation</param>
@@ -795,6 +799,7 @@ public class ExternalMessagingService : IExternalMessagingService
         string conversationId,
         string senderName,
         string message,
+        string? conversationReferenceJson,
         string? eventName = null,
         string? channelName = null,
         bool hasMultipleChannels = false)
@@ -806,14 +811,30 @@ public class ExternalMessagingService : IExternalMessagingService
             return;
         }
 
+        if (string.IsNullOrEmpty(conversationReferenceJson))
+        {
+            _logger.LogWarning(
+                "No ConversationReference stored for Teams conversation {ConversationId} - cannot send message. " +
+                "A message must be received from Teams first to populate the ConversationReference.",
+                conversationId);
+            return;
+        }
+
         try
         {
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(10);
 
+            // Add API key header if configured
+            if (!string.IsNullOrEmpty(_teamsBotSettings.ApiKey))
+            {
+                client.DefaultRequestHeaders.Add("X-Api-Key", _teamsBotSettings.ApiKey);
+            }
+
             var payload = new
             {
                 conversationId,
+                conversationReferenceJson,
                 message,
                 senderName,
                 eventName,

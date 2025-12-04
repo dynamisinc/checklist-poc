@@ -243,6 +243,12 @@ public class DiagnosticsController : ControllerBase
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(10);
 
+            // Add API key header if configured
+            if (!string.IsNullOrEmpty(_teamsBotSettings.ApiKey))
+            {
+                client.DefaultRequestHeaders.Add("X-Api-Key", _teamsBotSettings.ApiKey);
+            }
+
             var response = await client.GetAsync($"{baseUrl}/api/internal/conversations");
 
             if (!response.IsSuccessStatusCode)

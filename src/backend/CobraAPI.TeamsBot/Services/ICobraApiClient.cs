@@ -4,7 +4,8 @@ namespace CobraAPI.TeamsBot.Services;
 
 /// <summary>
 /// Client interface for communicating with CobraAPI.
-/// TeamsBot uses this to forward inbound Teams messages to COBRA.
+/// TeamsBot uses this to forward inbound Teams messages to COBRA
+/// and to store/retrieve ConversationReferences for stateless operation.
 /// </summary>
 public interface ICobraApiClient
 {
@@ -31,4 +32,53 @@ public interface ICobraApiClient
     /// <param name="conversationId">The Teams conversation ID.</param>
     /// <returns>The mapping ID if found, null otherwise.</returns>
     Task<Guid?> GetMappingIdForConversationAsync(string conversationId);
+
+    // === Stateless Architecture Methods (UC-TI-029) ===
+
+    /// <summary>
+    /// Stores or updates a ConversationReference in CobraAPI.
+    /// Called on every incoming message to keep the reference current.
+    /// </summary>
+    /// <param name="request">The conversation reference data.</param>
+    /// <returns>The response with mapping ID, or null on failure.</returns>
+    Task<StoreConversationReferenceResult?> StoreConversationReferenceAsync(StoreConversationReferenceRequest request);
+
+    /// <summary>
+    /// Gets a ConversationReference from CobraAPI by conversation ID.
+    /// </summary>
+    /// <param name="conversationId">The Teams conversation ID.</param>
+    /// <returns>The conversation reference JSON, or null if not found.</returns>
+    Task<GetConversationReferenceResult?> GetConversationReferenceAsync(string conversationId);
+}
+
+/// <summary>
+/// Request to store a conversation reference in CobraAPI.
+/// </summary>
+public class StoreConversationReferenceRequest
+{
+    public required string ConversationId { get; init; }
+    public required string ConversationReferenceJson { get; init; }
+    public string? TenantId { get; init; }
+    public string? ChannelName { get; init; }
+    public string? InstalledByName { get; init; }
+    public bool IsEmulator { get; init; }
+}
+
+/// <summary>
+/// Result from storing a conversation reference.
+/// </summary>
+public class StoreConversationReferenceResult
+{
+    public Guid MappingId { get; set; }
+    public bool IsNewMapping { get; set; }
+}
+
+/// <summary>
+/// Result from getting a conversation reference.
+/// </summary>
+public class GetConversationReferenceResult
+{
+    public Guid MappingId { get; set; }
+    public string? ConversationReferenceJson { get; set; }
+    public bool IsActive { get; set; }
 }

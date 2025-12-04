@@ -33,42 +33,105 @@ This document provides comprehensive technical documentation for developers work
 
 ### High-Level Architecture
 
+The COBRA Teams integration uses a **stateless bot architecture** where all persistent data lives in CobraAPI's SQL Server database. The TeamsBot service acts as a bridge/adapter with no local state.
+
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Microsoft 365                                   │
-│  ┌─────────────┐     ┌──────────────────┐     ┌─────────────────────────┐  │
-│  │   Teams     │────▶│  Azure Bot       │────▶│  COBRA Teams Bot        │  │
-│  │   Client    │◀────│  Service         │◀────│  (ASP.NET Core)         │  │
-│  └─────────────┘     └──────────────────┘     └───────────┬─────────────┘  │
-│                                                           │                  │
-└───────────────────────────────────────────────────────────┼──────────────────┘
-                                                            │
-                    ┌───────────────────────────────────────┼───────────────┐
-                    │                COBRA Infrastructure   │               │
-                    │  ┌────────────────────────────────────▼────────────┐  │
-                    │  │              UC POC Services                     │  │
-                    │  │  ┌─────────────┐  ┌─────────────┐  ┌──────────┐ │  │
-                    │  │  │ IChatService│  │IChannelSvc  │  │ SignalR  │ │  │
-                    │  │  └──────┬──────┘  └──────┬──────┘  └────┬─────┘ │  │
-                    │  └─────────┼────────────────┼───────────────┼──────┘  │
-                    │            │                │               │         │
-                    │  ┌─────────▼────────────────▼───────────────▼──────┐  │
-                    │  │                   SQL Server                     │  │
-                    │  │   Messages │ Channels │ ConversationReferences   │  │
-                    │  └─────────────────────────────────────────────────┘  │
-                    └───────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           Customer Microsoft 365 Tenants                         │
+│                                                                                  │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐                          │
+│   │ Customer A  │   │ Customer B  │   │ Customer C  │   ...                    │
+│   │ Teams       │   │ Teams       │   │ Teams       │                          │
+│   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘                          │
+│          │                 │                 │                                  │
+└──────────┼─────────────────┼─────────────────┼──────────────────────────────────┘
+           │                 │                 │
+           └────────────────┬┴─────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              YOUR Azure Tenant                                   │
+│                                                                                  │
+│   ┌──────────────────┐                                                          │
+│   │  Azure Bot       │ ◄── Bot Registration (App ID, Messaging Endpoint)        │
+│   │  Service         │                                                          │
+│   └────────┬─────────┘                                                          │
+│            │                                                                     │
+│            ▼                                                                     │
+│   ┌──────────────────────────────────────────────────────────────────────────┐  │
+│   │                     COBRA Teams Bot (Stateless)                          │  │
+│   │   ┌─────────────────┐    ┌─────────────────┐    ┌──────────────────┐    │  │
+│   │   │ /api/messages   │    │ /api/internal/* │    │ No Local State   │    │  │
+│   │   │ (Bot Framework) │    │ (CobraAPI calls)│    │ (Stateless)      │    │  │
+│   │   └────────┬────────┘    └────────┬────────┘    └──────────────────┘    │  │
+│   └────────────┼──────────────────────┼─────────────────────────────────────┘  │
+│                │                      │                                         │
+│                └──────────┬───────────┘                                         │
+│                           │                                                     │
+│                           ▼                                                     │
+│   ┌──────────────────────────────────────────────────────────────────────────┐  │
+│   │                           CobraAPI                                        │  │
+│   │   ┌─────────────────┐    ┌─────────────────┐    ┌──────────────────┐    │  │
+│   │   │ Webhook Handler │    │ External        │    │ SignalR Hub      │    │  │
+│   │   │ /api/webhooks/* │    │ MessagingService│    │ (Real-time)      │    │  │
+│   │   └────────┬────────┘    └────────┬────────┘    └────────┬─────────┘    │  │
+│   └────────────┼──────────────────────┼──────────────────────┼──────────────┘  │
+│                │                      │                      │                  │
+│                └──────────────────────┼──────────────────────┘                  │
+│                                       │                                         │
+│                                       ▼                                         │
+│   ┌──────────────────────────────────────────────────────────────────────────┐  │
+│   │                          SQL Server                                       │  │
+│   │   ┌─────────────────────────────────────────────────────────────────┐    │  │
+│   │   │  ExternalChannelMapping                                          │    │  │
+│   │   │  - ConversationReferenceJson (Teams proactive messaging data)   │    │  │
+│   │   │  - TenantId (Customer's M365 tenant)                            │    │  │
+│   │   │  - LastActivityAt (Health monitoring)                           │    │  │
+│   │   │  - Messages, Channels, Events...                                 │    │  │
+│   │   └─────────────────────────────────────────────────────────────────┘    │  │
+│   └──────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Key Architecture Decisions
+
+#### Stateless Bot Design
+The TeamsBot is designed to be **completely stateless**:
+- **No in-memory state**: ConversationReferences stored in CobraAPI database
+- **Horizontally scalable**: Multiple bot instances can run simultaneously
+- **Restart-safe**: No data loss when bot restarts or redeploys
+- **Single source of truth**: All data in CobraAPI's SQL Server
+
+#### Bot Registration vs Bot Hosting
+Understanding the difference is critical:
+
+| Concept | Lives In | Purpose |
+|---------|----------|---------|
+| **Bot Registration** | Your Azure tenant | App ID, messaging endpoint URL, Teams channel config |
+| **Bot Hosting** | Your infrastructure | The ASP.NET service handling `/api/messages` |
+| **Bot Installation** | Customer's Teams | When customer adds bot to their team/channel |
+
+- One bot registration serves all customer tenants (multi-tenant bot)
+- Customers install YOUR bot into THEIR Teams - no hosting required on their side
+- Bot appears in customer's Teams but runs on your infrastructure
+
+#### Why Stateless?
+1. **Operations**: One database to manage, backup, and monitor
+2. **Scaling**: Add more bot instances without state synchronization
+3. **Reliability**: Bot restarts don't lose ConversationReferences
+4. **Development**: Emulator sessions don't create orphan connectors
 
 ### Component Responsibilities
 
-| Component         | Responsibility                                           |
-| ----------------- | -------------------------------------------------------- |
-| Teams Client      | User interface, message composition                      |
-| Azure Bot Service | Message routing, authentication, scaling                 |
-| COBRA Teams Bot   | Message handling, COBRA integration, proactive messaging |
-| UC POC Services   | Shared chat/channel services, database access            |
-| SignalR Hub       | Real-time updates to COBRA web clients                   |
-| SQL Server        | Message persistence, conversation references             |
+| Component         | Responsibility                                                    |
+| ----------------- | ----------------------------------------------------------------- |
+| Teams Client      | User interface in customer's Microsoft 365 tenant                 |
+| Azure Bot Service | Message routing, authentication, token validation                 |
+| COBRA Teams Bot   | **Stateless** message handling, calls CobraAPI for all persistence |
+| CobraAPI          | Business logic, database access, ConversationReference storage     |
+| SignalR Hub       | Real-time updates to COBRA web clients                            |
+| SQL Server        | All persistent data including ConversationReferences              |
 
 ---
 
@@ -200,162 +263,214 @@ app.Run();
 
 ## Message Flow
 
-### Inbound: Teams → COBRA
+### Inbound: Teams → COBRA (Stateless Architecture)
 
 ```
-┌──────────┐    ┌─────────────┐    ┌────────────┐    ┌────────────┐    ┌──────────┐
-│  Teams   │───▶│ Bot Service │───▶│ BotController│───▶│ CobraBot   │───▶│ Database │
-│  User    │    │   (Azure)   │    │ /api/messages│    │ Handler    │    │          │
-└──────────┘    └─────────────┘    └────────────┘    └─────┬──────┘    └──────────┘
-                                                          │
-                                                          ▼
-                                                    ┌──────────┐
-                                                    │ SignalR  │───▶ COBRA Web Clients
-                                                    └──────────┘
+┌──────────────┐    ┌─────────────┐    ┌──────────────────────────────────────────────────┐
+│  Teams User  │───▶│ Bot Service │───▶│              COBRA Teams Bot (Stateless)         │
+│ (Customer    │    │   (Azure)   │    │                                                   │
+│  Tenant)     │    │             │    │   1. Receive activity at /api/messages           │
+└──────────────┘    └─────────────┘    │   2. Call CobraAPI to store ConversationRef      │
+                                       │   3. Call CobraAPI webhook with message          │
+                                       └───────────────────────┬──────────────────────────┘
+                                                               │
+                                                               ▼
+                                       ┌──────────────────────────────────────────────────┐
+                                       │                    CobraAPI                       │
+                                       │                                                   │
+                                       │   1. Store/update ConversationReference in DB    │
+                                       │   2. Process webhook → save ChatMessage          │
+                                       │   3. Broadcast via SignalR                       │
+                                       └───────────────────────┬──────────────────────────┘
+                                                               │
+                                                               ▼
+                                       ┌──────────────────────────────────────────────────┐
+                                       │                  SQL Server                       │
+                                       │   - ExternalChannelMapping.ConversationRefJson   │
+                                       │   - ExternalChannelMapping.LastActivityAt        │
+                                       │   - ChatMessage                                   │
+                                       └──────────────────────────────────────────────────┘
 ```
 
 **Sequence:**
 
-1. User posts message in Teams channel
-2. Azure Bot Service authenticates and routes to bot endpoint
-3. `BotController` receives HTTP POST at `/api/messages`
-4. `CobraBot.OnMessageActivityAsync()` processes the activity
-5. Message saved to database via `IChatService`
-6. SignalR broadcasts to connected COBRA clients
-7. Bot optionally sends acknowledgment to Teams
+1. User posts message in Teams channel (any customer tenant)
+2. Azure Bot Service authenticates and routes to TeamsBot `/api/messages`
+3. TeamsBot calls CobraAPI `PUT /api/chat/teams/conversation-reference` to store/update ConversationReference
+4. TeamsBot calls CobraAPI `POST /api/webhooks/teams/{mappingId}` with message payload
+5. CobraAPI saves message to database via `ChatService`
+6. CobraAPI broadcasts via SignalR to connected COBRA clients
+7. TeamsBot does NOT store anything locally - all state is in CobraAPI
 
-### Outbound: COBRA → Teams
+**Key Point:** TeamsBot has no local state. If it restarts, ConversationReferences are preserved in CobraAPI's database.
+
+### Outbound: COBRA → Teams (Stateless Architecture)
 
 ```
-┌──────────┐    ┌────────────────┐    ┌─────────────────┐    ┌─────────────┐    ┌──────────┐
-│  COBRA   │───▶│ ProactiveCtrl  │───▶│ ProactiveMsgSvc │───▶│ Bot Service │───▶│  Teams   │
-│  User    │    │ /api/send      │    │                 │    │   (Azure)   │    │ Channel  │
-└──────────┘    └────────────────┘    └────────┬────────┘    └─────────────┘    └──────────┘
-                                               │
-                                               ▼
-                                        ┌──────────────┐
-                                        │ ConvRef Store│
-                                        └──────────────┘
+┌──────────────┐    ┌──────────────────────────────────────────────────────────────────┐
+│  COBRA User  │───▶│                         CobraAPI                                  │
+│              │    │                                                                   │
+└──────────────┘    │   1. Save message to database                                    │
+                    │   2. Lookup ExternalChannelMapping (has ConversationRefJson)     │
+                    │   3. Call TeamsBot /api/internal/send with ConversationRef       │
+                    └───────────────────────┬──────────────────────────────────────────┘
+                                            │
+                                            ▼
+                    ┌──────────────────────────────────────────────────────────────────┐
+                    │                COBRA Teams Bot (Stateless)                        │
+                    │                                                                   │
+                    │   1. Receive ConversationRef + message from CobraAPI             │
+                    │   2. Use ContinueConversationAsync with provided ConversationRef │
+                    │   3. Send to Teams via Bot Service                               │
+                    │   (No database lookup - CobraAPI provides everything)            │
+                    └───────────────────────┬──────────────────────────────────────────┘
+                                            │
+                                            ▼
+                    ┌──────────────────────────────────────────────────────────────────┐
+                    │                     Azure Bot Service                             │
+                    │                           │                                       │
+                    │                           ▼                                       │
+                    │   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐           │
+                    │   │ Customer A  │   │ Customer B  │   │ Customer C  │           │
+                    │   │ Teams       │   │ Teams       │   │ Teams       │           │
+                    │   └─────────────┘   └─────────────┘   └─────────────┘           │
+                    └──────────────────────────────────────────────────────────────────┘
 ```
 
 **Sequence:**
 
 1. User sends message in COBRA linked channel
-2. COBRA API calls internal `/api/send` endpoint
-3. `ProactiveMessageService` retrieves stored `ConversationReference`
-4. Uses `ContinueConversationAsync` to send proactive message
-5. Message appears in Teams with COBRA attribution
+2. CobraAPI saves message and looks up `ExternalChannelMapping`
+3. CobraAPI retrieves `ConversationReferenceJson` from database
+4. CobraAPI calls TeamsBot `/api/internal/send` with:
+   - `ConversationReferenceJson` (from database)
+   - `Message` content
+   - `SenderName` for attribution
+5. TeamsBot uses `ContinueConversationAsync` with the provided ConversationReference
+6. Message appears in Teams with COBRA sender attribution
+
+**Key Point:** TeamsBot doesn't look up anything - CobraAPI provides the ConversationReference. This makes TeamsBot truly stateless.
 
 ---
 
 ## Database Schema
 
-### TeamsConversationReferences Table
+### Stateless Architecture: ExternalChannelMapping Extensions
+
+In the stateless architecture, ConversationReferences are stored directly in the existing `ExternalChannelMapping` table (no separate Teams-specific tables needed). This leverages the existing multi-platform infrastructure.
 
 ```sql
-CREATE TABLE TeamsConversationReferences (
-    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+-- Extensions to existing ExternalChannelMapping table for Teams stateless architecture
+ALTER TABLE ExternalChannelMapping ADD
+    -- Serialized Bot Framework ConversationReference (required for proactive messaging)
+    ConversationReferenceJson NVARCHAR(MAX) NULL,
 
-    -- Teams identifiers
-    TeamId NVARCHAR(100) NOT NULL,
-    ChannelId NVARCHAR(100) NOT NULL,
-    ServiceUrl NVARCHAR(500) NOT NULL,
+    -- Customer's Microsoft 365 tenant ID (for future multi-tenant filtering)
+    TenantId NVARCHAR(100) NULL,
 
-    -- Bot info
-    BotId NVARCHAR(100) NOT NULL,
-    BotName NVARCHAR(200),
+    -- Track connector health and activity
+    LastActivityAt DATETIME2 NULL,
 
-    -- Serialized ConversationReference
-    ConversationReferenceJson NVARCHAR(MAX) NOT NULL,
+    -- Who installed the bot (for audit/debugging)
+    InstalledByName NVARCHAR(200) NULL,
 
-    -- Metadata
-    TeamName NVARCHAR(200),
-    ChannelName NVARCHAR(200),
-    InstalledByUserId NVARCHAR(100),
-    InstalledByUserName NVARCHAR(200),
+    -- Flag emulator/test connections for easy cleanup
+    IsEmulator BIT NOT NULL DEFAULT 0;
 
-    -- Timestamps
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    LastActivityAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+-- Index for tenant-based queries (future multi-tenancy)
+CREATE INDEX IX_ExternalChannelMapping_TenantId
+    ON ExternalChannelMapping(TenantId)
+    WHERE TenantId IS NOT NULL;
 
-    -- Indexes
-    INDEX IX_TeamChannel (TeamId, ChannelId)
-);
+-- Index for stale connector cleanup
+CREATE INDEX IX_ExternalChannelMapping_LastActivityAt
+    ON ExternalChannelMapping(LastActivityAt)
+    WHERE Platform = 3; -- Teams platform enum value
 ```
 
-### TeamsChannelMappings Table
-
-```sql
-CREATE TABLE TeamsChannelMappings (
-    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-
-    -- COBRA event reference
-    CobraEventId UNIQUEIDENTIFIER NOT NULL,
-    CobraChannelId UNIQUEIDENTIFIER NOT NULL,
-
-    -- Teams reference
-    TeamsConversationReferenceId UNIQUEIDENTIFIER NOT NULL,
-
-    -- Link metadata
-    LinkedByUserId UNIQUEIDENTIFIER NOT NULL,
-    LinkedByUserName NVARCHAR(200),
-    LinkedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-
-    -- Status
-    IsActive BIT NOT NULL DEFAULT 1,
-    UnlinkedAt DATETIME2 NULL,
-    UnlinkedByUserId UNIQUEIDENTIFIER NULL,
-
-    FOREIGN KEY (TeamsConversationReferenceId)
-        REFERENCES TeamsConversationReferences(Id),
-    FOREIGN KEY (CobraChannelId)
-        REFERENCES ExternalChannels(Id)
-);
-```
-
-### Entity Models
+### ExternalChannelMapping Entity (Updated)
 
 ```csharp
 /// <summary>
-/// Stores Teams conversation references for proactive messaging.
-/// Each record represents a team/channel where the bot is installed.
+/// Maps external platform channels (Teams, GroupMe, etc.) to COBRA events.
+/// For Teams, also stores the ConversationReference for proactive messaging.
 /// </summary>
-public class TeamsConversationReference
+public class ExternalChannelMapping
 {
     public Guid Id { get; set; }
 
-    // Teams identifiers
-    public string TeamId { get; set; } = string.Empty;
-    public string ChannelId { get; set; } = string.Empty;
-    public string ServiceUrl { get; set; } = string.Empty;
+    // COBRA references
+    public Guid EventId { get; set; }
+    public Guid? ChatThreadId { get; set; }
 
-    // Bot info
-    public string BotId { get; set; } = string.Empty;
-    public string? BotName { get; set; }
+    // Platform identification
+    public ExternalPlatform Platform { get; set; }  // Teams, GroupMe, Signal, Slack
 
-    // Serialized for flexibility
-    public string ConversationReferenceJson { get; set; } = string.Empty;
+    // External platform identifiers
+    public string ExternalGroupId { get; set; } = string.Empty;  // Teams ConversationId
+    public string ExternalGroupName { get; set; } = string.Empty; // Display name (editable)
 
-    // Display metadata
-    public string? TeamName { get; set; }
-    public string? ChannelName { get; set; }
-    public string? InstalledByUserId { get; set; }
-    public string? InstalledByUserName { get; set; }
+    // Existing fields...
+    public string? BotId { get; set; }
+    public string? WebhookSecret { get; set; }
+    public string? ShareUrl { get; set; }
+    public bool IsActive { get; set; } = true;
 
-    // Timestamps
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime LastActivityAt { get; set; } = DateTime.UtcNow;
-
-    // Navigation
-    public ICollection<TeamsChannelMapping> Mappings { get; set; } = new List<TeamsChannelMapping>();
+    // === NEW: Teams Stateless Architecture Fields ===
 
     /// <summary>
-    /// Deserializes the stored ConversationReference.
+    /// Serialized Bot Framework ConversationReference for proactive messaging.
+    /// Only populated for Teams platform.
     /// </summary>
-    public ConversationReference GetConversationReference()
+    public string? ConversationReferenceJson { get; set; }
+
+    /// <summary>
+    /// Customer's Microsoft 365 tenant ID.
+    /// Captured from activity.Conversation.TenantId.
+    /// Enables future multi-tenant queries.
+    /// </summary>
+    public string? TenantId { get; set; }
+
+    /// <summary>
+    /// Last time a message was received from this channel.
+    /// Used for health monitoring and stale connector cleanup.
+    /// </summary>
+    public DateTime? LastActivityAt { get; set; }
+
+    /// <summary>
+    /// Display name of user who installed the bot.
+    /// Captured from activity.From.Name on bot installation.
+    /// </summary>
+    public string? InstalledByName { get; set; }
+
+    /// <summary>
+    /// True if this is a Bot Framework Emulator connection.
+    /// Detected via activity.ChannelId == "emulator".
+    /// Makes it easy to filter/cleanup test connections.
+    /// </summary>
+    public bool IsEmulator { get; set; }
+
+    // Audit fields
+    public string CreatedBy { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? LastModifiedBy { get; set; }
+    public DateTime? LastModifiedAt { get; set; }
+
+    // Navigation
+    public Event Event { get; set; } = null!;
+    public ChatThread? ChatThread { get; set; }
+
+    // === Helper Methods ===
+
+    /// <summary>
+    /// Deserializes the stored ConversationReference for proactive messaging.
+    /// </summary>
+    public ConversationReference? GetConversationReference()
     {
-        return JsonSerializer.Deserialize<ConversationReference>(ConversationReferenceJson)
-            ?? throw new InvalidOperationException("Failed to deserialize ConversationReference");
+        if (string.IsNullOrEmpty(ConversationReferenceJson))
+            return null;
+
+        return JsonSerializer.Deserialize<ConversationReference>(ConversationReferenceJson);
     }
 
     /// <summary>
@@ -364,10 +479,20 @@ public class TeamsConversationReference
     public void SetConversationReference(ConversationReference reference)
     {
         ConversationReferenceJson = JsonSerializer.Serialize(reference);
-        ServiceUrl = reference.ServiceUrl;
-        ChannelId = reference.Conversation?.Id ?? string.Empty;
     }
 }
+```
+
+### Legacy Schema (Deprecated)
+
+The following tables were planned in the original architecture but are **NOT used** in the stateless architecture:
+
+```sql
+-- DEPRECATED: TeamsConversationReferences table
+-- ConversationReferences are now stored in ExternalChannelMapping.ConversationReferenceJson
+
+-- DEPRECATED: TeamsChannelMappings table
+-- Use ExternalChannelMapping with Platform = Teams instead
 ```
 
 ---
@@ -556,160 +681,161 @@ public class ProactiveController : ControllerBase
 
 ## Proactive Messaging
 
-### ConversationReference Storage
+### Stateless Architecture: ConversationReference Flow
+
+In the stateless architecture, ConversationReferences are stored in CobraAPI's database, not in the TeamsBot. This changes the proactive messaging flow:
+
+**Key Principle:** CobraAPI owns all persistent data. TeamsBot receives the ConversationReference as a parameter when sending messages.
+
+### CobraAPI: Store/Update ConversationReference
+
+When TeamsBot receives a message, it calls CobraAPI to store the ConversationReference:
 
 ```csharp
-/// <summary>
-/// Manages storage and retrieval of Teams conversation references.
-/// References are required for proactive (bot-initiated) messaging.
-/// </summary>
-public interface IConversationReferenceService
+// CobraAPI endpoint for storing ConversationReferences
+[HttpPut("teams/conversation-reference")]
+public async Task<IActionResult> StoreConversationReference(
+    [FromBody] StoreConversationReferenceRequest request)
 {
-    /// <summary>
-    /// Stores or updates a conversation reference when bot is added to a channel.
-    /// </summary>
-    Task SaveReferenceAsync(
-        ConversationReference reference,
-        string teamId,
-        string teamName,
-        string channelName,
-        string installedByUserId,
-        string installedByUserName);
+    // Find or create ExternalChannelMapping
+    var mapping = await _dbContext.ExternalChannelMappings
+        .FirstOrDefaultAsync(m =>
+            m.Platform == ExternalPlatform.Teams &&
+            m.ExternalGroupId == request.ConversationId);
 
-    /// <summary>
-    /// Retrieves a conversation reference for proactive messaging.
-    /// </summary>
-    Task<TeamsConversationReference?> GetReferenceAsync(string teamId, string channelId);
+    if (mapping == null)
+    {
+        // Create new mapping (bot just installed in this channel)
+        mapping = new ExternalChannelMapping
+        {
+            Id = Guid.NewGuid(),
+            Platform = ExternalPlatform.Teams,
+            ExternalGroupId = request.ConversationId,
+            ExternalGroupName = request.ChannelName ?? "Teams Channel",
+            CreatedBy = "TeamsBot",
+            CreatedAt = DateTime.UtcNow
+        };
+        _dbContext.ExternalChannelMappings.Add(mapping);
+    }
 
-    /// <summary>
-    /// Retrieves reference by mapping ID (for COBRA-initiated messages).
-    /// </summary>
-    Task<TeamsConversationReference?> GetReferenceByMappingAsync(Guid mappingId);
+    // Update ConversationReference and metadata
+    mapping.ConversationReferenceJson = request.ConversationReferenceJson;
+    mapping.TenantId = request.TenantId;
+    mapping.LastActivityAt = DateTime.UtcNow;
+    mapping.InstalledByName = request.InstalledByName;
+    mapping.IsEmulator = request.IsEmulator;
 
-    /// <summary>
-    /// Removes reference when bot is removed from team.
-    /// </summary>
-    Task RemoveReferenceAsync(string teamId, string channelId);
+    await _dbContext.SaveChangesAsync();
 
-    /// <summary>
-    /// Updates last activity timestamp (for health monitoring).
-    /// </summary>
-    Task UpdateLastActivityAsync(string teamId, string channelId);
+    return Ok(new { mappingId = mapping.Id });
 }
 ```
 
-### ProactiveMessageService Implementation
+### CobraAPI: Send to Teams (Includes ConversationReference)
+
+When COBRA sends a message, CobraAPI includes the ConversationReference in the request to TeamsBot:
 
 ```csharp
-/// <summary>
-/// Sends proactive messages from COBRA to Teams channels.
-/// Uses stored ConversationReferences to initiate conversations.
-/// </summary>
-public class ProactiveMessageService : IProactiveMessageService
+// In ExternalMessagingService.SendToTeamsAsync()
+public async Task SendToTeamsAsync(ExternalChannelMapping mapping, string message, string senderName)
 {
-    private readonly IConversationReferenceService _referenceService;
-    private readonly IBotFrameworkHttpAdapter _adapter;
-    private readonly string _appId;
-    private readonly ILogger<ProactiveMessageService> _logger;
-
-    public ProactiveMessageService(
-        IConversationReferenceService referenceService,
-        IBotFrameworkHttpAdapter adapter,
-        IConfiguration configuration,
-        ILogger<ProactiveMessageService> logger)
+    if (string.IsNullOrEmpty(mapping.ConversationReferenceJson))
     {
-        _referenceService = referenceService;
-        _adapter = adapter;
-        _appId = configuration["MicrosoftAppId"]
-            ?? throw new InvalidOperationException("MicrosoftAppId not configured");
-        _logger = logger;
+        _logger.LogWarning("No ConversationReference stored for mapping {MappingId}", mapping.Id);
+        return;
     }
 
-    /// <summary>
-    /// Sends a message to a Teams channel linked to COBRA.
-    /// </summary>
-    /// <param name="mappingId">The TeamsChannelMapping ID</param>
-    /// <param name="message">Message content to send</param>
-    /// <param name="senderName">COBRA user's display name for attribution</param>
-    public async Task SendMessageAsync(Guid mappingId, string message, string senderName)
+    var request = new TeamsSendRequest
     {
-        var reference = await _referenceService.GetReferenceByMappingAsync(mappingId)
-            ?? throw new ConversationReferenceNotFoundException(mappingId);
+        ConversationId = mapping.ExternalGroupId,
+        ConversationReferenceJson = mapping.ConversationReferenceJson, // From database
+        Message = message,
+        SenderName = senderName,
+        EventName = mapping.Event?.Name,
+        ChannelName = mapping.ExternalGroupName
+    };
 
-        var conversationRef = reference.GetConversationReference();
+    var response = await _httpClient.PostAsJsonAsync(
+        $"{_teamsBotBaseUrl}/api/internal/send",
+        request);
 
-        _logger.LogInformation(
-            "Sending proactive message. Team: {TeamName}, Channel: {ChannelName}",
-            reference.TeamName,
-            reference.ChannelName);
+    if (!response.IsSuccessStatusCode)
+    {
+        _logger.LogError("Failed to send to Teams: {StatusCode}", response.StatusCode);
+    }
+}
+```
 
+### TeamsBot: Stateless Send (No Database Lookup)
+
+TeamsBot receives everything it needs from CobraAPI - no local storage required:
+
+```csharp
+// TeamsBot /api/internal/send endpoint
+[HttpPost("send")]
+public async Task<IActionResult> SendMessage([FromBody] TeamsSendRequest request)
+{
+    // Deserialize the ConversationReference provided by CobraAPI
+    var conversationRef = JsonSerializer.Deserialize<ConversationReference>(
+        request.ConversationReferenceJson);
+
+    if (conversationRef == null)
+    {
+        return BadRequest(new { error = "Invalid ConversationReference" });
+    }
+
+    try
+    {
         await ((CloudAdapter)_adapter).ContinueConversationAsync(
             _appId,
             conversationRef,
             async (turnContext, cancellationToken) =>
             {
-                // Format message with sender attribution
-                var formattedMessage = $"**[{senderName} via COBRA]**\n\n{message}";
-
+                var formattedMessage = $"**[{request.SenderName}]** {request.Message}";
                 await turnContext.SendActivityAsync(
                     MessageFactory.Text(formattedMessage),
                     cancellationToken);
             },
             CancellationToken.None);
 
-        // Update last activity
-        await _referenceService.UpdateLastActivityAsync(
-            reference.TeamId,
-            reference.ChannelId);
+        return Ok(new { success = true });
     }
-
-    /// <summary>
-    /// Sends an Adaptive Card to a Teams channel (for announcements).
-    /// </summary>
-    public async Task SendCardAsync(Guid mappingId, AdaptiveCard card, string title)
+    catch (Exception ex)
     {
-        var reference = await _referenceService.GetReferenceByMappingAsync(mappingId)
-            ?? throw new ConversationReferenceNotFoundException(mappingId);
-
-        var conversationRef = reference.GetConversationReference();
-
-        await ((CloudAdapter)_adapter).ContinueConversationAsync(
-            _appId,
-            conversationRef,
-            async (turnContext, cancellationToken) =>
-            {
-                var attachment = new Attachment
-                {
-                    ContentType = AdaptiveCard.ContentType,
-                    Content = card
-                };
-
-                var activity = MessageFactory.Attachment(attachment);
-                activity.Summary = title; // Shows in notifications
-
-                await turnContext.SendActivityAsync(activity, cancellationToken);
-            },
-            CancellationToken.None);
+        _logger.LogError(ex, "Failed to send to Teams");
+        return StatusCode(500, new { error = ex.Message });
     }
 }
 ```
 
 ### Important: ServiceUrl Handling
 
-The ServiceUrl can vary by tenant geography. Always use the latest from incoming messages:
+The ServiceUrl can change over time (Teams infrastructure updates). The stateless architecture handles this automatically:
+
+1. **Every inbound message** triggers a call to CobraAPI to update the ConversationReference
+2. **CobraAPI stores the latest** ConversationReferenceJson (which includes ServiceUrl)
+3. **Outbound messages** always use the latest stored ConversationReference
 
 ```csharp
+// In TeamsBot.OnMessageActivityAsync()
 protected override async Task OnMessageActivityAsync(
     ITurnContext<IMessageActivity> turnContext,
     CancellationToken cancellationToken)
 {
-    // Always update ServiceUrl from incoming messages
-    var reference = turnContext.Activity.GetConversationReference();
-    await _referenceService.UpdateServiceUrlAsync(
-        reference.Conversation.Id,
-        reference.ServiceUrl);
+    var activity = turnContext.Activity;
+    var reference = activity.GetConversationReference();
 
-    // ... process message
+    // Always update ConversationReference in CobraAPI (ServiceUrl may have changed)
+    await _cobraApiClient.StoreConversationReferenceAsync(new StoreConversationReferenceRequest
+    {
+        ConversationId = activity.Conversation.Id,
+        ConversationReferenceJson = JsonSerializer.Serialize(reference),
+        TenantId = activity.Conversation.TenantId,
+        IsEmulator = activity.ChannelId == "emulator"
+    });
+
+    // Then process the message via webhook
+    await _cobraApiClient.SendWebhookAsync(mappingId, payload);
 }
 ```
 
