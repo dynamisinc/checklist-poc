@@ -75,7 +75,21 @@ public class InternalController : ControllerBase
                 async (turnContext, cancellationToken) =>
                 {
                     // Format the message with sender attribution
-                    var formattedMessage = $"**[{request.SenderName}]** {request.Message}";
+                    // Include event/channel context when multiple channels share this Teams conversation
+                    string formattedMessage;
+                    if (request.HasMultipleChannels && !string.IsNullOrEmpty(request.ChannelName))
+                    {
+                        // Show channel context: [Event: Channel] [Sender] Message
+                        var channelContext = !string.IsNullOrEmpty(request.EventName)
+                            ? $"{request.EventName}: {request.ChannelName}"
+                            : request.ChannelName;
+                        formattedMessage = $"**[{channelContext}]** **[{request.SenderName}]** {request.Message}";
+                    }
+                    else
+                    {
+                        // Simple format for single channel: [Sender] Message
+                        formattedMessage = $"**[{request.SenderName}]** {request.Message}";
+                    }
 
                     IActivity activity;
                     if (request.UseAdaptiveCard)

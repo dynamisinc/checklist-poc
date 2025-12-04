@@ -1,8 +1,11 @@
 /**
  * TeamsChannelDialog Component
  *
- * A dialog for selecting and connecting a Teams channel to a COBRA event.
+ * A dialog for selecting and connecting a Teams channel to a COBRA channel.
  * Shows available Teams conversations where the bot is installed.
+ *
+ * When targetChannelId is provided, links Teams to that existing channel.
+ * When not provided, falls back to creating a new External-type channel (legacy behavior).
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,26 +23,39 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMicrosoft } from '@fortawesome/free-brands-svg-icons';
 import { CobraDialog, CobraPrimaryButton, CobraLinkButton } from '../../../theme/styledComponents';
 import { chatService, type TeamsConversation } from '../services/chatService';
-import type { ExternalChannelMappingDto } from '../types/chat';
+import type { ChatThreadDto, ExternalChannelMappingDto } from '../types/chat';
 
 interface TeamsChannelDialogProps {
   open: boolean;
   onClose: () => void;
   eventId: string;
-  onChannelConnected: (channel: ExternalChannelMappingDto) => void;
+  /** The target channel to link Teams to. If not provided, creates a new External channel. */
+  targetChannelId?: string;
+  /** The name of the target channel (for display purposes). */
+  targetChannelName?: string;
+  /** Callback when channel is connected (legacy - for when creating new External channel). */
+  onChannelConnected?: (channel: ExternalChannelMappingDto) => void;
+  /** Callback when Teams is linked to an existing channel. */
+  onChannelLinked?: (channel: ChatThreadDto) => void;
 }
 
 export const TeamsChannelDialog: React.FC<TeamsChannelDialogProps> = ({
   open,
   onClose,
   eventId,
+  targetChannelId,
+  targetChannelName,
   onChannelConnected,
+  onChannelLinked,
 }) => {
   const [conversations, setConversations] = useState<TeamsConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+
+  // Determine mode based on whether targetChannelId is provided
+  const isLinkMode = !!targetChannelId;
 
   // Load available Teams conversations when dialog opens
   useEffect(() => {
@@ -70,13 +86,28 @@ export const TeamsChannelDialog: React.FC<TeamsChannelDialogProps> = ({
     if (!conversation) return;
 
     setConnecting(true);
+    setError(null);
+
     try {
-      const channel = await chatService.createTeamsChannelMapping(
-        eventId,
-        conversation.conversationId,
-        `Teams: ${conversation.channelId}`
-      );
-      onChannelConnected(channel);
+      if (isLinkMode && targetChannelId) {
+        // Link Teams to existing channel
+        const updatedChannel = await chatService.linkTeamsToChannel(
+          eventId,
+          targetChannelId,
+          conversation.conversationId
+        );
+        onChannelLinked?.(updatedChannel);
+        onClose();
+      } else {
+        // Legacy: Create new External channel
+        const channel = await chatService.createTeamsChannelMapping(
+          eventId,
+          conversation.conversationId,
+          `Teams: ${conversation.channelId}`
+        );
+        onChannelConnected?.(channel);
+        onClose();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to connect Teams channel';
       setError(message);
@@ -85,11 +116,23 @@ export const TeamsChannelDialog: React.FC<TeamsChannelDialogProps> = ({
     }
   };
 
+  const dialogTitle = isLinkMode
+    ? `Link Teams to "${targetChannelName || 'Channel'}"`
+    : 'Connect Teams Channel';
+
+  const instructionText = isLinkMode
+    ? `Select a Teams conversation to sync with "${targetChannelName || 'this channel'}". Messages will be bidirectionally synced.`
+    : 'Select a Teams channel to connect to this event:';
+
+  const buttonText = isLinkMode
+    ? connecting ? 'Linking...' : 'Link Channel'
+    : connecting ? 'Connecting...' : 'Connect Channel';
+
   return (
     <CobraDialog
       open={open}
       onClose={onClose}
-      title="Connect Teams Channel"
+      title={dialogTitle}
       contentWidth="500px"
     >
       <Box sx={{ minHeight: 200 }}>
@@ -121,8 +164,15 @@ export const TeamsChannelDialog: React.FC<TeamsChannelDialogProps> = ({
         ) : (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select a Teams channel to connect to this event:
+              {instructionText}
             </Typography>
+            {isLinkMode && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  Messages sent in this channel will appear in Teams, and Teams messages will appear here.
+                </Typography>
+              </Alert>
+            )}
             <List sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
               {conversations.map((conv) => (
                 <ListItemButton
@@ -167,7 +217,7 @@ export const TeamsChannelDialog: React.FC<TeamsChannelDialogProps> = ({
           onClick={handleConnect}
           disabled={!selectedConversation || connecting}
         >
-          {connecting ? 'Connecting...' : 'Connect Channel'}
+          {buttonText}
         </CobraPrimaryButton>
       </Box>
     </CobraDialog>

@@ -71,6 +71,8 @@ export const ChatSidebar: React.FC = () => {
   // Channel state
   const [selectedChannel, setSelectedChannel] = useState<ChatThreadDto | null>(null);
   const [showChannelList, setShowChannelList] = useState(true);
+  // Key to force ChannelList refresh when external channels are connected/disconnected
+  const [channelListRefreshKey, setChannelListRefreshKey] = useState(0);
 
   // External channels state
   const [externalChannels, setExternalChannels] = useState<ExternalChannelMappingDto[]>([]);
@@ -143,6 +145,8 @@ export const ChatSidebar: React.FC = () => {
         }
         return [...prev, channel];
       });
+      // Refresh channel list to show new external channel
+      setChannelListRefreshKey((prev) => prev + 1);
       toast.success('GroupMe channel connected! Share the link with external team members.');
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to create GroupMe channel';
@@ -164,6 +168,8 @@ export const ChatSidebar: React.FC = () => {
       }
       return [...prev, channel];
     });
+    // Refresh channel list to show new external channel
+    setChannelListRefreshKey((prev) => prev + 1);
     setTeamsDialogOpen(false);
     toast.success('Teams channel connected!');
   };
@@ -175,6 +181,8 @@ export const ChatSidebar: React.FC = () => {
     try {
       await chatService.deactivateExternalChannel(currentEvent.id, channelId);
       setExternalChannels((prev) => prev.filter((c) => c.id !== channelId));
+      // Refresh channel list to remove deactivated external channel
+      setChannelListRefreshKey((prev) => prev + 1);
       toast.success('External channel disconnected');
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to disconnect channel';
@@ -487,6 +495,7 @@ export const ChatSidebar: React.FC = () => {
                   selectedChannelId={selectedChannel?.id}
                   onChannelSelect={handleChannelSelect}
                   compact
+                  refreshKey={channelListRefreshKey}
                 />
               </Box>
             ) : selectedChannel ? (

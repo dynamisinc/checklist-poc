@@ -301,6 +301,7 @@ export const chatService = {
   /**
    * Creates a Teams channel mapping for a specific event.
    * Links a Teams conversation to a COBRA event.
+   * @deprecated Use linkTeamsToChannel instead for linking to existing channels.
    */
   createTeamsChannelMapping: async (
     eventId: string,
@@ -327,6 +328,35 @@ export const chatService = {
       isActive: true,
       createdAt: new Date().toISOString(),
     };
+  },
+
+  /**
+   * Links a Teams conversation to an existing COBRA channel.
+   * This enables bidirectional message sync between the channel and Teams.
+   */
+  linkTeamsToChannel: async (
+    eventId: string,
+    channelId: string,
+    teamsConversationId: string
+  ): Promise<ChatThreadDto> => {
+    const response = await apiClient.post<ChatThreadDto>(
+      `/api/events/${eventId}/chat/channels/${channelId}/link-teams`,
+      { teamsConversationId }
+    );
+    return response.data;
+  },
+
+  /**
+   * Unlinks an external platform from a channel.
+   * The channel remains but loses its external sync capability.
+   */
+  unlinkExternalChannel: async (
+    eventId: string,
+    channelId: string
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/api/events/${eventId}/chat/channels/${channelId}/external-link`
+    );
   },
 };
 

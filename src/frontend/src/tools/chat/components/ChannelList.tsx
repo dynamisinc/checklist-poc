@@ -30,6 +30,8 @@ import { useTheme, Theme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faComments,
+  faCommentDots,
+  faCommentSms,
   faBullhorn,
   faChevronDown,
   faChevronRight,
@@ -46,6 +48,7 @@ import {
   faShieldHalved,
   faHandshake,
 } from '@fortawesome/free-solid-svg-icons';
+import { faMicrosoft, faSlack } from '@fortawesome/free-brands-svg-icons';
 import { chatService } from '../services/chatService';
 import { useExternalMessagingConfig } from '../hooks/useExternalMessagingConfig';
 import type { ChatThreadDto } from '../types/chat';
@@ -58,6 +61,8 @@ interface ChannelListProps {
   selectedChannelId?: string;
   onChannelSelect: (channel: ChatThreadDto) => void;
   compact?: boolean;
+  /** Key to force a refresh of channels (increment to reload) */
+  refreshKey?: number;
 }
 
 /**
@@ -81,12 +86,35 @@ const iconNameToIcon = (iconName: string) => {
 };
 
 /**
+ * Get icon for external platform
+ */
+const getPlatformIcon = (platform: ExternalPlatform) => {
+  switch (platform) {
+    case ExternalPlatform.GroupMe:
+      return faCommentDots;
+    case ExternalPlatform.Signal:
+      return faCommentSms;
+    case ExternalPlatform.Teams:
+      return faMicrosoft;
+    case ExternalPlatform.Slack:
+      return faSlack;
+    default:
+      return faCommentDots;
+  }
+};
+
+/**
  * Get icon for channel based on type and metadata
  */
 const getChannelIcon = (channel: ChatThreadDto) => {
   // Use custom icon if provided
   if (channel.iconName) {
     return iconNameToIcon(channel.iconName);
+  }
+
+  // External channels use platform-specific icons
+  if (isChannelType(channel.channelType, ChannelType.External) && channel.externalChannel) {
+    return getPlatformIcon(channel.externalChannel.platform);
   }
 
   // Default icons by type
@@ -96,7 +124,7 @@ const getChannelIcon = (channel: ChatThreadDto) => {
     case ChannelType.Announcements:
       return faBullhorn;
     case ChannelType.External:
-      return faComments; // Will be overridden by platform icon
+      return faCommentDots; // Fallback if no externalChannel
     case ChannelType.Position:
       return faUserGroup;
     case ChannelType.Custom:
@@ -142,6 +170,7 @@ export const ChannelList: React.FC<ChannelListProps> = ({
   selectedChannelId,
   onChannelSelect,
   compact = false,
+  refreshKey = 0,
 }) => {
   const theme = useTheme();
   const { isConfigured: externalMessagingConfigured } = useExternalMessagingConfig();
@@ -178,7 +207,7 @@ export const ChannelList: React.FC<ChannelListProps> = ({
 
   useEffect(() => {
     loadChannels();
-  }, [loadChannels]);
+  }, [loadChannels, refreshKey]);
 
   // Refresh channels when profile changes (position or account change)
   useEffect(() => {

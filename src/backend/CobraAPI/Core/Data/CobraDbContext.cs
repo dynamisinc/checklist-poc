@@ -277,8 +277,9 @@ public class CobraDbContext : DbContext
             entity.HasIndex(e => e.ChatThreadId);
             entity.HasIndex(e => e.CreatedAt);
 
-            // Unique index for deduplication of external messages
-            entity.HasIndex(e => e.ExternalMessageId)
+            // Unique index for deduplication of external messages per thread
+            // Allows same external message to appear in multiple channels
+            entity.HasIndex(e => new { e.ExternalMessageId, e.ChatThreadId })
                 .HasFilter("[ExternalMessageId] IS NOT NULL")
                 .IsUnique();
 

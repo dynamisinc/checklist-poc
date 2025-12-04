@@ -109,6 +109,25 @@ public class TeamsSendRequest
     /// </summary>
     [JsonPropertyName("useAdaptiveCard")]
     public bool UseAdaptiveCard { get; set; } = false;
+
+    /// <summary>
+    /// Optional: COBRA event name for context when multiple channels share the same Teams conversation.
+    /// </summary>
+    [JsonPropertyName("eventName")]
+    public string? EventName { get; set; }
+
+    /// <summary>
+    /// Optional: COBRA channel name for context when multiple channels share the same Teams conversation.
+    /// </summary>
+    [JsonPropertyName("channelName")]
+    public string? ChannelName { get; set; }
+
+    /// <summary>
+    /// Indicates whether multiple COBRA channels are connected to this Teams conversation.
+    /// When true, Teams messages should include event/channel context.
+    /// </summary>
+    [JsonPropertyName("hasMultipleChannels")]
+    public bool HasMultipleChannels { get; set; } = false;
 }
 
 /// <summary>

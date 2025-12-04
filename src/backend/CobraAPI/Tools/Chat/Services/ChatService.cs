@@ -112,7 +112,7 @@ public class ChatService : IChatService
             {
                 Id = cm.Id,
                 ChatThreadId = cm.ChatThreadId,
-                CreatedAt = cm.CreatedAt,
+                CreatedAt = DateTime.SpecifyKind(cm.CreatedAt, DateTimeKind.Utc),
                 CreatedBy = cm.CreatedBy,
                 SenderDisplayName = cm.SenderDisplayName,
                 Message = cm.Message,
@@ -153,7 +153,7 @@ public class ChatService : IChatService
         {
             Id = chatMessage.Id,
             ChatThreadId = chatMessage.ChatThreadId,
-            CreatedAt = chatMessage.CreatedAt,
+            CreatedAt = DateTime.SpecifyKind(chatMessage.CreatedAt, DateTimeKind.Utc),
             CreatedBy = chatMessage.CreatedBy,
             SenderDisplayName = chatMessage.SenderDisplayName,
             Message = chatMessage.Message,
@@ -166,6 +166,7 @@ public class ChatService : IChatService
         // Forward to external platforms (fire and forget)
         // Must create a new scope because the request scope will be disposed
         var senderName = userContext.FullName;
+        var threadId = chatThreadId; // Capture for closure
         _ = Task.Run(async () =>
         {
             try
@@ -175,7 +176,8 @@ public class ChatService : IChatService
                 await externalMessagingService.BroadcastToExternalChannelsAsync(
                     eventId,
                     senderName,
-                    message);
+                    message,
+                    threadId);
             }
             catch (Exception ex)
             {
@@ -234,7 +236,7 @@ public class ChatService : IChatService
         {
             Id = chatMessage.Id,
             ChatThreadId = chatMessage.ChatThreadId,
-            CreatedAt = chatMessage.CreatedAt,
+            CreatedAt = DateTime.SpecifyKind(chatMessage.CreatedAt, DateTimeKind.Utc),
             CreatedBy = chatMessage.CreatedBy,
             SenderDisplayName = senderName,
             Message = chatMessage.Message,

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using CobraAPI.Core.Data;
 using CobraAPI.Tools.Chat.Models.Entities;
 using CobraAPI.Tools.Chat.ExternalPlatforms;
+using CobraAPI.Tools.Chat.Services;
 
 namespace CobraAPI.Tools.Chat.Controllers;
 
@@ -18,17 +19,20 @@ namespace CobraAPI.Tools.Chat.Controllers;
 public class DiagnosticsController : ControllerBase
 {
     private readonly CobraDbContext _dbContext;
+    private readonly IExternalMessagingService _externalMessagingService;
     private readonly TeamsBotSettings _teamsBotSettings;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<DiagnosticsController> _logger;
 
     public DiagnosticsController(
         CobraDbContext dbContext,
+        IExternalMessagingService externalMessagingService,
         IOptions<TeamsBotSettings> teamsBotSettings,
         IHttpClientFactory httpClientFactory,
         ILogger<DiagnosticsController> logger)
     {
         _dbContext = dbContext;
+        _externalMessagingService = externalMessagingService;
         _teamsBotSettings = teamsBotSettings.Value;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
@@ -36,7 +40,7 @@ public class DiagnosticsController : ControllerBase
 
     /// <summary>
     /// Creates a test Teams channel mapping for local testing.
-    /// Links a Teams conversation ID to a COBRA event.
+    /// Links a Teams conversation ID to a COBRA event and creates a linked ChatThread.
     /// </summary>
     /// <param name="request">The mapping details</param>
     /// <returns>The created mapping ID</returns>
@@ -88,34 +92,24 @@ public class DiagnosticsController : ControllerBase
             });
         }
 
-        // Create new mapping
-        var mapping = new ExternalChannelMapping
-        {
-            Id = Guid.NewGuid(),
-            EventId = request.EventId,
-            Platform = ExternalPlatform.Teams,
-            ExternalGroupId = request.TeamsConversationId,
-            ExternalGroupName = request.ChannelName ?? "Teams Test Channel",
-            BotId = "teams-bot", // Not used for Teams in the same way as GroupMe
-            WebhookSecret = Guid.NewGuid().ToString("N"),
-            IsActive = true,
-            CreatedBy = "diagnostics",
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.ExternalChannelMappings.Add(mapping);
-        await _dbContext.SaveChangesAsync();
+        // Use the service to create mapping with linked ChatThread
+        var channelName = request.ChannelName ?? "Teams Test Channel";
+        var mappingDto = await _externalMessagingService.CreateTeamsChannelMappingAsync(
+            request.EventId,
+            request.TeamsConversationId,
+            channelName,
+            "diagnostics");
 
         _logger.LogInformation(
-            "Created Teams mapping {MappingId} for conversation {ConversationId} to event {EventId}",
-            mapping.Id, request.TeamsConversationId, request.EventId);
+            "Created Teams mapping {MappingId} with linked ChatThread for conversation {ConversationId} to event {EventId}",
+            mappingDto.Id, request.TeamsConversationId, request.EventId);
 
         return Ok(new CreateTeamsMappingResponse
         {
-            MappingId = mapping.Id,
-            EventId = mapping.EventId,
-            TeamsConversationId = mapping.ExternalGroupId,
-            WebhookUrl = $"/api/webhooks/teams/{mapping.Id}",
+            MappingId = mappingDto.Id,
+            EventId = mappingDto.EventId,
+            TeamsConversationId = mappingDto.ExternalGroupId,
+            WebhookUrl = $"/api/webhooks/teams/{mappingDto.Id}",
             IsExisting = false
         });
     }

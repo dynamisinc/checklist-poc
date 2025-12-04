@@ -34,6 +34,33 @@ public interface IExternalMessagingService
 
     /// <summary>
     /// Broadcasts a message to all active external channels for an event.
+    /// If chatThreadId is provided, only sends to the external channel linked to that thread.
     /// </summary>
-    Task BroadcastToExternalChannelsAsync(Guid eventId, string senderName, string message);
+    Task BroadcastToExternalChannelsAsync(Guid eventId, string senderName, string message, Guid? chatThreadId = null);
+
+    /// <summary>
+    /// Creates a Teams channel mapping with a linked ChatThread.
+    /// Used when connecting an event to a Teams conversation.
+    /// </summary>
+    Task<ExternalChannelMappingDto> CreateTeamsChannelMappingAsync(
+        Guid eventId,
+        string teamsConversationId,
+        string channelName,
+        string createdBy);
+
+    /// <summary>
+    /// Links a Teams conversation to an existing ChatThread.
+    /// This allows any COBRA channel to become bidirectionally synced with Teams.
+    /// </summary>
+    /// <param name="channelId">The existing ChatThread ID to link.</param>
+    /// <param name="teamsConversationId">The Teams conversation ID.</param>
+    /// <returns>The updated ChatThread with the external channel mapping.</returns>
+    Task<ChatThreadDto> LinkTeamsToChannelAsync(Guid channelId, string teamsConversationId);
+
+    /// <summary>
+    /// Unlinks an external platform from a channel without deleting the channel.
+    /// The channel remains but loses its external sync capability.
+    /// </summary>
+    /// <param name="channelId">The ChatThread ID to unlink.</param>
+    Task UnlinkExternalChannelAsync(Guid channelId);
 }

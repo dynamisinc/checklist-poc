@@ -15,14 +15,14 @@ namespace CobraAPI.Tools.Chat.Controllers;
 [Route("api/webhooks")]
 public class WebhooksController : ControllerBase
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<WebhooksController> _logger;
 
     public WebhooksController(
-        IServiceProvider serviceProvider,
+        IServiceScopeFactory serviceScopeFactory,
         ILogger<WebhooksController> logger)
     {
-        _serviceProvider = serviceProvider;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -62,14 +62,14 @@ public class WebhooksController : ControllerBase
 
             // Process the message asynchronously in a new scope
             // We return 200 immediately to prevent GroupMe from retrying
-            // Important: Create a new DI scope because the request scope will be disposed
+            // Important: Use IServiceScopeFactory (singleton) to create scope after request ends
             _ = Task.Run(async () =>
             {
                 try
                 {
                     // Create a new scope for the background task
                     // This ensures DbContext and other scoped services are properly resolved
-                    using var scope = _serviceProvider.CreateScope();
+                    using var scope = _serviceScopeFactory.CreateScope();
                     var messagingService = scope.ServiceProvider.GetRequiredService<IExternalMessagingService>();
                     await messagingService.ProcessGroupMeWebhookAsync(channelMappingId, payload);
                 }
@@ -127,11 +127,12 @@ public class WebhooksController : ControllerBase
 
             // Process the message asynchronously in a new scope
             // We return 200 immediately to prevent timeouts
+            // Important: Use IServiceScopeFactory (singleton) to create scope after request ends
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    using var scope = _serviceProvider.CreateScope();
+                    using var scope = _serviceScopeFactory.CreateScope();
                     var messagingService = scope.ServiceProvider.GetRequiredService<IExternalMessagingService>();
                     await messagingService.ProcessTeamsWebhookAsync(channelMappingId, payload);
                 }

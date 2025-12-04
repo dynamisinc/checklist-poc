@@ -36,6 +36,8 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faComments,
+  faCommentDots,
+  faCommentSms,
   faExclamationTriangle,
   faBullhorn,
   faHashtag,
@@ -46,10 +48,12 @@ import {
   faExternalLinkAlt,
   faInfoCircle,
 } from '@fortawesome/free-solid-svg-icons';
+import { faMicrosoft, faSlack } from '@fortawesome/free-brands-svg-icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useEvents } from '../../../shared/events';
 import { EventChat } from '../components/EventChat';
+import { TeamsChannelDialog } from '../components/TeamsChannelDialog';
 import { chatService } from '../services/chatService';
 import { useExternalMessagingConfig } from '../hooks/useExternalMessagingConfig';
 import CobraStyles from '../../../theme/CobraStyles';
@@ -57,6 +61,24 @@ import { CobraPrimaryButton } from '../../../theme/styledComponents';
 import { useTheme, Theme } from '@mui/material/styles';
 import type { ChatThreadDto, ExternalChannelMappingDto } from '../types/chat';
 import { ChannelType, ExternalPlatform, PlatformInfo, isChannelType } from '../types/chat';
+
+/**
+ * Get icon for external platform
+ */
+const getPlatformIcon = (platform: ExternalPlatform) => {
+  switch (platform) {
+    case ExternalPlatform.GroupMe:
+      return faCommentDots;
+    case ExternalPlatform.Signal:
+      return faCommentSms;
+    case ExternalPlatform.Teams:
+      return faMicrosoft;
+    case ExternalPlatform.Slack:
+      return faSlack;
+    default:
+      return faCommentDots;
+  }
+};
 
 /**
  * Get icon for channel based on type
@@ -77,6 +99,11 @@ const getChannelIcon = (channel: ChatThreadDto) => {
     }
   }
 
+  // External channels use platform-specific icons
+  if (isChannelType(channel.channelType, ChannelType.External) && channel.externalChannel) {
+    return getPlatformIcon(channel.externalChannel.platform);
+  }
+
   switch (channel.channelType) {
     case ChannelType.Internal:
       return faComments;
@@ -85,6 +112,7 @@ const getChannelIcon = (channel: ChatThreadDto) => {
     case ChannelType.Position:
       return faUserGroup;
     case ChannelType.External:
+      return faCommentDots; // Fallback if no externalChannel
     case ChannelType.Custom:
     default:
       return faHashtag;
@@ -128,7 +156,8 @@ export const ChatPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const theme = useTheme();
   const { currentEvent, loading: eventLoading } = useEvents();
-  const { isConfigured: externalMessagingConfigured } = useExternalMessagingConfig();
+  const externalMessagingConfig = useExternalMessagingConfig();
+  const { isConfigured: externalMessagingConfigured } = externalMessagingConfig;
 
   // Get channel ID from URL query parameter if present
   const channelFromUrl = searchParams.get('channel');
@@ -142,6 +171,9 @@ export const ChatPage: React.FC = () => {
   // External channels state
   const [externalChannels, setExternalChannels] = useState<ExternalChannelMappingDto[]>([]);
   const [channelMenuAnchor, setChannelMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // Teams dialog state
+  const [teamsDialogOpen, setTeamsDialogOpen] = useState(false);
 
   // Load channels when event changes
   const loadChannels = useCallback(async () => {
@@ -215,6 +247,9 @@ export const ChatPage: React.FC = () => {
   const hasGroupMeChannel = activeChannels.some(
     (c) => c.platform === ExternalPlatform.GroupMe
   );
+  const hasTeamsChannel = activeChannels.some(
+    (c) => c.platform === ExternalPlatform.Teams
+  );
 
   // Create GroupMe channel
   const handleCreateGroupMeChannel = async () => {
@@ -238,6 +273,38 @@ export const ChatPage: React.FC = () => {
       const errorMsg = err instanceof Error ? err.message : 'Failed to create GroupMe channel';
       toast.error(errorMsg);
     }
+  };
+
+  // Open Teams channel dialog - links Teams to the currently selected channel
+  const handleOpenTeamsDialog = () => {
+    setChannelMenuAnchor(null);
+    setTeamsDialogOpen(true);
+  };
+
+  // Handle Teams channel connected (legacy - callback from dialog when creating new external channel)
+  const handleTeamsChannelConnected = (channel: ExternalChannelMappingDto) => {
+    setExternalChannels((prev) => {
+      if (prev.some((c) => c.id === channel.id)) {
+        return prev;
+      }
+      return [...prev, channel];
+    });
+    // Reload channels to get the new external channel in the list
+    loadChannels();
+    setTeamsDialogOpen(false);
+    toast.success('Teams channel connected!');
+  };
+
+  // Handle Teams channel linked to existing channel
+  const handleTeamsChannelLinked = (updatedChannel: ChatThreadDto) => {
+    // Update the channels list with the linked channel
+    setChannels((prev) =>
+      prev.map((c) => (c.id === updatedChannel.id ? updatedChannel : c))
+    );
+    // Reload to get fresh external channels list
+    loadChannels();
+    setTeamsDialogOpen(false);
+    toast.success(`Teams linked to "${updatedChannel.name}"! Messages will sync bidirectionally.`);
   };
 
   // Disconnect external channel
@@ -447,12 +514,44 @@ export const ChatPage: React.FC = () => {
                   open={Boolean(channelMenuAnchor)}
                   onClose={() => setChannelMenuAnchor(null)}
                 >
-                  {!hasGroupMeChannel && (
+                  {!hasGroupMeChannel && externalMessagingConfig.groupMe.isConfigured && (
                     <MenuItem onClick={handleCreateGroupMeChannel}>
                       <ListItemIcon>
                         <FontAwesomeIcon icon={faLink} />
                       </ListItemIcon>
                       <ListItemText>Connect GroupMe</ListItemText>
+                    </MenuItem>
+                  )}
+                  {externalMessagingConfig.teams.isConfigured && (
+                    <MenuItem
+                      onClick={handleOpenTeamsDialog}
+                      disabled={
+                        !externalMessagingConfig.teams.isConnected ||
+                        !selectedChannel ||
+                        selectedChannel.externalChannel !== null // Already linked
+                      }
+                    >
+                      <ListItemIcon>
+                        <FontAwesomeIcon icon={faLink} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          selectedChannel?.externalChannel
+                            ? 'Teams Already Linked'
+                            : selectedChannel
+                              ? `Link Teams to "${selectedChannel.name}"`
+                              : 'Link Teams to Channel'
+                        }
+                        secondary={
+                          !externalMessagingConfig.teams.isConnected
+                            ? 'Bot not available'
+                            : externalMessagingConfig.teams.availableConversations === 0
+                              ? 'No channels available'
+                              : selectedChannel?.externalChannel
+                                ? `Linked to ${selectedChannel.externalChannel.platformName}`
+                                : `${externalMessagingConfig.teams.availableConversations} channel(s) available`
+                        }
+                      />
                     </MenuItem>
                   )}
                   {activeChannels.length > 0 && (
@@ -463,20 +562,42 @@ export const ChatPage: React.FC = () => {
                           Connected Channels
                         </Typography>
                       </MenuItem>
-                      {activeChannels.map((channel) => (
-                        <MenuItem
-                          key={channel.id}
-                          onClick={() => handleDisconnectChannel(channel.id)}
-                        >
-                          <ListItemIcon>
-                            <FontAwesomeIcon icon={faLinkSlash} />
-                          </ListItemIcon>
-                          <ListItemText>Disconnect {channel.externalGroupName}</ListItemText>
-                        </MenuItem>
-                      ))}
+                      {activeChannels.map((channel) => {
+                        const platformKey = channel.platform as ExternalPlatform;
+                        const platformInfo = PlatformInfo[platformKey] || null;
+                        const platformIcon = getPlatformIcon(platformKey);
+
+                        return (
+                          <MenuItem
+                            key={channel.id}
+                            onClick={() => handleDisconnectChannel(channel.id)}
+                          >
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                              <FontAwesomeIcon
+                                icon={platformIcon}
+                                style={{
+                                  color: platformInfo?.color || theme.palette.text.secondary,
+                                  fontSize: 16,
+                                }}
+                              />
+                            </ListItemIcon>
+                            <ListItemText>
+                              Disconnect {channel.externalGroupName}
+                            </ListItemText>
+                            <FontAwesomeIcon
+                              icon={faLinkSlash}
+                              style={{
+                                color: theme.palette.text.secondary,
+                                fontSize: 12,
+                                marginLeft: 8,
+                              }}
+                            />
+                          </MenuItem>
+                        );
+                      })}
                     </>
                   )}
-                  {!hasGroupMeChannel && activeChannels.length === 0 && (
+                  {!hasGroupMeChannel && !hasTeamsChannel && activeChannels.length === 0 && (
                     <MenuItem disabled>
                       <Typography variant="caption" color="text.secondary">
                         No external channels
@@ -530,6 +651,19 @@ export const ChatPage: React.FC = () => {
           ) : null}
         </Box>
       </Stack>
+
+      {/* Teams Channel Dialog - Links Teams to the currently selected channel */}
+      {currentEvent && (
+        <TeamsChannelDialog
+          open={teamsDialogOpen}
+          onClose={() => setTeamsDialogOpen(false)}
+          eventId={currentEvent.id}
+          targetChannelId={selectedChannelId || undefined}
+          targetChannelName={selectedChannel?.name}
+          onChannelConnected={handleTeamsChannelConnected}
+          onChannelLinked={handleTeamsChannelLinked}
+        />
+      )}
     </Container>
   );
 };
