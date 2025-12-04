@@ -1,8 +1,8 @@
 /**
  * System Settings Admin Component
  *
- * Admin UI for managing customer-level configuration settings.
- * Supports integration settings (GroupMe, etc.) and AI provider settings.
+ * Admin UI for managing integration settings.
+ * Each integration section is explicitly defined in the UI.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -17,17 +17,12 @@ import {
   IconButton,
   Tooltip,
   InputAdornment,
-  Switch,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faLink,
-  faBrain,
-  faGear,
   faEye,
   faEyeSlash,
-  faCheck,
   faSave,
   faRefresh,
   faPlug,
@@ -37,278 +32,78 @@ import {
   faCircleCheck,
   faCircleXmark,
 } from '@fortawesome/free-solid-svg-icons';
-import type { IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
 import {
   CobraTextField,
-  CobraPrimaryButton,
   CobraSecondaryButton,
 } from '../../theme/styledComponents';
 import { systemSettingsService } from '../services/systemSettingsService';
-import {
-  SystemSettingDto,
-  SettingCategory,
-  SettingCategoryNames,
+import type {
   GroupMeIntegrationStatus,
   TeamsIntegrationStatus,
 } from '../types/systemSettings';
 
-// Category icons
-const categoryIcons: Record<SettingCategory, IconDefinition> = {
-  [SettingCategory.Integration]: faPlug,
-  [SettingCategory.AI]: faBrain,
-  [SettingCategory.System]: faGear,
-};
-
-// Setting key icons
-const settingIcons: Record<string, IconDefinition> = {
-  'GroupMe.AccessToken': faKey,
-  'GroupMe.WebhookBaseUrl': faGlobe,
-  'OpenAI.ApiKey': faKey,
-  'AzureOpenAI.ApiKey': faKey,
-  'AzureOpenAI.Endpoint': faGlobe,
-};
-
-interface SettingRowProps {
-  setting: SystemSettingDto;
-  onSave: (key: string, value: string) => Promise<void>;
-  onToggle: (key: string) => Promise<void>;
-  saving: boolean;
-}
-
-const SettingRow: React.FC<SettingRowProps> = ({ setting, onSave, onToggle, saving }) => {
-  const theme = useTheme();
-  const [value, setValue] = useState('');
-  const [showSecret, setShowSecret] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
-
-  // Reset dirty state when setting changes
-  useEffect(() => {
-    setValue(setting.isSecret ? '' : setting.value);
-    setIsDirty(false);
-    setShowSecret(false);
-  }, [setting]);
-
-  const handleValueChange = (newValue: string) => {
-    setValue(newValue);
-    setIsDirty(true);
-  };
-
-  const handleSave = async () => {
-    if (value.trim() || !setting.isSecret) {
-      await onSave(setting.key, value);
-      setIsDirty(false);
-    }
-  };
-
-  const icon = settingIcons[setting.key] || (setting.isSecret ? faKey : faLink);
-
-  return (
-    <Card
-      sx={{
-        mb: 2,
-        borderLeft: `4px solid`,
-        borderLeftColor: setting.isEnabled
-          ? setting.hasValue
-            ? theme.palette.success.main
-            : theme.palette.warning.main
-          : theme.palette.grey[400],
-        opacity: setting.isEnabled ? 1 : 0.6,
-      }}
-    >
-      <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-          {/* Icon */}
-          <Box
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 1,
-              backgroundColor: setting.isEnabled
-                ? theme.palette.buttonPrimary.light
-                : theme.palette.grey[100],
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <FontAwesomeIcon
-              icon={icon}
-              style={{
-                color: setting.isEnabled
-                  ? theme.palette.buttonPrimary.main
-                  : theme.palette.grey[400],
-              }}
-            />
-          </Box>
-
-          {/* Content */}
-          <Box sx={{ flex: 1 }}>
-            {/* Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <Typography variant="subtitle2">{setting.displayName}</Typography>
-              {setting.hasValue && (
-                <Chip
-                  icon={<FontAwesomeIcon icon={faCheck} style={{ fontSize: 10 }} />}
-                  label="Configured"
-                  size="small"
-                  color="success"
-                  sx={{ height: 20, fontSize: 10 }}
-                />
-              )}
-              {!setting.hasValue && setting.isEnabled && (
-                <Chip
-                  label="Not Set"
-                  size="small"
-                  color="warning"
-                  sx={{ height: 20, fontSize: 10 }}
-                />
-              )}
-            </Box>
-
-            {/* Description */}
-            {setting.description && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                {setting.description}
-              </Typography>
-            )}
-
-            {/* Input field */}
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-              <CobraTextField
-                size="small"
-                fullWidth
-                type={setting.isSecret && !showSecret ? 'password' : 'text'}
-                placeholder={setting.isSecret && setting.hasValue ? '••••••••' : 'Enter value...'}
-                value={value}
-                onChange={(e) => handleValueChange(e.target.value)}
-                disabled={!setting.isEnabled || saving}
-                InputProps={{
-                  endAdornment: setting.isSecret && (
-                    <InputAdornment position="end">
-                      <IconButton
-                        size="small"
-                        onClick={() => setShowSecret(!showSecret)}
-                        edge="end"
-                      >
-                        <FontAwesomeIcon icon={showSecret ? faEyeSlash : faEye} />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ maxWidth: 400 }}
-              />
-              <Tooltip title="Save">
-                <span>
-                  <IconButton
-                    color="primary"
-                    onClick={handleSave}
-                    disabled={!isDirty || saving || !setting.isEnabled}
-                    sx={{
-                      backgroundColor: isDirty ? theme.palette.primary.light : undefined,
-                    }}
-                  >
-                    {saving ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <FontAwesomeIcon icon={faSave} />
-                    )}
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Box>
-
-            {/* Key name (small) */}
-            <Typography
-              variant="caption"
-              sx={{ color: theme.palette.grey[500], mt: 0.5, display: 'block' }}
-            >
-              Key: {setting.key}
-            </Typography>
-          </Box>
-
-          {/* Enable/Disable toggle */}
-          <Tooltip title={setting.isEnabled ? 'Disable' : 'Enable'}>
-            <Switch
-              checked={setting.isEnabled}
-              onChange={() => onToggle(setting.key)}
-              disabled={saving}
-              size="small"
-            />
-          </Tooltip>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
 /**
- * GroupMe Integration Status Card
- * Displays read-only webhook configuration from server appsettings
- * and editable GroupMe settings from the database
+ * GroupMe Integration Card
+ * Displays webhook configuration (from appsettings) and access token (from database)
  */
-const GroupMeStatusCard: React.FC<{
+const GroupMeIntegrationCard: React.FC<{
   status: GroupMeIntegrationStatus | null;
   loading: boolean;
-  settings: SystemSettingDto[];
-  onSave: (key: string, value: string) => Promise<void>;
-  onToggle: (key: string) => Promise<void>;
-  saving: boolean;
-}> = ({ status, loading, settings, onSave, onToggle, saving }) => {
+  onRefresh: () => void;
+}> = ({ status, loading, onRefresh }) => {
   const theme = useTheme();
+  const [accessToken, setAccessToken] = useState('');
+  const [showToken, setShowToken] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   const handleCopyUrl = (url: string, label: string) => {
     navigator.clipboard.writeText(url);
     toast.success(`${label} copied to clipboard`);
   };
 
-  // If still loading, show nothing
-  if (loading) {
-    return null;
-  }
+  const handleTokenChange = (value: string) => {
+    setAccessToken(value);
+    setIsDirty(true);
+  };
 
-  // If status failed to load but we have settings, still show them
-  if (!status) {
-    if (settings.length === 0) {
-      return null;
+  const handleSaveToken = async () => {
+    if (!accessToken.trim()) return;
+
+    try {
+      setSaving(true);
+      await systemSettingsService.updateSettingValue('GroupMe.AccessToken', accessToken);
+      toast.success('GroupMe Access Token saved');
+      setIsDirty(false);
+      setAccessToken(''); // Clear after save for security
+      onRefresh(); // Refresh status to update hasAccessToken
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save token';
+      toast.error(message);
+    } finally {
+      setSaving(false);
     }
-    // Render just the settings without the webhook info
+  };
+
+  if (loading) {
     return (
-      <Card
-        sx={{
-          mb: 3,
-          borderLeft: `4px solid`,
-          borderLeftColor: theme.palette.warning.main,
-          backgroundColor: theme.palette.grey[50],
-        }}
-      >
-        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-          <Typography variant="subtitle2" sx={{ mb: 2 }}>GroupMe Settings</Typography>
-          {settings.map((setting) => (
-            <SettingRow
-              key={setting.id}
-              setting={setting}
-              onSave={onSave}
-              onToggle={onToggle}
-              saving={saving}
-            />
-          ))}
-        </CardContent>
+      <Card sx={{ mb: 3, p: 3, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress size={24} />
       </Card>
     );
   }
 
   // Detect if using localhost (development mode without ngrok)
-  const isLocalhost = status.webhookBaseUrl.includes('localhost') ||
-                      status.webhookBaseUrl.includes('127.0.0.1');
+  const isLocalhost = status?.webhookBaseUrl.includes('localhost') ||
+                      status?.webhookBaseUrl.includes('127.0.0.1');
 
   return (
     <Card
       sx={{
         mb: 3,
         borderLeft: `4px solid`,
-        borderLeftColor: status.isConfigured
+        borderLeftColor: status?.isConfigured
           ? theme.palette.success.main
           : theme.palette.warning.main,
         backgroundColor: theme.palette.grey[50],
@@ -338,17 +133,17 @@ const GroupMeStatusCard: React.FC<{
           {/* Content */}
           <Box sx={{ flex: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <Typography variant="subtitle2">GroupMe Webhook Configuration</Typography>
+              <Typography variant="subtitle2">GroupMe Integration</Typography>
               <Chip
                 icon={
                   <FontAwesomeIcon
-                    icon={status.isConfigured ? faCircleCheck : faCircleXmark}
+                    icon={status?.isConfigured ? faCircleCheck : faCircleXmark}
                     style={{ fontSize: 10 }}
                   />
                 }
-                label={status.isConfigured ? 'Ready' : 'Incomplete'}
+                label={status?.isConfigured ? 'Ready' : 'Incomplete'}
                 size="small"
-                color={status.isConfigured ? 'success' : 'warning'}
+                color={status?.isConfigured ? 'success' : 'warning'}
                 sx={{ height: 20, fontSize: 10 }}
               />
             </Box>
@@ -376,9 +171,85 @@ const GroupMeStatusCard: React.FC<{
             )}
 
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-              These URLs are determined by server configuration and cannot be changed here.
-              When creating a GroupMe channel, the bot will be registered with the callback URL below.
+              Configure GroupMe bot integration for event chat channels.
             </Typography>
+
+            {/* Access Token */}
+            <Box sx={{ mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                  Access Token
+                </Typography>
+                {status?.hasAccessToken && (
+                  <Chip
+                    icon={<FontAwesomeIcon icon={faCircleCheck} style={{ fontSize: 8 }} />}
+                    label="Configured"
+                    size="small"
+                    color="success"
+                    sx={{ height: 18, fontSize: 9 }}
+                  />
+                )}
+                {!status?.hasAccessToken && (
+                  <Chip
+                    label="Not Set"
+                    size="small"
+                    color="warning"
+                    sx={{ height: 18, fontSize: 9 }}
+                  />
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                <CobraTextField
+                  size="small"
+                  fullWidth
+                  type={showToken ? 'text' : 'password'}
+                  placeholder={status?.hasAccessToken ? '••••••••••••••••' : 'Enter GroupMe access token...'}
+                  value={accessToken}
+                  onChange={(e) => handleTokenChange(e.target.value)}
+                  disabled={saving}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <FontAwesomeIcon icon={faKey} style={{ color: theme.palette.grey[400] }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => setShowToken(!showToken)}
+                          edge="end"
+                        >
+                          <FontAwesomeIcon icon={showToken ? faEyeSlash : faEye} />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ maxWidth: 500 }}
+                />
+                <Tooltip title="Save Token">
+                  <span>
+                    <IconButton
+                      color="primary"
+                      onClick={handleSaveToken}
+                      disabled={!isDirty || saving || !accessToken.trim()}
+                      sx={{
+                        backgroundColor: isDirty ? theme.palette.primary.light : undefined,
+                      }}
+                    >
+                      {saving ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <FontAwesomeIcon icon={faSave} />
+                      )}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                Get your access token from <a href="https://dev.groupme.com/" target="_blank" rel="noopener noreferrer">dev.groupme.com</a>
+              </Typography>
+            </Box>
 
             {/* Webhook Base URL */}
             <Box sx={{ mb: 1.5 }}>
@@ -389,7 +260,7 @@ const GroupMeStatusCard: React.FC<{
                 <CobraTextField
                   size="small"
                   fullWidth
-                  value={status.webhookBaseUrl}
+                  value={status?.webhookBaseUrl || '(not configured)'}
                   InputProps={{ readOnly: true }}
                   sx={{
                     maxWidth: 500,
@@ -399,14 +270,16 @@ const GroupMeStatusCard: React.FC<{
                     },
                   }}
                 />
-                <Tooltip title="Copy URL">
-                  <IconButton
-                    size="small"
-                    onClick={() => handleCopyUrl(status.webhookBaseUrl, 'Webhook Base URL')}
-                  >
-                    <FontAwesomeIcon icon={faCopy} />
-                  </IconButton>
-                </Tooltip>
+                {status?.webhookBaseUrl && (
+                  <Tooltip title="Copy URL">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleCopyUrl(status.webhookBaseUrl, 'Webhook Base URL')}
+                    >
+                      <FontAwesomeIcon icon={faCopy} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
             </Box>
 
@@ -419,7 +292,7 @@ const GroupMeStatusCard: React.FC<{
                 <CobraTextField
                   size="small"
                   fullWidth
-                  value={status.webhookCallbackUrlPattern}
+                  value={status?.webhookCallbackUrlPattern || '(not available)'}
                   InputProps={{ readOnly: true }}
                   sx={{
                     maxWidth: 500,
@@ -429,14 +302,16 @@ const GroupMeStatusCard: React.FC<{
                     },
                   }}
                 />
-                <Tooltip title="Copy URL Pattern">
-                  <IconButton
-                    size="small"
-                    onClick={() => handleCopyUrl(status.webhookCallbackUrlPattern, 'Callback URL Pattern')}
-                  >
-                    <FontAwesomeIcon icon={faCopy} />
-                  </IconButton>
-                </Tooltip>
+                {status?.webhookCallbackUrlPattern && (
+                  <Tooltip title="Copy URL Pattern">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleCopyUrl(status.webhookCallbackUrlPattern, 'Callback URL Pattern')}
+                    >
+                      <FontAwesomeIcon icon={faCopy} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                 {'{channelMappingId}'} is replaced with the actual channel mapping GUID when a GroupMe channel is created.
@@ -452,7 +327,7 @@ const GroupMeStatusCard: React.FC<{
                 <CobraTextField
                   size="small"
                   fullWidth
-                  value={status.webhookHealthCheckUrl}
+                  value={status?.webhookHealthCheckUrl || '(not available)'}
                   InputProps={{ readOnly: true }}
                   sx={{
                     maxWidth: 500,
@@ -462,34 +337,18 @@ const GroupMeStatusCard: React.FC<{
                     },
                   }}
                 />
-                <Tooltip title="Copy Health Check URL">
-                  <IconButton
-                    size="small"
-                    onClick={() => handleCopyUrl(status.webhookHealthCheckUrl, 'Health Check URL')}
-                  >
-                    <FontAwesomeIcon icon={faCopy} />
-                  </IconButton>
-                </Tooltip>
+                {status?.webhookHealthCheckUrl && (
+                  <Tooltip title="Copy Health Check URL">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleCopyUrl(status.webhookHealthCheckUrl, 'Health Check URL')}
+                    >
+                      <FontAwesomeIcon icon={faCopy} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
             </Box>
-
-            {/* GroupMe Database Settings */}
-            {settings.length > 0 && (
-              <Box sx={{ mt: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block', mb: 1.5 }}>
-                  GroupMe Settings
-                </Typography>
-                {settings.map((setting) => (
-                  <SettingRow
-                    key={setting.id}
-                    setting={setting}
-                    onSave={onSave}
-                    onToggle={onToggle}
-                    saving={saving}
-                  />
-                ))}
-              </Box>
-            )}
           </Box>
         </Box>
       </CardContent>
@@ -501,7 +360,7 @@ const GroupMeStatusCard: React.FC<{
  * Teams Integration Status Card
  * Displays connection status to the TeamsBot service
  */
-const TeamsStatusCard: React.FC<{
+const TeamsIntegrationCard: React.FC<{
   status: TeamsIntegrationStatus | null;
   loading: boolean;
 }> = ({ status, loading }) => {
@@ -512,7 +371,15 @@ const TeamsStatusCard: React.FC<{
     toast.success(`${label} copied to clipboard`);
   };
 
-  if (loading || !status) {
+  if (loading) {
+    return (
+      <Card sx={{ mb: 3, p: 3, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress size={24} />
+      </Card>
+    );
+  }
+
+  if (!status) {
     return null;
   }
 
@@ -699,154 +566,62 @@ const TeamsStatusCard: React.FC<{
 
 export const SystemSettingsAdmin: React.FC = () => {
   const theme = useTheme();
-  const [settings, setSettings] = useState<SystemSettingDto[]>([]);
   const [groupMeStatus, setGroupMeStatus] = useState<GroupMeIntegrationStatus | null>(null);
   const [teamsStatus, setTeamsStatus] = useState<TeamsIntegrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadSettings = useCallback(async () => {
+  const loadStatuses = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
-      const [settingsData, groupMeData, teamsData] = await Promise.all([
-        systemSettingsService.getAllSettings(),
+
+      // Use Promise.allSettled to handle partial failures gracefully
+      const [groupMeResult, teamsResult] = await Promise.allSettled([
         systemSettingsService.getGroupMeIntegrationStatus(),
         systemSettingsService.getTeamsIntegrationStatus(),
       ]);
-      setSettings(settingsData);
-      setGroupMeStatus(groupMeData);
-      setTeamsStatus(teamsData);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load settings';
-      setError(message);
-      toast.error(message);
+
+      if (groupMeResult.status === 'fulfilled') {
+        setGroupMeStatus(groupMeResult.value);
+      } else {
+        setGroupMeStatus(null);
+        console.warn('Failed to load GroupMe status:', groupMeResult.reason);
+      }
+
+      if (teamsResult.status === 'fulfilled') {
+        setTeamsStatus(teamsResult.value);
+      } else {
+        setTeamsStatus(null);
+        console.warn('Failed to load Teams status:', teamsResult.reason);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
-
-  const handleInitializeDefaults = async () => {
-    try {
-      setSaving(true);
-      await systemSettingsService.initializeDefaults();
-      toast.success('Default settings initialized');
-      await loadSettings();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to initialize defaults';
-      toast.error(message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveSetting = async (key: string, value: string) => {
-    try {
-      setSaving(true);
-      await systemSettingsService.updateSettingValue(key, value);
-      toast.success('Setting saved');
-      await loadSettings();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save setting';
-      toast.error(message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleToggleSetting = async (key: string) => {
-    try {
-      setSaving(true);
-      await systemSettingsService.toggleSetting(key);
-      await loadSettings();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to toggle setting';
-      toast.error(message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error && settings.length === 0) {
-    return (
-      <Alert
-        severity="warning"
-        action={
-          <CobraPrimaryButton size="small" onClick={handleInitializeDefaults}>
-            Initialize Defaults
-          </CobraPrimaryButton>
-        }
-      >
-        No system settings found. Click to initialize default settings.
-      </Alert>
-    );
-  }
-
-  // Group settings by category name (API returns string category names like "Integration", "AI")
-  const settingsByCategoryName = settings.reduce(
-    (acc, setting) => {
-      // Use categoryName for grouping since API returns string enum names
-      const categoryName = setting.categoryName;
-      if (!acc[categoryName]) {
-        acc[categoryName] = [];
-      }
-      acc[categoryName].push(setting);
-      return acc;
-    },
-    {} as Record<string, SystemSettingDto[]>
-  );
-
-  // Helper to get settings by category name
-  const getSettingsByCategory = (category: SettingCategory): SystemSettingDto[] => {
-    const categoryName = SettingCategoryNames[category];
-    return settingsByCategoryName[categoryName] || [];
-  };
+    loadStatuses();
+  }, [loadStatuses]);
 
   return (
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          Configure integration tokens and API keys for external services.
-          <strong> Secrets are stored securely</strong> and masked in the UI.
+          Configure external service integrations for chat and messaging.
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="Refresh settings">
-            <CobraSecondaryButton
-              size="small"
-              onClick={loadSettings}
-              disabled={saving}
-              startIcon={<FontAwesomeIcon icon={faRefresh} />}
-            >
-              Refresh
-            </CobraSecondaryButton>
-          </Tooltip>
-          {settings.length === 0 && (
-            <CobraPrimaryButton
-              size="small"
-              onClick={handleInitializeDefaults}
-              disabled={saving}
-            >
-              Initialize Defaults
-            </CobraPrimaryButton>
-          )}
-        </Box>
+        <Tooltip title="Refresh status">
+          <CobraSecondaryButton
+            size="small"
+            onClick={loadStatuses}
+            disabled={loading}
+            startIcon={<FontAwesomeIcon icon={faRefresh} />}
+          >
+            Refresh
+          </CobraSecondaryButton>
+        </Tooltip>
       </Box>
 
-      {/* Integration Status Section - Always show regardless of settings */}
+      {/* Integrations Section */}
       <Box sx={{ mb: 4 }}>
         <Typography
           variant="subtitle1"
@@ -860,78 +635,20 @@ export const SystemSettingsAdmin: React.FC = () => {
           }}
         >
           <FontAwesomeIcon icon={faPlug} />
-          {SettingCategoryNames[SettingCategory.Integration]}
+          External Chat Integrations
         </Typography>
 
-        {/* Integration status cards with their related settings */}
-        <GroupMeStatusCard
+        <GroupMeIntegrationCard
           status={groupMeStatus}
           loading={loading}
-          settings={getSettingsByCategory(SettingCategory.Integration).filter(s => s.key.startsWith('GroupMe.'))}
-          onSave={handleSaveSetting}
-          onToggle={handleToggleSetting}
-          saving={saving}
+          onRefresh={loadStatuses}
         />
-        <TeamsStatusCard status={teamsStatus} loading={loading} />
 
-        {/* Other Integration settings (not GroupMe) */}
-        {getSettingsByCategory(SettingCategory.Integration)
-          .filter(s => !s.key.startsWith('GroupMe.'))
-          .map((setting) => (
-            <SettingRow
-              key={setting.id}
-              setting={setting}
-              onSave={handleSaveSetting}
-              onToggle={handleToggleSetting}
-              saving={saving}
-            />
-          ))}
+        <TeamsIntegrationCard
+          status={teamsStatus}
+          loading={loading}
+        />
       </Box>
-
-      {/* Other settings by category (excluding Integration which is handled above) */}
-      {Object.entries(settingsByCategoryName)
-        .filter(([categoryName]) => categoryName !== SettingCategoryNames[SettingCategory.Integration])
-        .map(([categoryName, categorySettings]) => {
-          // Find the corresponding category enum
-          const category = (Object.entries(SettingCategoryNames).find(([, name]) => name === categoryName)?.[0] as unknown as SettingCategory) ?? SettingCategory.System;
-          const categoryIcon = categoryIcons[category] || faGear;
-
-          return (
-            <Box key={category} sx={{ mb: 4 }}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  mb: 2,
-                  color: theme.palette.text.primary,
-                  fontWeight: 600,
-                }}
-              >
-                <FontAwesomeIcon icon={categoryIcon} />
-                {categoryName}
-              </Typography>
-
-              {categorySettings.map((setting) => (
-                <SettingRow
-                  key={setting.id}
-                  setting={setting}
-                  onSave={handleSaveSetting}
-                  onToggle={handleToggleSetting}
-                  saving={saving}
-                />
-              ))}
-            </Box>
-          );
-        })}
-
-      {settings.length === 0 && (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          No settings configured. Click &quot;Initialize Defaults&quot; to create the default
-          settings.
-        </Alert>
-      )}
     </Box>
   );
 };

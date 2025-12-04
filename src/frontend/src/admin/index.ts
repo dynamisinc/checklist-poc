@@ -45,13 +45,6 @@ export {
   isComingSoon,
 } from './types/featureFlags';
 export type {
-  SystemSettingDto,
-  CreateSystemSettingRequest,
-  UpdateSystemSettingRequest,
-  UpdateSettingValueRequest,
   GroupMeIntegrationStatus,
-} from './types/systemSettings';
-export {
-  SettingCategory,
-  SettingCategoryNames,
+  TeamsIntegrationStatus,
 } from './types/systemSettings';
