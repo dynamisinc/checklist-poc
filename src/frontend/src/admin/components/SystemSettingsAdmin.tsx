@@ -263,8 +263,40 @@ const GroupMeStatusCard: React.FC<{
     toast.success(`${label} copied to clipboard`);
   };
 
-  if (loading || !status) {
+  // If still loading, show nothing
+  if (loading) {
     return null;
+  }
+
+  // If status failed to load but we have settings, still show them
+  if (!status) {
+    if (settings.length === 0) {
+      return null;
+    }
+    // Render just the settings without the webhook info
+    return (
+      <Card
+        sx={{
+          mb: 3,
+          borderLeft: `4px solid`,
+          borderLeftColor: theme.palette.warning.main,
+          backgroundColor: theme.palette.grey[50],
+        }}
+      >
+        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>GroupMe Settings</Typography>
+          {settings.map((setting) => (
+            <SettingRow
+              key={setting.id}
+              setting={setting}
+              onSave={onSave}
+              onToggle={onToggle}
+              saving={saving}
+            />
+          ))}
+        </CardContent>
+      </Card>
+    );
   }
 
   // Detect if using localhost (development mode without ngrok)
