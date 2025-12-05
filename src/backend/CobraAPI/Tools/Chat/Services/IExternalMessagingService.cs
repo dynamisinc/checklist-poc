@@ -63,4 +63,22 @@ public interface IExternalMessagingService
     /// </summary>
     /// <param name="channelId">The ChatThread ID to unlink.</param>
     Task UnlinkExternalChannelAsync(Guid channelId);
+
+    /// <summary>
+    /// Broadcasts an announcement to all active Teams channels for an event.
+    /// Unlike regular messages, announcements are sent to ALL Teams channels,
+    /// not just the one linked to a specific thread.
+    /// </summary>
+    /// <param name="eventId">The event ID.</param>
+    /// <param name="title">The announcement title.</param>
+    /// <param name="message">The announcement message content.</param>
+    /// <param name="senderName">The name of the person sending the announcement.</param>
+    /// <param name="priority">Optional priority level (normal, high, urgent).</param>
+    /// <returns>The number of Teams channels the announcement was sent to.</returns>
+    Task<int> BroadcastAnnouncementToTeamsAsync(
+        Guid eventId,
+        string title,
+        string message,
+        string senderName,
+        string priority = "normal");
 }

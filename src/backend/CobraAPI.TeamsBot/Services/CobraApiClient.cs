@@ -362,6 +362,70 @@ public class CobraApiClient : ICobraApiClient
 
         return result.Value;
     }
+
+    /// <summary>
+    /// Notifies CobraAPI that the bot has been removed from a Teams conversation.
+    /// This deactivates the corresponding ExternalChannelMapping.
+    /// </summary>
+    public async Task<bool> NotifyBotRemovedAsync(string conversationId, string? removedBy = null)
+    {
+        if (string.IsNullOrEmpty(_settings.BaseUrl))
+        {
+            _logger.LogWarning("CobraAPI BaseUrl is not configured. Cannot notify bot removal.");
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Notifying CobraAPI that bot was removed from conversation {ConversationId} by {RemovedBy}",
+            conversationId, removedBy ?? "unknown");
+
+        var encodedId = Uri.EscapeDataString(conversationId);
+        var requestBody = new { removedBy };
+
+        var result = await RetryPolicy.ExecuteAsync(
+            async ct =>
+            {
+                var response = await _httpClient.PostAsJsonAsync(
+                    $"api/chat/teams/bot-removed/{encodedId}",
+                    requestBody,
+                    ct);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation(
+                        "Successfully notified CobraAPI of bot removal from {ConversationId}",
+                        conversationId);
+                    return true;
+                }
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    // No mapping existed - that's okay
+                    _logger.LogDebug(
+                        "No mapping found for conversation {ConversationId} during bot removal notification",
+                        conversationId);
+                    return true; // Not a failure
+                }
+
+                // Check if transient
+                if (RetryPolicy.IsTransientHttpStatusCode(response.StatusCode))
+                {
+                    throw new HttpRequestException($"Transient error: {response.StatusCode}",
+                        null, response.StatusCode);
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning(
+                    "Failed to notify bot removal. Status: {StatusCode}, Error: {Error}",
+                    response.StatusCode, errorContent);
+                return false;
+            },
+            _retryOptions,
+            _logger,
+            $"NotifyBotRemoved({conversationId})");
+
+        return result.Success && result.Value;
+    }
 }
 
 /// <summary>

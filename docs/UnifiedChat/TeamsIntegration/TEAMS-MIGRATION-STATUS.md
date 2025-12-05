@@ -46,7 +46,7 @@ The COBRA Teams integration is **substantially complete** at the POC level, with
 | **UC-TI-009** | Implement Inbound Message Handler | ✅ **COMPLETE** |
 | **UC-TI-010** | Implement Outbound Proactive Messaging | ✅ **COMPLETE** |
 | **UC-TI-011** | Create External Channel Mapping for Teams | ✅ **COMPLETE** |
-| **UC-TI-012** | Integrate with Announcements Broadcast | 🔲 NOT STARTED |
+| **UC-TI-012** | Integrate with Announcements Broadcast | ✅ **COMPLETE** |
 
 ### Phase 3: Customer Installation & Documentation
 
@@ -65,7 +65,7 @@ The COBRA Teams integration is **substantially complete** at the POC level, with
 | **UC-TI-018** | List Available Teams for Linking | ✅ **COMPLETE** |
 | **UC-TI-019** | Link Teams Channel to COBRA Event | ⚠️ PARTIAL (UI exists, flow incomplete) |
 | **UC-TI-020** | Unlink Teams Channel | ✅ **COMPLETE** |
-| **UC-TI-021** | Handle Bot Removal from Team | ⚠️ PARTIAL (handler exists, needs testing) |
+| **UC-TI-021** | Handle Bot Removal from Team | ✅ **COMPLETE** |
 
 ### Phase 5: Message Display & UX
 
@@ -346,8 +346,8 @@ Relevant documentation:
 ### Medium Priority
 - [ ] Complete channel-to-event linking flow (UC-TI-019)
 - [x] Handle conversation reference expiration (UC-TI-025) ✅ **COMPLETE**
-- [ ] Announcements broadcast to Teams (UC-TI-012)
-- [ ] Bot removal detection (UC-TI-021)
+- [x] Announcements broadcast to Teams (UC-TI-012) ✅ **COMPLETE**
+- [x] Bot removal detection (UC-TI-021) ✅ **COMPLETE**
 
 ### Future (Post-POC)
 - [x] Microsoft 365 Agents SDK migration ✅ **COMPLETE** (branch: feature/agents-sdk-migration)
@@ -369,3 +369,6 @@ Relevant documentation:
 | 2025-12-04 | Conversation reference expiration handling (UC-TI-025) - validator, HTTP 410 responses |
 | 2025-12-04 | Production readiness improvements: health checks, diagnostics security, dependency checks |
 | 2025-12-04 | OpenTelemetry observability: Application Insights, request logging, metrics endpoints |
+| 2025-12-04 | Announcements broadcast to Teams (UC-TI-012) - API endpoint and service method |
+| 2025-12-04 | Unit tests for TeamsBot services (61 tests) |
+| 2025-12-04 | Bot removal detection (UC-TI-021) - deactivates ExternalChannelMapping when bot is removed |

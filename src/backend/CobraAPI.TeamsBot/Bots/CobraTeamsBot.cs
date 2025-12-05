@@ -273,6 +273,7 @@ _This integration is part of the COBRA Unified Communications system._";
 
     /// <summary>
     /// Called when members are removed from a team or the bot is uninstalled.
+    /// Handles UC-TI-021: Bot Removal Detection.
     /// </summary>
     protected override async Task OnMembersRemovedAsync(IList<ChannelAccount> membersRemoved, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
     {
@@ -283,17 +284,35 @@ _This integration is part of the COBRA Unified Communications system._";
         {
             if (member.Id == botId)
             {
+                var conversationId = activity.Conversation?.Id;
                 _logger.LogInformation(
                     "Bot removed from team/channel. Conversation: {ConversationId}",
-                    activity.Conversation?.Id);
+                    conversationId);
 
-                // Remove the conversation reference
-                if (activity.Conversation?.Id != null)
+                if (conversationId != null)
                 {
-                    await _conversationReferenceService.RemoveAsync(activity.Conversation.Id, cancellationToken);
-                }
+                    // Remove from local in-memory storage
+                    await _conversationReferenceService.RemoveAsync(conversationId, cancellationToken);
 
-                // TODO: In Phase 4 (UC-TI-021), deactivate ExternalChannelMapping
+                    // Notify CobraAPI to deactivate the ExternalChannelMapping (UC-TI-021)
+                    // This marks the mapping as inactive and clears the ConversationReference
+                    var removedBy = activity.From?.Name;
+                    var success = await _cobraApiClient.NotifyBotRemovedAsync(conversationId, removedBy);
+
+                    if (success)
+                    {
+                        _logger.LogInformation(
+                            "Successfully notified CobraAPI of bot removal from {ConversationId}",
+                            conversationId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Failed to notify CobraAPI of bot removal from {ConversationId}. " +
+                            "The ExternalChannelMapping may remain active until manually cleaned up.",
+                            conversationId);
+                    }
+                }
             }
         }
     }

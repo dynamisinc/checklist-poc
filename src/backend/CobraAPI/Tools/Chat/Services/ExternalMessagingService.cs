@@ -872,6 +872,121 @@ public class ExternalMessagingService : IExternalMessagingService
         }
     }
 
+    /// <summary>
+    /// Broadcasts an announcement to all active Teams channels for an event.
+    /// Unlike regular messages, announcements are sent to ALL Teams channels,
+    /// not just the one linked to a specific thread.
+    /// </summary>
+    public async Task<int> BroadcastAnnouncementToTeamsAsync(
+        Guid eventId,
+        string title,
+        string message,
+        string senderName,
+        string priority = "normal")
+    {
+        // Get event name for context
+        var eventName = await _dbContext.Events
+            .Where(e => e.Id == eventId)
+            .Select(e => e.Name)
+            .FirstOrDefaultAsync() ?? "Unknown Event";
+
+        // Get ALL active Teams channels for this event
+        var teamsChannels = await _dbContext.ExternalChannelMappings
+            .Where(m => m.EventId == eventId
+                     && m.IsActive
+                     && m.Platform == ExternalPlatform.Teams
+                     && m.ConversationReferenceJson != null)
+            .ToListAsync();
+
+        if (teamsChannels.Count == 0)
+        {
+            _logger.LogDebug("No active Teams channels for event {EventId}, skipping announcement broadcast", eventId);
+            return 0;
+        }
+
+        _logger.LogInformation(
+            "Broadcasting announcement '{Title}' to {Count} Teams channels for event {EventId}",
+            title, teamsChannels.Count, eventId);
+
+        var sentCount = 0;
+        var baseUrl = _teamsBotSettings.BaseUrl?.TrimEnd('/');
+
+        if (string.IsNullOrEmpty(baseUrl))
+        {
+            _logger.LogWarning("TeamsBot is not configured - cannot send announcement to Teams");
+            return 0;
+        }
+
+        foreach (var channel in teamsChannels)
+        {
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(15);
+
+                // Add API key header if configured
+                if (!string.IsNullOrEmpty(_teamsBotSettings.ApiKey))
+                {
+                    client.DefaultRequestHeaders.Add("X-Api-Key", _teamsBotSettings.ApiKey);
+                }
+
+                // Format announcement message with priority indicator
+                var formattedMessage = priority.ToLower() switch
+                {
+                    "urgent" => $"\u26a0\ufe0f **URGENT: {title}**\n\n{message}",
+                    "high" => $"\u2757 **{title}**\n\n{message}",
+                    _ => $"\ud83d\udce2 **{title}**\n\n{message}"
+                };
+
+                var payload = new
+                {
+                    conversationId = channel.ExternalGroupId,
+                    conversationReferenceJson = channel.ConversationReferenceJson,
+                    message = formattedMessage,
+                    senderName = senderName,
+                    eventName = eventName,
+                    channelName = "Announcement",
+                    isAnnouncement = true,
+                    priority = priority
+                };
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(payload),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PostAsync($"{baseUrl}/api/internal/send", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    sentCount++;
+                    _logger.LogDebug(
+                        "Sent announcement to Teams channel {ChannelId} ({ChannelName})",
+                        channel.Id, channel.ExternalGroupName);
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning(
+                        "Failed to send announcement to Teams channel {ChannelId}: {StatusCode} - {Error}",
+                        channel.Id, response.StatusCode, errorContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Exception sending announcement to Teams channel {ChannelId}",
+                    channel.Id);
+            }
+        }
+
+        _logger.LogInformation(
+            "Announcement broadcast complete: {Sent}/{Total} Teams channels received announcement",
+            sentCount, teamsChannels.Count);
+
+        return sentCount;
+    }
+
     #endregion
 
     #region Helpers

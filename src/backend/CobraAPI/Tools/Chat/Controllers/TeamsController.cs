@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CobraAPI.Core.Data;
+using CobraAPI.Core.Models;
 using CobraAPI.Tools.Chat.Models.DTOs;
 using CobraAPI.Tools.Chat.Models.Entities;
+using CobraAPI.Tools.Chat.Services;
 
 namespace CobraAPI.Tools.Chat.Controllers;
 
@@ -17,12 +19,25 @@ namespace CobraAPI.Tools.Chat.Controllers;
 public class TeamsController : ControllerBase
 {
     private readonly CobraDbContext _dbContext;
+    private readonly IExternalMessagingService _externalMessagingService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<TeamsController> _logger;
 
-    public TeamsController(CobraDbContext dbContext, ILogger<TeamsController> logger)
+    public TeamsController(
+        CobraDbContext dbContext,
+        IExternalMessagingService externalMessagingService,
+        IHttpContextAccessor httpContextAccessor,
+        ILogger<TeamsController> logger)
     {
         _dbContext = dbContext;
+        _externalMessagingService = externalMessagingService;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+    }
+
+    private UserContext? GetUserContext()
+    {
+        return _httpContextAccessor.HttpContext?.Items["UserContext"] as UserContext;
     }
 
     /// <summary>
@@ -310,4 +325,164 @@ public class TeamsController : ControllerBase
 
         return Ok(new { message = "Connector reactivated", mappingId });
     }
+
+    /// <summary>
+    /// Broadcast an announcement to all Teams channels for an event.
+    /// This sends the announcement to ALL connected Teams channels, not just one.
+    /// </summary>
+    [HttpPost("announcements/broadcast")]
+    [ProducesResponseType(typeof(AnnouncementBroadcastResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> BroadcastAnnouncement([FromBody] AnnouncementBroadcastRequest request)
+    {
+        // Validate event exists
+        var eventExists = await _dbContext.Events.AnyAsync(e => e.Id == request.EventId);
+        if (!eventExists)
+        {
+            return NotFound(new { error = "Event not found" });
+        }
+
+        // Get sender name from user context or request
+        var userContext = GetUserContext();
+        var senderName = request.SenderName ?? userContext?.FullName ?? "COBRA";
+
+        _logger.LogInformation(
+            "Broadcasting announcement '{Title}' to Teams for event {EventId} by {Sender}",
+            request.Title, request.EventId, senderName);
+
+        var sentCount = await _externalMessagingService.BroadcastAnnouncementToTeamsAsync(
+            request.EventId,
+            request.Title,
+            request.Message,
+            senderName,
+            request.Priority ?? "normal");
+
+        return Ok(new AnnouncementBroadcastResponse
+        {
+            Success = sentCount > 0,
+            ChannelsSent = sentCount,
+            Message = sentCount > 0
+                ? $"Announcement sent to {sentCount} Teams channel(s)"
+                : "No active Teams channels found for this event"
+        });
+    }
+
+    /// <summary>
+    /// Handle notification that bot has been removed from a Teams conversation.
+    /// This deactivates the ExternalChannelMapping and clears the ConversationReference.
+    /// Called by TeamsBot when OnMembersRemovedAsync detects bot removal.
+    /// UC-TI-021: Bot Removal Detection.
+    /// </summary>
+    [HttpPost("bot-removed/{conversationId}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> NotifyBotRemoved(
+        string conversationId,
+        [FromBody] BotRemovedRequest? request = null)
+    {
+        var decodedConversationId = Uri.UnescapeDataString(conversationId);
+
+        _logger.LogInformation(
+            "Received bot removal notification for conversation {ConversationId}, removed by {RemovedBy}",
+            decodedConversationId, request?.RemovedBy ?? "unknown");
+
+        // Find the mapping by conversation ID
+        var mapping = await _dbContext.ExternalChannelMappings
+            .FirstOrDefaultAsync(m =>
+                m.Platform == ExternalPlatform.Teams &&
+                m.ExternalGroupId == decodedConversationId);
+
+        if (mapping == null)
+        {
+            _logger.LogDebug(
+                "No mapping found for conversation {ConversationId} during bot removal",
+                decodedConversationId);
+            return NotFound(new { error = "No mapping found for this conversation" });
+        }
+
+        // Deactivate the mapping
+        mapping.IsActive = false;
+        mapping.ConversationReferenceJson = null; // Clear the reference since bot is removed
+        mapping.LastModifiedBy = "TeamsBot:BotRemoved";
+        mapping.LastModifiedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Deactivated Teams mapping {MappingId} (conversation: {ConversationId}) due to bot removal. " +
+            "Removed by: {RemovedBy}",
+            mapping.Id, decodedConversationId, request?.RemovedBy ?? "unknown");
+
+        return Ok(new
+        {
+            message = "Mapping deactivated due to bot removal",
+            mappingId = mapping.Id,
+            conversationId = decodedConversationId
+        });
+    }
+}
+
+/// <summary>
+/// Request body for bot removal notification.
+/// </summary>
+public class BotRemovedRequest
+{
+    /// <summary>
+    /// Optional name of the user who removed the bot.
+    /// </summary>
+    public string? RemovedBy { get; set; }
+}
+
+/// <summary>
+/// Request to broadcast an announcement to Teams.
+/// </summary>
+public class AnnouncementBroadcastRequest
+{
+    /// <summary>
+    /// The event ID to broadcast to.
+    /// </summary>
+    public Guid EventId { get; set; }
+
+    /// <summary>
+    /// The announcement title (displayed in bold).
+    /// </summary>
+    public required string Title { get; set; }
+
+    /// <summary>
+    /// The announcement message content.
+    /// </summary>
+    public required string Message { get; set; }
+
+    /// <summary>
+    /// Optional sender name override. If not provided, uses authenticated user's name.
+    /// </summary>
+    public string? SenderName { get; set; }
+
+    /// <summary>
+    /// Priority level: "normal", "high", or "urgent".
+    /// Default is "normal".
+    /// </summary>
+    public string? Priority { get; set; }
+}
+
+/// <summary>
+/// Response from announcement broadcast.
+/// </summary>
+public class AnnouncementBroadcastResponse
+{
+    /// <summary>
+    /// Whether any channels received the announcement.
+    /// </summary>
+    public bool Success { get; set; }
+
+    /// <summary>
+    /// Number of Teams channels the announcement was sent to.
+    /// </summary>
+    public int ChannelsSent { get; set; }
+
+    /// <summary>
+    /// Human-readable status message.
+    /// </summary>
+    public required string Message { get; set; }
 }

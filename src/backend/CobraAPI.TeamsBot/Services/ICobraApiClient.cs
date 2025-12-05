@@ -55,6 +55,15 @@ public interface ICobraApiClient
     /// <param name="conversationId">The Teams conversation ID.</param>
     /// <returns>The conversation reference JSON, or null if not found.</returns>
     Task<GetConversationReferenceResult?> GetConversationReferenceAsync(string conversationId);
+
+    /// <summary>
+    /// Notifies CobraAPI that the bot has been removed from a Teams conversation.
+    /// This deactivates the corresponding ExternalChannelMapping.
+    /// </summary>
+    /// <param name="conversationId">The Teams conversation ID.</param>
+    /// <param name="removedBy">Optional name of the user who removed the bot.</param>
+    /// <returns>True if the notification was processed successfully.</returns>
+    Task<bool> NotifyBotRemovedAsync(string conversationId, string? removedBy = null);
 }
 
 /// <summary>
