@@ -9,20 +9,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Bot Framework SDK v4 -->
-    <PackageReference Include="Microsoft.Bot.Builder" Version="4.22.9" />
-    <PackageReference Include="Microsoft.Bot.Builder.Integration.AspNet.Core" Version="4.22.9" />
+    <!-- Microsoft 365 Agents SDK (migrated from Bot Framework SDK v4) -->
+    <!-- See: https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/bf-migration-dotnet -->
+    <PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.0.1" />
+    <PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.0.1" />
+    <PackageReference Include="Microsoft.Agents.Extensions.Teams" Version="1.0.1" />
 
-    <!-- Teams-specific extensions -->
-    <PackageReference Include="Microsoft.Bot.Connector" Version="4.22.9" />
-
-    <!-- Configuration and DI -->
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <!-- Configuration and DI - Updated for Agents SDK compatibility -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.1" />
 
     <!-- Logging -->
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.1" />
 
     <!-- Swagger for API documentation -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />

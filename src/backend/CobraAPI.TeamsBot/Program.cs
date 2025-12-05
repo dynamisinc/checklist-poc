@@ -1,9 +1,10 @@
 using CobraAPI.TeamsBot.Bots;
 using CobraAPI.TeamsBot.Models;
 using CobraAPI.TeamsBot.Services;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Builder.Integration.AspNet.Core;
-using Microsoft.Bot.Connector.Authentication;
+using Microsoft.Agents.Builder;
+using Microsoft.Agents.Builder.State;
+using Microsoft.Agents.Hosting.AspNetCore;
+using Microsoft.Agents.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,12 +23,23 @@ builder.Services.AddLogging(logging =>
     logging.AddDebug();
 });
 
-// Configure Bot Framework Authentication
-// For POC, we support both authenticated (Azure) and unauthenticated (local emulator) modes
-builder.Services.AddSingleton<BotFrameworkAuthentication, ConfigurationBotFrameworkAuthentication>();
+builder.Services.AddHttpClient();
 
-// Create the Bot Framework Adapter with error handling
-builder.Services.AddSingleton<IBotFrameworkHttpAdapter, AdapterWithErrorHandler>();
+// Configure Microsoft 365 Agents SDK
+// Register the agent (replaces IBot registration)
+builder.AddAgent<CobraTeamsBot>();
+
+// Add authentication and authorization for Agents SDK
+// For POC/Development: Using basic authentication setup
+// For Production: Configure proper JWT token validation with Azure AD
+builder.Services.AddAuthentication()
+    .AddJwtBearer(options =>
+    {
+        // Token validation will be configured for production via Azure AD
+        // For POC, we allow requests to pass through
+        options.RequireHttpsMetadata = false;
+    });
+builder.Services.AddAuthorization();
 
 // Create the storage for conversation state
 // For POC, use in-memory storage. For production, use Azure Blob Storage or CosmosDB
@@ -48,9 +60,6 @@ builder.Services.AddHttpClient<ICobraApiClient, CobraApiClient>();
 
 // Configure Bot settings (display name, etc.)
 builder.Services.Configure<BotSettings>(builder.Configuration.GetSection("Bot"));
-
-// Register the main bot
-builder.Services.AddTransient<IBot, CobraTeamsBot>();
 
 // Configure CORS for development
 builder.Services.AddCors(options =>
@@ -74,8 +83,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Map the bot messages endpoint using Agents SDK pattern
+app.MapPost("/api/messages", async (
+    HttpRequest request,
+    HttpResponse response,
+    IAgentHttpAdapter adapter,
+    IAgent agent,
+    CancellationToken cancellationToken) =>
+{
+    await adapter.ProcessAsync(request, response, agent, cancellationToken);
+}).RequireAuthorization();
 
 // Log startup information
 var logger = app.Services.GetRequiredService<ILogger<Program>>();

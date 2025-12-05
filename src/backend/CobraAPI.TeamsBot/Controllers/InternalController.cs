@@ -1,11 +1,12 @@
+using System.Security.Claims;
 using System.Text.Json;
 using CobraAPI.TeamsBot.Middleware;
 using CobraAPI.TeamsBot.Models;
 using CobraAPI.TeamsBot.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Builder.Integration.AspNet.Core;
-using Microsoft.Bot.Schema;
+using Microsoft.Agents.Builder;
+using Microsoft.Agents.Hosting.AspNetCore;
+using Microsoft.Agents.Core.Models;
 
 namespace CobraAPI.TeamsBot.Controllers;
 
@@ -20,13 +21,13 @@ namespace CobraAPI.TeamsBot.Controllers;
 public class InternalController : ControllerBase
 {
     private readonly IConversationReferenceService _conversationReferenceService;
-    private readonly IBotFrameworkHttpAdapter _adapter;
+    private readonly IAgentHttpAdapter _adapter;
     private readonly IConfiguration _configuration;
     private readonly ILogger<InternalController> _logger;
 
     public InternalController(
         IConversationReferenceService conversationReferenceService,
-        IBotFrameworkHttpAdapter adapter,
+        IAgentHttpAdapter adapter,
         IConfiguration configuration,
         ILogger<InternalController> logger)
     {
@@ -98,46 +99,67 @@ public class InternalController : ControllerBase
             string? sentMessageId = null;
 
             // Use the adapter to continue the conversation and send the message
+            // In Agents SDK, we use ChannelServiceAdapterBase.ContinueConversationAsync with ClaimsIdentity
             var appId = _configuration["MicrosoftAppId"] ?? string.Empty;
 
-            await ((CloudAdapter)_adapter).ContinueConversationAsync(
-                botAppId: appId,
-                reference,
-                async (turnContext, cancellationToken) =>
+            // Create a ClaimsIdentity for the bot
+            var claimsIdentity = new ClaimsIdentity(new[]
+            {
+                new Claim("appid", appId),
+                new Claim("aud", appId)
+            });
+
+            // Cast to ChannelServiceAdapterBase to access ContinueConversationAsync
+            if (_adapter is ChannelServiceAdapterBase channelAdapter)
+            {
+                await channelAdapter.ContinueConversationAsync(
+                    claimsIdentity,
+                    reference,
+                    async (turnContext, cancellationToken) =>
+                    {
+                        // Format the message with sender attribution
+                        // Include event/channel context when multiple channels share this Teams conversation
+                        string formattedMessage;
+                        if (request.HasMultipleChannels && !string.IsNullOrEmpty(request.ChannelName))
+                        {
+                            // Show channel context: [Event: Channel] [Sender] Message
+                            var channelContext = !string.IsNullOrEmpty(request.EventName)
+                                ? $"{request.EventName}: {request.ChannelName}"
+                                : request.ChannelName;
+                            formattedMessage = $"**[{channelContext}]** **[{request.SenderName}]** {request.Message}";
+                        }
+                        else
+                        {
+                            // Simple format for single channel: [Sender] Message
+                            formattedMessage = $"**[{request.SenderName}]** {request.Message}";
+                        }
+
+                        IActivity activity;
+                        if (request.UseAdaptiveCard)
+                        {
+                            // For future: Create an Adaptive Card for rich formatting
+                            // For now, just use text
+                            activity = MessageFactory.Text(formattedMessage);
+                        }
+                        else
+                        {
+                            activity = MessageFactory.Text(formattedMessage);
+                        }
+
+                        var response = await turnContext.SendActivityAsync(activity, cancellationToken);
+                        sentMessageId = response?.Id;
+                    },
+                    default);
+            }
+            else
+            {
+                _logger.LogError("Adapter does not support ContinueConversationAsync");
+                return StatusCode(500, new TeamsSendResponse
                 {
-                    // Format the message with sender attribution
-                    // Include event/channel context when multiple channels share this Teams conversation
-                    string formattedMessage;
-                    if (request.HasMultipleChannels && !string.IsNullOrEmpty(request.ChannelName))
-                    {
-                        // Show channel context: [Event: Channel] [Sender] Message
-                        var channelContext = !string.IsNullOrEmpty(request.EventName)
-                            ? $"{request.EventName}: {request.ChannelName}"
-                            : request.ChannelName;
-                        formattedMessage = $"**[{channelContext}]** **[{request.SenderName}]** {request.Message}";
-                    }
-                    else
-                    {
-                        // Simple format for single channel: [Sender] Message
-                        formattedMessage = $"**[{request.SenderName}]** {request.Message}";
-                    }
-
-                    IActivity activity;
-                    if (request.UseAdaptiveCard)
-                    {
-                        // For future: Create an Adaptive Card for rich formatting
-                        // For now, just use text
-                        activity = MessageFactory.Text(formattedMessage);
-                    }
-                    else
-                    {
-                        activity = MessageFactory.Text(formattedMessage);
-                    }
-
-                    var response = await turnContext.SendActivityAsync(activity, cancellationToken);
-                    sentMessageId = response?.Id;
-                },
-                default);
+                    Success = false,
+                    Error = "Adapter does not support proactive messaging"
+                });
+            }
 
             _logger.LogInformation(
                 "Successfully sent message to Teams conversation {ConversationId}, messageId: {MessageId}",
@@ -177,8 +199,8 @@ public class InternalController : ControllerBase
             conversationId = kvp.Key,
             serviceUrl = kvp.Value.ServiceUrl,
             channelId = kvp.Value.ChannelId,
-            botId = kvp.Value.Bot?.Id,
-            botName = kvp.Value.Bot?.Name
+            // Note: Bot property removed in Agents SDK - using Conversation info instead
+            conversationName = kvp.Value.Conversation?.Name
         });
 
         return Ok(new

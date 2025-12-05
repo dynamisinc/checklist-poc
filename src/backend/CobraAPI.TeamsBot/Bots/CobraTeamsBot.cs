@@ -1,10 +1,11 @@
 using System.Text.Json;
 using CobraAPI.TeamsBot.Models;
 using CobraAPI.TeamsBot.Services;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Builder.Teams;
-using Microsoft.Bot.Schema;
-using Microsoft.Bot.Schema.Teams;
+using Microsoft.Agents.Builder;
+using Microsoft.Agents.Builder.State;
+using Microsoft.Agents.Core.Models;
+using Microsoft.Agents.Extensions.Teams.Compat;
+using Microsoft.Agents.Extensions.Teams.Models;
 using Microsoft.Extensions.Options;
 
 namespace CobraAPI.TeamsBot.Bots;
@@ -20,6 +21,13 @@ namespace CobraAPI.TeamsBot.Bots;
 /// - Send COBRA messages to Teams channels
 /// - Handle bot installation/removal events
 /// - Manage conversation references for proactive messaging
+///
+/// Migration note: Updated from Bot Framework SDK v4 to Microsoft 365 Agents SDK.
+/// Namespace changes:
+/// - Microsoft.Bot.Builder -> Microsoft.Agents.Builder
+/// - Microsoft.Bot.Builder.Teams -> Microsoft.Agents.Extensions.Teams.Compat
+/// - Microsoft.Bot.Schema -> Microsoft.Agents.Core.Models
+/// - Microsoft.Bot.Schema.Teams -> Microsoft.Agents.Extensions.Teams.Models
 /// </remarks>
 public class CobraTeamsBot : TeamsActivityHandler
 {

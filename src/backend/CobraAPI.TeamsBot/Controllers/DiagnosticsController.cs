@@ -1,8 +1,9 @@
+using System.Security.Claims;
 using CobraAPI.TeamsBot.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Builder.Integration.AspNet.Core;
-using Microsoft.Bot.Schema;
+using Microsoft.Agents.Builder;
+using Microsoft.Agents.Hosting.AspNetCore;
+using Microsoft.Agents.Core.Models;
 
 namespace CobraAPI.TeamsBot.Controllers;
 
@@ -16,19 +17,19 @@ namespace CobraAPI.TeamsBot.Controllers;
 public class DiagnosticsController : ControllerBase
 {
     private readonly IConversationReferenceService _conversationReferenceService;
-    private readonly IBotFrameworkHttpAdapter _adapter;
-    private readonly IBot _bot;
+    private readonly IAgentHttpAdapter _adapter;
+    private readonly IAgent _agent;
     private readonly ILogger<DiagnosticsController> _logger;
 
     public DiagnosticsController(
         IConversationReferenceService conversationReferenceService,
-        IBotFrameworkHttpAdapter adapter,
-        IBot bot,
+        IAgentHttpAdapter adapter,
+        IAgent agent,
         ILogger<DiagnosticsController> logger)
     {
         _conversationReferenceService = conversationReferenceService;
         _adapter = adapter;
-        _bot = bot;
+        _agent = agent;
         _logger = logger;
     }
 
@@ -47,8 +48,8 @@ public class DiagnosticsController : ControllerBase
             conversationId = kvp.Key,
             serviceUrl = kvp.Value.ServiceUrl,
             channelId = kvp.Value.ChannelId,
-            botId = kvp.Value.Bot?.Id,
-            botName = kvp.Value.Bot?.Name
+            // Note: Bot property removed in Agents SDK - may be available via Activity context instead
+            conversationName = kvp.Value.Conversation?.Name
         });
 
         return Ok(new
@@ -77,23 +78,34 @@ public class DiagnosticsController : ControllerBase
 
         try
         {
-            // Use the adapter to continue the conversation
-            await ((CloudAdapter)_adapter).ContinueConversationAsync(
-                botAppId: string.Empty, // Empty for local testing
-                reference,
-                async (turnContext, cancellationToken) =>
-                {
-                    var formattedMessage = $"📢 **[COBRA]** {request.Message}";
-                    await turnContext.SendActivityAsync(MessageFactory.Text(formattedMessage), cancellationToken);
-                },
-                default);
+            // Create an empty ClaimsIdentity for local testing
+            var claimsIdentity = new ClaimsIdentity();
 
-            return Ok(new
+            // Cast to ChannelServiceAdapterBase to access ContinueConversationAsync
+            if (_adapter is ChannelServiceAdapterBase channelAdapter)
             {
-                success = true,
-                conversationId,
-                message = request.Message
-            });
+                await channelAdapter.ContinueConversationAsync(
+                    claimsIdentity,
+                    reference,
+                    async (turnContext, cancellationToken) =>
+                    {
+                        var formattedMessage = $"📢 **[COBRA]** {request.Message}";
+                        await turnContext.SendActivityAsync(MessageFactory.Text(formattedMessage), cancellationToken);
+                    },
+                    default);
+
+                return Ok(new
+                {
+                    success = true,
+                    conversationId,
+                    message = request.Message
+                });
+            }
+            else
+            {
+                _logger.LogError("Adapter does not support ContinueConversationAsync");
+                return StatusCode(500, new { error = "Adapter does not support proactive messaging" });
+            }
         }
         catch (Exception ex)
         {
@@ -122,16 +134,14 @@ public class DiagnosticsController : ControllerBase
                 Name = "Test Conversation",
                 IsGroup = true
             },
-            Bot = new ChannelAccount
-            {
-                Id = "cobra-bot",
-                Name = "COBRA Bot"
-            },
+            // Note: In Agents SDK, User property represents the user in the conversation
             User = new ChannelAccount
             {
                 Id = "test-user",
                 Name = "Test User"
             }
+            // Note: Bot property is not directly on ConversationReference in Agents SDK
+            // It's populated from Activity context during message handling
         };
 
         await _conversationReferenceService.AddOrUpdateAsync(testConversationId, testReference);
