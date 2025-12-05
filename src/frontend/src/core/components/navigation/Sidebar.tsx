@@ -1,12 +1,11 @@
 /**
  * Sidebar Component - Collapsible Left Navigation
  *
- * Implements C5-style left sidebar with:
+ * Implements COBRA-style left sidebar with:
  * - Collapsible icon rail (64px closed, 288px open)
  * - Tools section with navigation items
- * - Placeholder tools for future implementation
  *
- * Based on C5 Logbook/Dashboard navigation pattern.
+ * Based on COBRA navigation pattern.
  */
 
 import React from "react";
@@ -30,27 +29,15 @@ import {
   faClipboardList,
   faChevronLeft,
   faChevronRight,
-  faComments,
-  faTableCells,
-  faTimeline,
-  faRobot,
-  faCalendarAlt,
-  faListCheck,
-  faBrain,
-  faFileLines,
-  faGear,
+  faHome,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
-import { usePermissions } from "../../../shared/hooks/usePermissions";
-import { useFeatureFlags } from "../../../admin/contexts/FeatureFlagsContext";
-import type { FeatureFlags } from "../../../admin/types/featureFlags";
 
 interface NavItem {
   id: string;
   label: string;
   icon: IconDefinition;
   path: string;
-  featureFlag?: keyof FeatureFlags; // Maps to feature flag key
   disabled?: boolean;
   badge?: string;
 }
@@ -72,8 +59,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const permissions = usePermissions();
-  const { isVisible, isComingSoon } = useFeatureFlags();
 
   const drawerWidth = open
     ? theme.cssStyling.drawerOpenWidth
@@ -81,90 +66,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Top-level navigation item
   const topNavItem: NavItem = {
-    id: "events",
-    label: "Events",
-    icon: faCalendarAlt,
-    path: "/events",
+    id: "home",
+    label: "Home",
+    icon: faHome,
+    path: "/",
   };
 
-  // Tools navigation items - matches C5 pattern
-  // Feature flags control visibility and enabled state
-  const allToolItems: NavItem[] = [
+  // Tools navigation items
+  const toolItems: NavItem[] = [
     {
-      id: "checklist",
-      label: "Checklist",
+      id: "notes",
+      label: "Notes",
       icon: faClipboardList,
-      path: "/checklists/dashboard",
-      featureFlag: "checklist",
+      path: "/notes",
     },
-    {
-      id: "chat",
-      label: "Chat",
-      icon: faComments,
-      path: "/chat/dashboard",
-      featureFlag: "chat",
-    },
-    {
-      id: "tasking",
-      label: "Tasking",
-      icon: faListCheck,
-      path: "/tasking",
-      featureFlag: "tasking",
-    },
-    {
-      id: "cobra-kai",
-      label: "COBRA KAI",
-      icon: faBrain,
-      path: "/cobra-kai",
-      featureFlag: "cobraKai",
-    },
-    {
-      id: "event-summary",
-      label: "Event Summary",
-      icon: faFileLines,
-      path: "/event-summary",
-      featureFlag: "eventSummary",
-    },
-    {
-      id: "status-chart",
-      label: "Status Chart",
-      icon: faTableCells,
-      path: "/status-chart",
-      featureFlag: "statusChart",
-    },
-    {
-      id: "event-timeline",
-      label: "Event Timeline",
-      icon: faTimeline,
-      path: "/timeline",
-      featureFlag: "eventTimeline",
-    },
-    {
-      id: "cobra-ai",
-      label: "COBRA AI",
-      icon: faRobot,
-      path: "/ai",
-      featureFlag: "cobraAi",
-    },
+    // Add more tools here as they are implemented
   ];
-
-  // Filter and enhance tools based on feature flags
-  const toolItems = allToolItems
-    .filter((item) => !item.featureFlag || isVisible(item.featureFlag))
-    .map((item) => {
-      if (item.featureFlag && isComingSoon(item.featureFlag)) {
-        return { ...item, disabled: true, badge: "Coming Soon" };
-      }
-      return item;
-    });
-
-  // Admin navigation item - only visible for Manage role
-  const adminNavItem: NavItem = {
-    id: "admin",
-    label: "Admin",
-    icon: faGear,
-    path: "/admin",
-  };
 
   const handleNavClick = (item: NavItem) => {
     if (item.disabled) return;
@@ -175,18 +92,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isActive = (path: string) => {
-    if (path === "/events") {
-      // Events is active for /events routes
-      return location.pathname === "/events" ||
-        location.pathname.startsWith("/events/");
-    }
-    if (path === "/checklists/dashboard") {
-      // Checklist tool is active for all /checklists/* routes
-      return location.pathname.startsWith("/checklists");
-    }
-    if (path === "/chat/dashboard") {
-      // Chat tool is active for all /chat/* routes
-      return location.pathname.startsWith("/chat");
+    if (path === "/") {
+      return location.pathname === "/";
     }
     return location.pathname.startsWith(path);
   };
@@ -199,6 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         height: "100%",
         backgroundColor: theme.palette.background.paper,
       }}
+      data-testid="sidebar-content"
     >
       {/* Sidebar Header with collapse toggle */}
       <Box
@@ -216,6 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <IconButton
           onClick={onToggle}
           size="small"
+          data-testid="sidebar-toggle"
           sx={{
             color: theme.palette.primary.dark,
             "&:hover": {
@@ -232,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Main Navigation */}
       <Box sx={{ flex: 1, pt: 1 }}>
-        {/* Events Navigation Item */}
+        {/* Home Navigation Item */}
         <List sx={{ pt: 0, pb: 0 }}>
           <ListItem disablePadding sx={{ display: "block" }}>
             <Tooltip
@@ -242,6 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <ListItemButton
                 onClick={() => handleNavClick(topNavItem)}
+                data-testid={`nav-item-${topNavItem.id}`}
                 sx={{
                   minHeight: 44,
                   justifyContent: open ? "flex-start" : "center",
@@ -295,6 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {open && (
           <Typography
             variant="overline"
+            data-testid="tools-section-label"
             sx={{
               px: 2,
               py: 1,
@@ -328,6 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <ListItemButton
                     onClick={() => handleNavClick(item)}
                     disabled={item.disabled}
+                    data-testid={`nav-item-${item.id}`}
                     sx={{
                       minHeight: 44,
                       justifyContent: open ? "flex-start" : "center",
@@ -385,74 +297,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </List>
       </Box>
-
-      {/* Admin Section - pinned to bottom, only visible for Manage role */}
-      {permissions.canViewTemplateLibrary && (
-        <Box
-          sx={{
-            borderTop: `1px solid ${theme.palette.divider}`,
-            py: 1,
-          }}
-        >
-          <List sx={{ pt: 0, pb: 0 }}>
-            <ListItem disablePadding sx={{ display: "block" }}>
-              <Tooltip
-                title={!open ? adminNavItem.label : ""}
-                placement="right"
-                arrow
-              >
-                <ListItemButton
-                  onClick={() => handleNavClick(adminNavItem)}
-                  sx={{
-                    minHeight: 44,
-                    justifyContent: open ? "flex-start" : "center",
-                    px: 2,
-                    mx: open ? 1 : 0.5,
-                    my: 0.25,
-                    borderRadius: 1,
-                    backgroundColor: isActive(adminNavItem.path)
-                      ? theme.palette.grid.main
-                      : "transparent",
-                    borderLeft: isActive(adminNavItem.path) && open
-                      ? `3px solid ${theme.palette.buttonPrimary.main}`
-                      : open ? "3px solid transparent" : "none",
-                    "&:hover": {
-                      backgroundColor: isActive(adminNavItem.path)
-                        ? theme.palette.grid.main
-                        : theme.palette.grid.light,
-                    },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: 0,
-                      mr: open ? 2 : "auto",
-                      justifyContent: "center",
-                      color: isActive(adminNavItem.path)
-                        ? theme.palette.buttonPrimary.main
-                        : theme.palette.text.primary,
-                    }}
-                  >
-                    <FontAwesomeIcon icon={adminNavItem.icon} fixedWidth />
-                  </ListItemIcon>
-                  {open && (
-                    <ListItemText
-                      primary={adminNavItem.label}
-                      primaryTypographyProps={{
-                        fontSize: 14,
-                        fontWeight: isActive(adminNavItem.path) ? 600 : 400,
-                        color: isActive(adminNavItem.path)
-                          ? theme.palette.buttonPrimary.main
-                          : theme.palette.text.primary,
-                      }}
-                    />
-                  )}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          </List>
-        </Box>
-      )}
     </Box>
   );
 
@@ -466,6 +310,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ModalProps={{
           keepMounted: true,
         }}
+        data-testid="sidebar-mobile"
         sx={{
           display: { xs: "block", md: "none" },
           "& .MuiDrawer-paper": {
@@ -483,6 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <Drawer
       variant="permanent"
+      data-testid="sidebar-desktop"
       sx={{
         width: drawerWidth,
         flexShrink: 0,

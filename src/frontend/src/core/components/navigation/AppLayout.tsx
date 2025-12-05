@@ -1,10 +1,9 @@
 /**
  * AppLayout Component - Main Application Layout
  *
- * Implements C5-style layout with:
+ * Implements COBRA-style layout with:
  * - Fixed top header (54px)
  * - Collapsible left sidebar (64px closed, 288px open)
- * - Collapsible right chat sidebar (resizable)
  * - Breadcrumb navigation
  * - Main content area
  *
@@ -21,7 +20,6 @@ import { AppHeader } from "./AppHeader";
 import { Sidebar } from "./Sidebar";
 import { Breadcrumb, BreadcrumbItem } from "./Breadcrumb";
 import { PermissionRole } from "../../../types";
-import { ChatSidebar, useChatSidebar } from "../../../tools/chat";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -30,7 +28,7 @@ interface AppLayoutProps {
 }
 
 // Key for localStorage persistence
-const SIDEBAR_STATE_KEY = "cobra-sidebar-open";
+const SIDEBAR_STATE_KEY = "dynamis-sidebar-open";
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
@@ -65,8 +63,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     setMobileOpen(false);
   };
 
-  const handleProfileChange = (positions: string[], role: PermissionRole) => {
-    console.log("[AppLayout] Profile changed - Positions:", positions, "Role:", role);
+  const handleProfileChange = (role: PermissionRole) => {
+    console.log("[AppLayout] Profile changed - Role:", role);
   };
 
   // Calculate content margin based on sidebar state
@@ -74,11 +72,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     ? theme.cssStyling.drawerOpenWidth
     : theme.cssStyling.drawerClosedWidth;
 
-  // Get chat sidebar state
-  const { isOpen: chatSidebarOpen, width: chatSidebarWidth } = useChatSidebar();
-
   return (
-    <Box sx={{ minHeight: "100vh" }}>
+    <Box sx={{ minHeight: "100vh" }} data-testid="app-layout">
       {/* Top Header */}
       <AppHeader
         onMobileMenuToggle={handleMobileMenuToggle}
@@ -102,6 +97,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Main Content Area - contains breadcrumb + workspace */}
       <Box
         component="main"
+        data-testid="main-content"
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -113,8 +109,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             xs: 0,
             md: `${drawerWidth}px`,
           },
-          // Account for right chat sidebar width
-          mr: chatSidebarOpen ? `${chatSidebarWidth}px` : 0,
           transition: theme.transitions.create(["margin"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
@@ -130,19 +124,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Workspace - scrollable content area */}
         <Box
+          data-testid="workspace-content"
           sx={{
             flexGrow: 1,
             overflowY: "auto",
             overflowX: "hidden",
-            pr: 2,
+            p: 2,
           }}
         >
           {children}
         </Box>
       </Box>
-
-      {/* Right Chat Sidebar */}
-      <ChatSidebar />
     </Box>
   );
 };

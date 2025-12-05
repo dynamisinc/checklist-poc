@@ -11,5 +11,5 @@
 export { AppLayout } from "./AppLayout";
 export { AppHeader } from "./AppHeader";
 export { Sidebar } from "./Sidebar";
-export { Breadcrumb, useBreadcrumbs } from "./Breadcrumb";
+export { Breadcrumb } from "./Breadcrumb";
 export type { BreadcrumbItem } from "./Breadcrumb";
