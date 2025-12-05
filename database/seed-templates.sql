@@ -7,7 +7,7 @@
 --   3. Shelter Opening Checklist (15 items with status dropdowns)
 -- ============================================================================
 
-USE ChecklistPOC;
+USE COBRAPOC;
 GO
 
 -- Clear existing seed data if re-running

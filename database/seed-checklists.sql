@@ -12,7 +12,7 @@
 --   2. seed-templates.sql (creates Templates)
 -- ============================================================================
 
-USE ChecklistPOC;
+USE COBRAPOC;
 GO
 
 -- Clear existing checklist seed data if re-running

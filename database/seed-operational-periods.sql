@@ -12,7 +12,7 @@
 -- USAGE: Run this AFTER applying the above seed data
 -- ==========================================
 
-USE ChecklistPOC;
+USE COBRAPOC;
 GO
 
 -- Get the Event ID for Hurricane Milton (created by seed-events.sql)

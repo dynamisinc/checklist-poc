@@ -11,7 +11,8 @@
 -- seed-operational-periods.sql
 -- ============================================================================
 
-USE ChecklistPOC;
+USE COBRAPOC;
+SET QUOTED_IDENTIFIER ON;
 GO
 
 -- Clear existing event data if re-running
