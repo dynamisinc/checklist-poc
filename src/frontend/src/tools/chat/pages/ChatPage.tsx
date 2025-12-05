@@ -169,20 +169,6 @@ export const ChatPage: React.FC = () => {
     setTeamsDialogOpen(true);
   };
 
-  // Handle Teams channel connected (legacy - callback from dialog when creating new external channel)
-  const handleTeamsChannelConnected = (channel: ExternalChannelMappingDto) => {
-    setExternalChannels((prev) => {
-      if (prev.some((c) => c.id === channel.id)) {
-        return prev;
-      }
-      return [...prev, channel];
-    });
-    // Reload channels to get the new external channel in the list
-    loadChannels();
-    setTeamsDialogOpen(false);
-    toast.success('Teams channel connected!');
-  };
-
   // Handle Teams channel linked to existing channel
   const handleTeamsChannelLinked = (updatedChannel: ChatThreadDto) => {
     // Update the channels list with the linked channel
@@ -412,7 +398,6 @@ export const ChatPage: React.FC = () => {
           eventId={currentEvent.id}
           targetChannelId={selectedChannelId || undefined}
           targetChannelName={selectedChannel?.name}
-          onChannelConnected={handleTeamsChannelConnected}
           onChannelLinked={handleTeamsChannelLinked}
         />
       )}

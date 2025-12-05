@@ -142,18 +142,16 @@ export const ChatSidebar: React.FC = () => {
     setTeamsDialogOpen(true);
   };
 
-  // Handle Teams channel connected (callback from dialog)
-  const handleTeamsChannelConnected = (channel: ExternalChannelMappingDto) => {
-    setExternalChannels((prev) => {
-      if (prev.some((c) => c.id === channel.id)) {
-        return prev;
-      }
-      return [...prev, channel];
-    });
-    // Refresh channel list to show new external channel
+  // Handle Teams channel linked to existing COBRA channel (callback from dialog)
+  const handleTeamsChannelLinked = (updatedChannel: ChatThreadDto) => {
+    // Update selected channel if it's the one that was linked
+    if (selectedChannel?.id === updatedChannel.id) {
+      setSelectedChannel(updatedChannel);
+    }
+    // Refresh channel list and external channels
     setChannelListRefreshKey((prev) => prev + 1);
     setTeamsDialogOpen(false);
-    toast.success('Teams channel connected!');
+    toast.success(`Teams linked to "${updatedChannel.name}"! Messages will sync bidirectionally.`);
   };
 
   // Disconnect external channel
@@ -447,13 +445,15 @@ export const ChatSidebar: React.FC = () => {
         </Box>
       )}
 
-      {/* Teams Channel Dialog */}
+      {/* Teams Channel Dialog - Links Teams to the currently selected channel */}
       {currentEvent && (
         <TeamsChannelDialog
           open={teamsDialogOpen}
           onClose={() => setTeamsDialogOpen(false)}
           eventId={currentEvent.id}
-          onChannelConnected={handleTeamsChannelConnected}
+          targetChannelId={selectedChannel?.id}
+          targetChannelName={selectedChannel?.name}
+          onChannelLinked={handleTeamsChannelLinked}
         />
       )}
     </Box>

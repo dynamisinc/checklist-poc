@@ -290,12 +290,25 @@ export const chatService = {
   /**
    * Gets available Teams conversations from the TeamsBot service.
    * These are Teams channels where the bot has been installed.
+   * @deprecated Use getAvailableTeamsConnectors for event-level linking.
    */
   getTeamsConversations: async (): Promise<TeamsConversation[]> => {
     const response = await apiClient.get<TeamsConversationsResponse>(
       '/api/chat/diagnostics/teams-conversations'
     );
     return response.data.conversations || [];
+  },
+
+  /**
+   * Gets available Teams connectors that can be linked to channels in an event.
+   * Returns connectors that are active, have valid ConversationReferences,
+   * and includes whether they're already linked to a channel in this event.
+   */
+  getAvailableTeamsConnectors: async (eventId: string): Promise<AvailableTeamsConnector[]> => {
+    const response = await apiClient.get<AvailableTeamsConnector[]>(
+      `/api/events/${eventId}/chat/available-teams-connectors`
+    );
+    return response.data;
   },
 
   /**
@@ -388,6 +401,21 @@ interface CreateTeamsMappingResponse {
   teamsConversationId: string;
   webhookUrl: string;
   isExisting: boolean;
+}
+
+/**
+ * Available Teams connector for event-level linking.
+ */
+export interface AvailableTeamsConnector {
+  mappingId: string;
+  displayName: string;
+  conversationId: string;
+  tenantId?: string;
+  lastActivityAt?: string;
+  installedByName?: string;
+  createdAt: string;
+  isLinkedToThisEvent: boolean;
+  linkedChannelName?: string;
 }
 
 export default chatService;
