@@ -40,6 +40,9 @@ var otelBuilder = builder.Services.AddOpenTelemetry()
             ["service.instance.id"] = Environment.MachineName
         }));
 
+// Check if verbose OpenTelemetry console output is wanted (set Telemetry:VerboseConsole=true)
+var verboseOtelConsole = builder.Configuration.GetValue<bool>("Telemetry:VerboseConsole", false);
+
 // Configure tracing
 otelBuilder.WithTracing(tracing =>
 {
@@ -52,7 +55,8 @@ otelBuilder.WithTracing(tracing =>
         .AddHttpClientInstrumentation()
         .AddSource(serviceName); // Custom activity source for bot operations
 
-    if (builder.Environment.IsDevelopment())
+    // Console exporter is very verbose - only enable if explicitly requested
+    if (verboseOtelConsole)
     {
         tracing.AddConsoleExporter();
     }
@@ -66,7 +70,8 @@ otelBuilder.WithMetrics(metrics =>
         .AddHttpClientInstrumentation()
         .AddMeter(serviceName); // Custom meter for bot metrics
 
-    if (builder.Environment.IsDevelopment())
+    // Console exporter is very verbose - only enable if explicitly requested
+    if (verboseOtelConsole)
     {
         metrics.AddConsoleExporter();
     }
@@ -81,33 +86,41 @@ if (!string.IsNullOrEmpty(appInsightsConnectionString))
     });
     Console.WriteLine($"Application Insights configured: {appInsightsConnectionString[..Math.Min(30, appInsightsConnectionString.Length)]}...");
 }
-else
+else if (!builder.Environment.IsDevelopment())
 {
-    Console.WriteLine("Application Insights not configured. Set ApplicationInsights:ConnectionString or APPLICATIONINSIGHTS_CONNECTION_STRING for Azure monitoring.");
+    Console.WriteLine("WARNING: Application Insights not configured for production. Set ApplicationInsights:ConnectionString or APPLICATIONINSIGHTS_CONNECTION_STRING.");
 }
 
-// Configure structured logging with OpenTelemetry
-builder.Logging.ClearProviders();
-builder.Logging.AddOpenTelemetry(logging =>
-{
-    logging.IncludeFormattedMessage = true;
-    logging.IncludeScopes = true;
-
-    if (builder.Environment.IsDevelopment())
-    {
-        logging.AddConsoleExporter();
-    }
-});
-
-// Also add console for local development
+// Configure logging
+// In Development: Use standard console logging (clean, readable)
+// In Production: Use OpenTelemetry logging (exports to Application Insights if configured)
 if (builder.Environment.IsDevelopment())
 {
+    // Standard console logging for local development - clean and readable
     builder.Logging.AddConsole();
     builder.Logging.AddDebug();
     builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
+    // Optionally add OpenTelemetry console if verbose mode requested
+    if (verboseOtelConsole)
+    {
+        builder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+            logging.AddConsoleExporter();
+        });
+    }
 }
 else
 {
+    // Production: Use OpenTelemetry for structured logging to Application Insights
+    builder.Logging.ClearProviders();
+    builder.Logging.AddOpenTelemetry(logging =>
+    {
+        logging.IncludeFormattedMessage = true;
+        logging.IncludeScopes = true;
+    });
     builder.Logging.SetMinimumLevel(LogLevel.Information);
     builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
     builder.Logging.AddFilter("Microsoft.Agents", LogLevel.Warning);
