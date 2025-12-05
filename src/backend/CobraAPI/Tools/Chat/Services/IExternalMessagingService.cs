@@ -81,4 +81,13 @@ public interface IExternalMessagingService
         string message,
         string senderName,
         string priority = "normal");
+
+    /// <summary>
+    /// Gets available Teams connectors that can be linked to channels in an event.
+    /// Returns connectors that are active, have valid ConversationReferences,
+    /// and are not emulator connections.
+    /// </summary>
+    /// <param name="eventId">The event ID to check for existing links.</param>
+    /// <returns>List of available Teams connectors with their link status for this event.</returns>
+    Task<List<AvailableTeamsConnectorDto>> GetAvailableTeamsConnectorsAsync(Guid eventId);
 }

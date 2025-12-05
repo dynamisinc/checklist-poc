@@ -1,0 +1,61 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.1",
+  "id": "a4009dbb-e0f8-4546-b4dc-5c3fa5067796",
+  "developer": {
+    "name": "Dynamis",
+    "websiteUrl": "https://dynamis.com",
+    "privacyUrl": "https://dynamis.com/privacy",
+    "termsOfUseUrl": "https://dynamis.com/terms"
+  },
+  "name": {
+    "short": "COBRA Bot",
+    "full": "COBRA Emergency Communications Bot"
+  },
+  "description": {
+    "short": "COBRA event management bot",
+    "full": "COBRA Event Management Bot enables bi-directional messaging between Microsoft Teams channels and COBRA emergency events."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#0020C2",
+  "bots": [
+    {
+      "botId": "a4009dbb-e0f8-4546-b4dc-5c3fa5067796",
+      "scopes": [
+        "team",
+        "personal",
+        "groupChat"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "team",
+            "personal",
+            "groupChat"
+          ],
+          "commands": [
+            {
+              "title": "help",
+              "description": "Show available commands"
+            },
+            {
+              "title": "status",
+              "description": "Check connection status"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": []
+}

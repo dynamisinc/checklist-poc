@@ -150,3 +150,56 @@ public class PositionChannelDto
     public string? IconName { get; set; }
     public string? Color { get; set; }
 }
+
+/// <summary>
+/// DTO for Teams connectors available to link to an event's channels.
+/// These are connectors that are active, have conversation references, and are not emulators.
+/// </summary>
+public class AvailableTeamsConnectorDto
+{
+    /// <summary>
+    /// The ExternalChannelMapping ID.
+    /// </summary>
+    public Guid MappingId { get; set; }
+
+    /// <summary>
+    /// Display name of the Teams channel/conversation.
+    /// </summary>
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The Teams conversation ID.
+    /// </summary>
+    public string ConversationId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Microsoft 365 tenant ID (for multi-tenant filtering if needed).
+    /// </summary>
+    public string? TenantId { get; set; }
+
+    /// <summary>
+    /// When the bot last received activity from this conversation.
+    /// </summary>
+    public DateTime? LastActivityAt { get; set; }
+
+    /// <summary>
+    /// Name of the user who installed/first used the bot.
+    /// </summary>
+    public string? InstalledByName { get; set; }
+
+    /// <summary>
+    /// When the connector was first registered.
+    /// </summary>
+    public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Whether this connector is already linked to a channel in the current event.
+    /// If true, it's still available but already in use.
+    /// </summary>
+    public bool IsLinkedToThisEvent { get; set; }
+
+    /// <summary>
+    /// The channel name if linked to a channel in this event.
+    /// </summary>
+    public string? LinkedChannelName { get; set; }
+}

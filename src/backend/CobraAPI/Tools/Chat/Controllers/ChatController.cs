@@ -452,6 +452,22 @@ public class ChatController : ControllerBase
             return NotFound(ex.Message);
         }
     }
+
+    /// <summary>
+    /// Gets available Teams connectors that can be linked to channels in this event.
+    /// Returns connectors that are:
+    /// - Active
+    /// - Have a valid ConversationReference (can send messages)
+    /// - Not emulator connections
+    /// - Not already linked to a channel in THIS event
+    /// </summary>
+    [HttpGet("available-teams-connectors")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<AvailableTeamsConnectorDto>>> GetAvailableTeamsConnectors(Guid eventId)
+    {
+        var connectors = await _externalMessagingService.GetAvailableTeamsConnectorsAsync(eventId);
+        return Ok(connectors);
+    }
 }
 
 /// <summary>
