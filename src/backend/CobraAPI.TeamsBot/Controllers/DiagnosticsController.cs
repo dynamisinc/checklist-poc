@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using CobraAPI.TeamsBot.Middleware;
 using CobraAPI.TeamsBot.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Agents.Builder;
@@ -10,31 +11,37 @@ namespace CobraAPI.TeamsBot.Controllers;
 /// <summary>
 /// Diagnostic endpoints for testing the bot locally.
 /// These endpoints allow testing without the Bot Framework Emulator.
-/// WARNING: Disable or secure these endpoints in production.
+/// Disabled by default in production. Set Bot:EnableDiagnostics=true to enable.
+/// Requires API key authentication via ApiKeyAuth when enabled in production.
 /// </summary>
 [Route("api/[controller]")]
 [ApiController]
+[DiagnosticsEnabled]
+[ApiKeyAuth]
 public class DiagnosticsController : ControllerBase
 {
     private readonly IConversationReferenceService _conversationReferenceService;
+    private readonly IConversationReferenceValidator _referenceValidator;
     private readonly IAgentHttpAdapter _adapter;
     private readonly IAgent _agent;
     private readonly ILogger<DiagnosticsController> _logger;
 
     public DiagnosticsController(
         IConversationReferenceService conversationReferenceService,
+        IConversationReferenceValidator referenceValidator,
         IAgentHttpAdapter adapter,
         IAgent agent,
         ILogger<DiagnosticsController> logger)
     {
         _conversationReferenceService = conversationReferenceService;
+        _referenceValidator = referenceValidator;
         _adapter = adapter;
         _agent = agent;
         _logger = logger;
     }
 
     /// <summary>
-    /// List all stored conversation references.
+    /// List all stored conversation references with validation status.
     /// Useful for verifying proactive messaging setup.
     /// </summary>
     [HttpGet("conversations")]
@@ -43,19 +50,75 @@ public class DiagnosticsController : ControllerBase
     {
         var references = await _conversationReferenceService.GetAllAsync();
 
-        var result = references.Select(kvp => new
+        var result = references.Select(kvp =>
         {
-            conversationId = kvp.Key,
-            serviceUrl = kvp.Value.ServiceUrl,
-            channelId = kvp.Value.ChannelId,
-            // Note: Bot property removed in Agents SDK - may be available via Activity context instead
-            conversationName = kvp.Value.Conversation?.Name
+            var validation = _referenceValidator.Validate(kvp.Value);
+            return new
+            {
+                conversationId = kvp.Key,
+                serviceUrl = kvp.Value.ServiceUrl,
+                channelId = kvp.Value.ChannelId,
+                conversationName = kvp.Value.Conversation?.Name,
+                validationStatus = validation.Status.ToString(),
+                canAttemptSend = validation.CanAttemptSend
+            };
         });
 
         return Ok(new
         {
             count = references.Count,
             conversations = result
+        });
+    }
+
+    /// <summary>
+    /// Validate a specific conversation reference by ID.
+    /// </summary>
+    [HttpGet("conversations/{conversationId}/validate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ValidateConversation(string conversationId)
+    {
+        var reference = await _conversationReferenceService.GetAsync(conversationId);
+        var validation = _referenceValidator.Validate(reference);
+
+        return Ok(new
+        {
+            conversationId,
+            status = validation.Status.ToString(),
+            canAttemptSend = validation.CanAttemptSend,
+            message = validation.Message
+        });
+    }
+
+    /// <summary>
+    /// Remove invalid conversation references from in-memory storage.
+    /// Returns the list of removed references.
+    /// </summary>
+    [HttpPost("cleanup")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CleanupInvalidReferences()
+    {
+        var references = await _conversationReferenceService.GetAllAsync();
+        var removed = new List<string>();
+
+        foreach (var kvp in references)
+        {
+            var validation = _referenceValidator.Validate(kvp.Value);
+            if (!validation.CanAttemptSend)
+            {
+                await _conversationReferenceService.RemoveAsync(kvp.Key);
+                removed.Add(kvp.Key);
+                _logger.LogInformation(
+                    "Removed invalid conversation reference {ConversationId}: {Status}",
+                    kvp.Key, validation.Status);
+            }
+        }
+
+        return Ok(new
+        {
+            removedCount = removed.Count,
+            removed
         });
     }
 

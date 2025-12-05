@@ -49,6 +49,29 @@ public class CobraApiClient : ICobraApiClient
     }
 
     /// <summary>
+    /// Checks if CobraAPI is reachable and healthy.
+    /// </summary>
+    public async Task<bool> CheckHealthAsync()
+    {
+        if (string.IsNullOrEmpty(_settings.BaseUrl))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await _httpClient.GetAsync("api/health", cts.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "CobraAPI health check failed");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Sends a Teams message to the CobraAPI webhook endpoint with retry logic.
     /// </summary>
     public async Task<bool> SendWebhookAsync(Guid mappingId, TeamsWebhookPayload payload)

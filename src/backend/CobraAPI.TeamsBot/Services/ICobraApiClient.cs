@@ -10,6 +10,12 @@ namespace CobraAPI.TeamsBot.Services;
 public interface ICobraApiClient
 {
     /// <summary>
+    /// Checks if CobraAPI is reachable and healthy.
+    /// </summary>
+    /// <returns>True if the health check passes.</returns>
+    Task<bool> CheckHealthAsync();
+
+    /// <summary>
     /// Sends a Teams message to the CobraAPI webhook endpoint.
     /// </summary>
     /// <param name="mappingId">The external channel mapping ID in COBRA.</param>

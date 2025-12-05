@@ -54,6 +54,9 @@ builder.Services.AddSingleton<UserState>();
 // Register the conversation reference service
 builder.Services.AddSingleton<IConversationReferenceService, ConversationReferenceService>();
 
+// Register the conversation reference validator
+builder.Services.AddSingleton<IConversationReferenceValidator, ConversationReferenceValidator>();
+
 // Configure CobraAPI client for forwarding messages
 builder.Services.Configure<CobraApiSettings>(builder.Configuration.GetSection("CobraApi"));
 builder.Services.AddHttpClient<ICobraApiClient, CobraApiClient>();

@@ -14,7 +14,8 @@ namespace CobraAPI.TeamsBot.Controllers;
 /// Internal API endpoints for CobraAPI to send messages to Teams.
 /// These endpoints are called by CobraAPI when COBRA users send messages.
 /// Protected by API key authentication when CobraApi:ApiKey is configured.
-/// Includes retry logic for transient Teams API failures.
+/// Includes retry logic for transient Teams API failures and
+/// conversation reference validation to detect expired/uninstalled bots.
 /// </summary>
 [Route("api/[controller]")]
 [ApiController]
@@ -22,6 +23,7 @@ namespace CobraAPI.TeamsBot.Controllers;
 public class InternalController : ControllerBase
 {
     private readonly IConversationReferenceService _conversationReferenceService;
+    private readonly IConversationReferenceValidator _referenceValidator;
     private readonly IAgentHttpAdapter _adapter;
     private readonly IConfiguration _configuration;
     private readonly ILogger<InternalController> _logger;
@@ -29,11 +31,13 @@ public class InternalController : ControllerBase
 
     public InternalController(
         IConversationReferenceService conversationReferenceService,
+        IConversationReferenceValidator referenceValidator,
         IAgentHttpAdapter adapter,
         IConfiguration configuration,
         ILogger<InternalController> logger)
     {
         _conversationReferenceService = conversationReferenceService;
+        _referenceValidator = referenceValidator;
         _adapter = adapter;
         _configuration = configuration;
         _logger = logger;
@@ -96,14 +100,28 @@ public class InternalController : ControllerBase
             }
         }
 
-        if (reference == null)
+        // Validate the conversation reference
+        var validation = _referenceValidator.Validate(reference);
+        if (!validation.CanAttemptSend)
         {
-            _logger.LogWarning("No conversation reference found for {ConversationId}", request.ConversationId);
-            return NotFound(new TeamsSendResponse
+            _logger.LogWarning(
+                "Conversation reference validation failed for {ConversationId}: {Status} - {Message}",
+                request.ConversationId, validation.Status, validation.Message);
+
+            var statusCode = validation.SuggestedHttpStatusCode ?? 400;
+            return StatusCode(statusCode, new TeamsSendResponse
             {
                 Success = false,
-                Error = $"Conversation '{request.ConversationId}' not found. Bot may not be installed in this channel, or ConversationReference was not provided."
+                Error = validation.Message,
+                ReferenceStatus = validation.Status.ToString()
             });
+        }
+
+        if (validation.Status == ConversationReferenceStatus.PossiblyStale)
+        {
+            _logger.LogInformation(
+                "Conversation reference for {ConversationId} may be stale: {Message}. Will attempt to send.",
+                request.ConversationId, validation.Message);
         }
 
         // Cast to ChannelServiceAdapterBase to access ContinueConversationAsync
@@ -132,7 +150,7 @@ public class InternalController : ControllerBase
 
                 await channelAdapter.ContinueConversationAsync(
                     claimsIdentity,
-                    reference,
+                    reference!, // Null-check already done by validator
                     async (turnContext, cancellationToken) =>
                     {
                         // Format the message with sender attribution
@@ -175,8 +193,26 @@ public class InternalController : ControllerBase
             });
         }
 
-        // Failed after all retries
+        // Failed after all retries - check if reference has expired
         var errorMessage = result.LastException?.Message ?? "Unknown error sending message to Teams";
+
+        if (result.LastException != null && _referenceValidator.IsExpiredReferenceException(result.LastException))
+        {
+            var expirationResult = _referenceValidator.GetExpirationResult(result.LastException);
+            _logger.LogWarning(
+                "Conversation reference for {ConversationId} has expired (bot likely uninstalled): {Error}",
+                request.ConversationId, errorMessage);
+
+            // Return 410 Gone to indicate the reference is no longer valid
+            return StatusCode(410, new TeamsSendResponse
+            {
+                Success = false,
+                Error = expirationResult.Message,
+                Attempts = result.Attempts,
+                ReferenceStatus = ConversationReferenceStatus.Expired.ToString()
+            });
+        }
+
         _logger.LogError(result.LastException,
             "Failed to send message to Teams conversation {ConversationId} after {Attempts} attempts",
             request.ConversationId, result.Attempts);

@@ -78,8 +78,8 @@ The COBRA Teams integration is **substantially complete** at the POC level, with
 
 | Story ID | Title | Status |
 |----------|-------|--------|
-| **UC-TI-024** | Handle Teams API Failures | ⚠️ PARTIAL (basic try/catch, no retry) |
-| **UC-TI-025** | Handle Conversation Reference Expiration | 🔲 NOT STARTED |
+| **UC-TI-024** | Handle Teams API Failures | ✅ **COMPLETE** (exponential backoff with jitter) |
+| **UC-TI-025** | Handle Conversation Reference Expiration | ✅ **COMPLETE** (validator + HTTP 410 responses) |
 
 ### Phase 7: Documentation & Training
 
@@ -345,7 +345,7 @@ Relevant documentation:
 
 ### Medium Priority
 - [ ] Complete channel-to-event linking flow (UC-TI-019)
-- [ ] Handle conversation reference expiration (UC-TI-025)
+- [x] Handle conversation reference expiration (UC-TI-025) ✅ **COMPLETE**
 - [ ] Announcements broadcast to Teams (UC-TI-012)
 - [ ] Bot removal detection (UC-TI-021)
 
@@ -366,3 +366,5 @@ Relevant documentation:
 | 2025-12-04 | API key authentication added between services |
 | 2025-12-04 | Microsoft 365 Agents SDK migration completed (branch: feature/agents-sdk-migration) |
 | 2025-12-04 | Retry logic for transient failures implemented (UC-TI-024) |
+| 2025-12-04 | Conversation reference expiration handling (UC-TI-025) - validator, HTTP 410 responses |
+| 2025-12-04 | Production readiness improvements: health checks, diagnostics security, dependency checks |

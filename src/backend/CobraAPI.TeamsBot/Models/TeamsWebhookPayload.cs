@@ -160,4 +160,12 @@ public class TeamsSendResponse
     /// </summary>
     [JsonPropertyName("attempts")]
     public int Attempts { get; set; } = 1;
+
+    /// <summary>
+    /// Status of the conversation reference.
+    /// Values: "Valid", "Missing", "Invalid", "Expired", "PossiblyStale".
+    /// When "Expired", CobraAPI should mark the channel mapping as disconnected.
+    /// </summary>
+    [JsonPropertyName("referenceStatus")]
+    public string? ReferenceStatus { get; set; }
 }
